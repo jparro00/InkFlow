@@ -69,43 +69,43 @@ export default function BookingDrawer() {
         </div>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-border/40">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border/40">
           <button
             onClick={() => setSelectedBookingId(null)}
-            className="flex items-center gap-2 text-text-s active:text-text-p transition-colors cursor-pointer press-scale"
+            className="flex items-center gap-2.5 text-text-s active:text-text-p transition-colors cursor-pointer press-scale min-h-[44px]"
           >
-            <ArrowLeft size={18} />
-            <span className="text-sm">Back</span>
+            <ArrowLeft size={20} />
+            <span className="text-base">Back</span>
           </button>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => {
                 setSelectedBookingId(null);
                 openBookingForm(booking.id);
               }}
-              className="w-10 h-10 rounded-xl flex items-center justify-center text-text-s active:bg-surface transition-colors cursor-pointer press-scale"
+              className="w-12 h-12 rounded-xl flex items-center justify-center text-text-s active:bg-surface transition-colors cursor-pointer press-scale"
             >
-              <Edit size={18} />
+              <Edit size={20} />
             </button>
             <button
               onClick={handleDelete}
-              className="w-10 h-10 rounded-xl flex items-center justify-center text-text-s active:text-danger transition-colors cursor-pointer press-scale"
+              className="w-12 h-12 rounded-xl flex items-center justify-center text-text-s active:text-danger transition-colors cursor-pointer press-scale"
             >
-              <Trash2 size={18} />
+              <Trash2 size={20} />
             </button>
           </div>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-5">
+        <div className="flex-1 overflow-y-auto p-5 space-y-6">
           {/* Client */}
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-full bg-accent/10 flex items-center justify-center text-accent text-sm font-medium shrink-0">
-              {client ? client.name.charAt(0) : <User size={18} />}
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center text-accent text-base font-medium shrink-0">
+              {client ? client.name.charAt(0) : <User size={20} />}
             </div>
             <div>
-              <div className="text-text-p font-medium">{client?.name ?? 'Walk-in'}</div>
-              {client?.phone && <div className="text-xs text-text-s mt-0.5">{client.phone}</div>}
+              <div className="text-base text-text-p font-medium">{client?.name ?? 'Walk-in'}</div>
+              {client?.phone && <div className="text-sm text-text-s mt-0.5">{client.phone}</div>}
             </div>
           </div>
 
@@ -128,25 +128,25 @@ export default function BookingDrawer() {
               <div className="grid grid-cols-2 gap-4">
                 {booking.style && (
                   <div>
-                    <div className="text-xs text-text-t uppercase tracking-wider mb-1 font-medium">Style</div>
+                    <div className="text-sm text-text-t uppercase tracking-wider mb-1.5 font-medium">Style</div>
                     <div className="text-sm text-text-p">{booking.style}</div>
                   </div>
                 )}
                 {booking.placement && (
                   <div>
-                    <div className="text-xs text-text-t uppercase tracking-wider mb-1 font-medium">Placement</div>
+                    <div className="text-sm text-text-t uppercase tracking-wider mb-1.5 font-medium">Placement</div>
                     <div className="text-sm text-text-p">{booking.placement}</div>
                   </div>
                 )}
                 {booking.size && (
                   <div>
-                    <div className="text-xs text-text-t uppercase tracking-wider mb-1 font-medium">Size</div>
+                    <div className="text-sm text-text-t uppercase tracking-wider mb-1.5 font-medium">Size</div>
                     <div className="text-sm text-text-p">{booking.size}</div>
                   </div>
                 )}
                 {booking.color_mode && (
                   <div>
-                    <div className="text-xs text-text-t uppercase tracking-wider mb-1 font-medium">Color</div>
+                    <div className="text-sm text-text-t uppercase tracking-wider mb-1.5 font-medium">Color</div>
                     <div className="text-sm text-text-p">{booking.color_mode}</div>
                   </div>
                 )}
@@ -187,7 +187,7 @@ export default function BookingDrawer() {
             <>
               <div className="h-px bg-border/40" />
               <div>
-                <div className="text-xs text-text-t uppercase tracking-wider mb-2 font-medium">Notes</div>
+                <div className="text-sm text-text-t uppercase tracking-wider mb-2 font-medium">Notes</div>
                 <div className="text-sm text-text-s leading-relaxed">{booking.notes}</div>
               </div>
             </>
@@ -196,19 +196,19 @@ export default function BookingDrawer() {
           {/* Status */}
           <div className="h-px bg-border/40" />
           <div>
-            <div className="text-xs text-text-t uppercase tracking-wider mb-2 font-medium">Status</div>
-            <div className="flex items-center gap-2 mb-3">
-              <span className={`w-2.5 h-2.5 rounded-full ${statusDot[booking.status]}`} />
-              <span className="text-sm text-text-p">{booking.status}</span>
+            <div className="text-sm text-text-t uppercase tracking-wider mb-2.5 font-medium">Status</div>
+            <div className="flex items-center gap-2.5 mb-4">
+              <span className={`w-3 h-3 rounded-full ${statusDot[booking.status]}`} />
+              <span className="text-base text-text-p">{booking.status}</span>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-3">
               {allStatuses
                 .filter((s) => s !== booking.status)
                 .map((s) => (
                   <button
                     key={s}
                     onClick={() => handleStatusChange(s)}
-                    className="px-3 py-2 text-xs rounded-xl border border-border/60 text-text-s active:text-text-p active:bg-surface transition-colors cursor-pointer press-scale"
+                    className="px-4 py-3 text-sm rounded-xl border border-border/60 text-text-s active:text-text-p active:bg-surface transition-colors cursor-pointer press-scale min-h-[44px]"
                   >
                     {s}
                   </button>
@@ -225,7 +225,7 @@ export default function BookingDrawer() {
                   setSelectedBookingId(null);
                   navigate(`/clients/${client.id}`);
                 }}
-                className="w-full text-left text-sm text-accent active:text-accent-dim transition-colors cursor-pointer press-scale py-1"
+                className="w-full text-left text-base text-accent active:text-accent-dim transition-colors cursor-pointer press-scale py-3 min-h-[44px]"
               >
                 View Client Profile &rarr;
               </button>

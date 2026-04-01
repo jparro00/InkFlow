@@ -23,7 +23,7 @@ export default function QuickBooking() {
       fullScreenMobile={false}
     >
       <div className="space-y-4">
-        <p className="text-sm text-text-s">
+        <p className="text-base text-text-s">
           Tap the mic on your keyboard to dictate, or type below.
         </p>
 
@@ -32,14 +32,14 @@ export default function QuickBooking() {
           onChange={(e) => setText(e.target.value)}
           rows={5}
           placeholder='e.g. "Sarah, left wrist floral, black & grey, Thursday 2pm, 2 hours"'
-          className="w-full bg-input border border-border/60 rounded-xl px-4 py-4 text-sm text-text-p placeholder:text-text-t focus:outline-none focus:border-accent/40 resize-none transition-colors"
+          className="w-full bg-input border border-border/60 rounded-xl px-4 py-4 text-base text-text-p placeholder:text-text-t focus:outline-none focus:border-accent/40 resize-none transition-colors"
           autoFocus
         />
 
         <button
           onClick={handleSubmit}
           disabled={!text.trim()}
-          className="w-full py-3.5 bg-accent text-bg text-sm rounded-xl font-medium cursor-pointer press-scale transition-all disabled:opacity-40 disabled:cursor-not-allowed active:shadow-glow"
+          className="w-full py-4 bg-accent text-bg text-base rounded-xl font-medium cursor-pointer press-scale transition-all disabled:opacity-40 disabled:cursor-not-allowed active:shadow-glow min-h-[52px]"
         >
           Submit &rarr;
         </button>

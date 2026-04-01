@@ -27,28 +27,28 @@ export default function SettingsPage() {
     setTimeout(() => setExported(false), 3000);
   };
 
-  const sectionClass = "mb-8";
-  const cardClass = "bg-surface/60 rounded-xl border border-border/30 p-5 space-y-4";
-  const rowClass = "flex items-center justify-between";
-  const inputClass = "w-full bg-input border border-border/60 rounded-xl px-4 py-3 text-sm text-text-p placeholder:text-text-t focus:outline-none focus:border-accent/40 transition-colors";
+  const sectionClass = "mb-10";
+  const cardClass = "bg-surface/60 rounded-xl border border-border/30 p-5 space-y-5";
+  const rowClass = "flex items-center justify-between min-h-[48px]";
+  const inputClass = "w-full bg-input border border-border/60 rounded-xl px-4 py-3.5 text-base text-text-p placeholder:text-text-t focus:outline-none focus:border-accent/40 transition-colors min-h-[48px]";
 
   return (
-    <div className="px-4 pt-5 pb-8 lg:px-6 lg:pt-6 max-w-xl">
-      <h1 className="font-display text-xl lg:text-2xl text-text-p mb-8">Settings</h1>
+    <div className="px-5 pt-6 pb-8 lg:px-6 lg:pt-6 max-w-xl">
+      <h1 className="font-display text-2xl lg:text-2xl text-text-p mb-8">Settings</h1>
 
       <section className={sectionClass}>
         <h2 className="text-md text-text-p font-display mb-3">Account</h2>
         <div className={cardClass}>
           <div className={rowClass}>
-            <span className="text-sm text-text-s">Change password</span>
-            <button className="text-sm text-accent active:text-accent-dim transition-colors cursor-pointer press-scale">
+            <span className="text-base text-text-s">Change password</span>
+            <button className="text-base text-accent active:text-accent-dim transition-colors cursor-pointer press-scale min-h-[44px] px-2">
               Change
             </button>
           </div>
           <div className="h-px bg-border/30" />
           <div className={rowClass}>
-            <span className="text-sm text-text-s">Backup recovery codes</span>
-            <button className="text-sm text-accent active:text-accent-dim transition-colors cursor-pointer press-scale">
+            <span className="text-base text-text-s">Backup recovery codes</span>
+            <button className="text-base text-accent active:text-accent-dim transition-colors cursor-pointer press-scale min-h-[44px] px-2">
               Regenerate
             </button>
           </div>
@@ -60,10 +60,10 @@ export default function SettingsPage() {
         <div className={cardClass}>
           <div className={rowClass}>
             <div>
-              <div className="text-sm text-text-p">TOTP Status</div>
-              <div className="text-xs text-success mt-0.5">Enabled</div>
+              <div className="text-base text-text-p">TOTP Status</div>
+              <div className="text-sm text-success mt-1">Enabled</div>
             </div>
-            <button className="text-sm text-accent active:text-accent-dim transition-colors cursor-pointer press-scale">
+            <button className="text-base text-accent active:text-accent-dim transition-colors cursor-pointer press-scale min-h-[44px] px-2">
               Re-enroll
             </button>
           </div>
@@ -74,8 +74,8 @@ export default function SettingsPage() {
         <h2 className="text-md text-text-p font-display mb-3">Session</h2>
         <div className={cardClass}>
           <div className={rowClass}>
-            <span className="text-sm text-text-s">Auto-logout timeout</span>
-            <select className="bg-input border border-border/60 rounded-xl px-3 py-2 text-sm text-text-p cursor-pointer">
+            <span className="text-base text-text-s">Auto-logout timeout</span>
+            <select className="bg-input border border-border/60 rounded-xl px-4 py-3 text-base text-text-p cursor-pointer min-h-[48px]">
               <option>4 hours</option>
               <option>8 hours</option>
               <option>12 hours</option>
@@ -88,8 +88,8 @@ export default function SettingsPage() {
       <section className={sectionClass}>
         <h2 className="text-md text-text-p font-display mb-3">Privacy</h2>
         <div className={cardClass}>
-          <div className="text-sm text-text-s mb-1">Export all data for a client</div>
-          <div className="flex gap-2">
+          <div className="text-base text-text-s mb-2">Export all data for a client</div>
+          <div className="flex gap-3">
             <input
               type="text"
               value={exportClient}
@@ -100,7 +100,7 @@ export default function SettingsPage() {
             <button
               onClick={handleExport}
               disabled={!exportClient.trim()}
-              className="px-4 py-3 text-sm bg-accent text-bg rounded-xl cursor-pointer press-scale transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+              className="px-5 py-3.5 text-base bg-accent text-bg rounded-xl cursor-pointer press-scale transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0 min-h-[48px]"
             >
               {exported ? 'Done!' : 'Export'}
             </button>
@@ -111,8 +111,8 @@ export default function SettingsPage() {
       <section>
         <h2 className="text-md text-text-p font-display mb-3">About</h2>
         <div className={cardClass}>
-          <div className="text-sm text-text-s">InkFlow MVP v0.1.0</div>
-          <div className="text-xs text-text-t leading-relaxed">
+          <div className="text-base text-text-s">InkFlow MVP v0.1.0</div>
+          <div className="text-sm text-text-t leading-relaxed">
             InkFlow stores client contact information and booking data for
             business purposes. No data is shared with third parties. No
             third-party analytics or tracking SDKs are used. Client data can be

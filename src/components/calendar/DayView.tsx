@@ -34,7 +34,7 @@ export default function DayView() {
     .filter((b) => isSameDay(new Date(b.date), calendarDate))
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-  const hourHeight = 72;
+  const hourHeight = 80;
 
   const handleSlotClick = (hour: number) => {
     const dateStr = new Date(
@@ -59,7 +59,7 @@ export default function DayView() {
             style={{ top: (hour - 8) * hourHeight, height: hourHeight }}
             onClick={() => handleSlotClick(hour)}
           >
-            <div className="w-14 lg:w-20 text-xs text-text-t py-2 text-right pr-3 shrink-0">
+            <div className="w-16 lg:w-20 text-sm text-text-t py-3 text-right pr-4 shrink-0">
               {format(new Date(2026, 0, 1, hour), 'h a')}
             </div>
             <div className="flex-1 border-l border-border/20" />
@@ -77,24 +77,24 @@ export default function DayView() {
           return (
             <button
               key={booking.id}
-              className={`absolute left-14 lg:left-20 right-3 lg:right-4 rounded-xl p-3 lg:p-4 ${statusBg[booking.status]} border border-border/30 cursor-pointer press-scale transition-all active:shadow-glow hover:shadow-glow hover:border-accent/20 text-left`}
-              style={{ top, height: Math.max(height, 48) }}
+              className={`absolute left-16 lg:left-20 right-4 lg:right-4 rounded-xl p-4 lg:p-4 ${statusBg[booking.status]} border border-border/30 cursor-pointer press-scale transition-all active:shadow-glow hover:shadow-glow hover:border-accent/20 text-left`}
+              style={{ top, height: Math.max(height, 56) }}
               onClick={(e) => {
                 e.stopPropagation();
                 setSelectedBookingId(booking.id);
               }}
             >
-              <div className="flex items-center gap-2">
-                <span className={`w-2 h-2 rounded-full ${statusDot[booking.status]} shrink-0`} />
-                <span className="text-sm text-text-p font-medium truncate">
+              <div className="flex items-center gap-2.5">
+                <span className={`w-2.5 h-2.5 rounded-full ${statusDot[booking.status]} shrink-0`} />
+                <span className="text-base text-text-p font-medium truncate">
                   {client?.name ?? 'Walk-in'}
                 </span>
               </div>
-              <div className="text-xs text-text-s mt-1 pl-[18px]">
+              <div className="text-sm text-text-s mt-1.5 pl-5">
                 {format(d, 'h:mm a')} &middot; {booking.type} &middot; {booking.duration}h
               </div>
               {booking.style && height > 60 && (
-                <div className="text-xs text-text-t mt-1 pl-[18px]">
+                <div className="text-sm text-text-t mt-1 pl-5">
                   {booking.style} &middot; {booking.placement}
                 </div>
               )}

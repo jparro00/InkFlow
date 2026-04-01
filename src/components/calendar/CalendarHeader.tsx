@@ -27,49 +27,49 @@ export default function CalendarHeader() {
       : format(calendarDate, 'MMMM yyyy');
 
   return (
-    <div className="px-4 pt-5 pb-3 lg:px-6 lg:pt-6 lg:pb-4">
+    <div className="px-5 pt-6 pb-4 lg:px-6 lg:pt-6 lg:pb-4">
       {/* Title row */}
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="font-display text-xl lg:text-2xl text-text-p">{title}</h1>
+      <div className="flex items-center justify-between mb-5">
+        <h1 className="font-display text-2xl lg:text-2xl text-text-p">{title}</h1>
         <button
           onClick={() => openBookingForm()}
-          className="w-10 h-10 lg:w-auto lg:h-auto lg:px-4 lg:py-2 bg-accent text-bg rounded-xl flex items-center justify-center gap-2 text-sm cursor-pointer press-scale transition-transform"
+          className="w-12 h-12 lg:w-auto lg:h-auto lg:px-4 lg:py-2.5 bg-accent text-bg rounded-xl flex items-center justify-center gap-2 text-sm cursor-pointer press-scale transition-transform"
         >
-          <Plus size={18} />
+          <Plus size={20} />
           <span className="hidden lg:inline">New Booking</span>
         </button>
       </div>
 
       {/* Controls row */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => navigate(-1)}
-            className="w-10 h-10 rounded-xl flex items-center justify-center text-text-s active:bg-elevated transition-colors cursor-pointer press-scale"
+            className="w-12 h-12 rounded-xl flex items-center justify-center text-text-s active:bg-elevated transition-colors cursor-pointer press-scale"
           >
-            <ChevronLeft size={20} />
+            <ChevronLeft size={22} />
           </button>
           <button
             onClick={goToday}
-            className="px-3 h-10 text-sm rounded-xl border border-border text-text-s active:bg-elevated transition-colors cursor-pointer press-scale"
+            className="px-4 h-12 text-sm rounded-xl border border-border text-text-s active:bg-elevated transition-colors cursor-pointer press-scale"
           >
             Today
           </button>
           <button
             onClick={() => navigate(1)}
-            className="w-10 h-10 rounded-xl flex items-center justify-center text-text-s active:bg-elevated transition-colors cursor-pointer press-scale"
+            className="w-12 h-12 rounded-xl flex items-center justify-center text-text-s active:bg-elevated transition-colors cursor-pointer press-scale"
           >
-            <ChevronRight size={20} />
+            <ChevronRight size={22} />
           </button>
         </div>
 
         {/* View toggle pill */}
-        <div className="flex rounded-xl bg-surface p-1 gap-0.5">
+        <div className="flex rounded-xl bg-surface p-1.5 gap-1">
           {viewLabels.map((v) => (
             <button
               key={v}
               onClick={() => setCalendarView(v)}
-              className={`px-3 py-1.5 text-sm rounded-lg capitalize transition-all duration-200 cursor-pointer ${
+              className={`px-4 py-2 text-sm rounded-lg capitalize transition-all duration-200 cursor-pointer ${
                 calendarView === v
                   ? 'bg-elevated text-accent shadow-sm'
                   : 'text-text-t active:text-text-s'

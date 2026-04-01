@@ -29,7 +29,7 @@ export default function BookingCard({ booking, compact }: BookingCardProps) {
           e.stopPropagation();
           setSelectedBookingId(booking.id);
         }}
-        className={`w-full text-left px-2 py-1.5 rounded-lg text-xs ${style.bg} border ${style.border} cursor-pointer press-scale transition-all active:shadow-glow`}
+        className={`w-full text-left px-3 py-2.5 rounded-lg text-sm ${style.bg} border ${style.border} cursor-pointer press-scale transition-all active:shadow-glow min-h-[44px]`}
       >
         <span className="text-text-s">{format(new Date(booking.date), 'h:mma')}</span>{' '}
         <span className="text-text-p font-medium">{client?.name.split(' ')[0]}</span>
@@ -41,17 +41,17 @@ export default function BookingCard({ booking, compact }: BookingCardProps) {
   return (
     <button
       onClick={() => setSelectedBookingId(booking.id)}
-      className={`w-full text-left p-4 rounded-xl ${style.bg} border ${style.border} cursor-pointer press-scale transition-all duration-200 active:shadow-glow hover:shadow-glow hover:border-accent/20`}
+      className={`w-full text-left p-4 rounded-xl ${style.bg} border ${style.border} cursor-pointer press-scale transition-all duration-200 active:shadow-glow hover:shadow-glow hover:border-accent/20 min-h-[56px]`}
     >
-      <div className="flex items-center gap-2.5 mb-1.5">
-        <span className={`w-2 h-2 rounded-full ${style.dot} shrink-0`} />
-        <span className="text-sm text-text-p font-medium truncate">{client?.name ?? 'Walk-in'}</span>
+      <div className="flex items-center gap-3 mb-2">
+        <span className={`w-2.5 h-2.5 rounded-full ${style.dot} shrink-0`} />
+        <span className="text-base text-text-p font-medium truncate">{client?.name ?? 'Walk-in'}</span>
       </div>
-      <div className="text-xs text-text-s pl-[18px]">
+      <div className="text-sm text-text-s pl-[22px]">
         {format(new Date(booking.date), 'h:mm a')} &middot; {booking.type} &middot; {booking.duration}h
       </div>
       {booking.style && (
-        <div className="text-xs text-text-t mt-1 pl-[18px]">{booking.style} &middot; {booking.placement}</div>
+        <div className="text-sm text-text-t mt-1 pl-[22px]">{booking.style} &middot; {booking.placement}</div>
       )}
     </button>
   );

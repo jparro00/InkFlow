@@ -48,8 +48,8 @@ export default function ClientForm({ client, onClose }: ClientFormProps) {
     onClose();
   };
 
-  const inputClass = "w-full bg-input border border-border/60 rounded-xl px-4 py-3 text-sm text-text-p placeholder:text-text-t focus:outline-none focus:border-accent/40 transition-colors";
-  const labelClass = "text-xs text-text-t uppercase tracking-wider mb-1.5 block font-medium";
+  const inputClass = "w-full bg-input border border-border/60 rounded-xl px-4 py-3.5 text-base text-text-p placeholder:text-text-t focus:outline-none focus:border-accent/40 transition-colors min-h-[48px]";
+  const labelClass = "text-sm text-text-t uppercase tracking-wider mb-2 block font-medium";
 
   return (
     <Modal title={client ? 'Edit Client' : 'New Client'} onClose={onClose} width="lg:max-w-[520px]">
@@ -150,7 +150,7 @@ export default function ClientForm({ client, onClose }: ClientFormProps) {
           />
         </div>
 
-        <div className="flex flex-col lg:flex-row lg:justify-end gap-2 pt-3 border-t border-border/40">
+        <div className="flex flex-col lg:flex-row lg:justify-end gap-3 pt-4 border-t border-border/40">
           <button
             onClick={onClose}
             className="hidden lg:block px-4 py-2.5 text-sm text-text-s hover:text-text-p transition-colors cursor-pointer"
@@ -160,7 +160,7 @@ export default function ClientForm({ client, onClose }: ClientFormProps) {
           <button
             onClick={handleSave}
             disabled={!form.name.trim()}
-            className="w-full lg:w-auto px-6 py-3.5 lg:py-2.5 text-sm bg-accent text-bg rounded-xl font-medium cursor-pointer press-scale transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-full lg:w-auto px-6 py-4 lg:py-2.5 text-base bg-accent text-bg rounded-xl font-medium cursor-pointer press-scale transition-all disabled:opacity-40 disabled:cursor-not-allowed min-h-[52px]"
           >
             {client ? 'Update Client' : 'Add Client'}
           </button>

@@ -49,17 +49,17 @@ export default function MonthView() {
   return (
     <div className="flex-1 flex flex-col">
       {/* Day headers */}
-      <div className="grid grid-cols-7 px-1 lg:px-0">
+      <div className="grid grid-cols-7 px-3 lg:px-0">
         {weekDays.map((d, i) => (
-          <div key={i} className="py-2 text-center">
-            <span className="text-xs text-text-t font-medium lg:hidden">{d}</span>
+          <div key={i} className="py-3 text-center">
+            <span className="text-sm text-text-t font-medium lg:hidden">{d}</span>
             <span className="text-xs text-text-t font-medium hidden lg:inline uppercase tracking-wider">{weekDaysFull[i]}</span>
           </div>
         ))}
       </div>
 
       {/* Calendar grid */}
-      <div className="grid grid-cols-7 flex-1 px-1 lg:px-0 auto-rows-fr">
+      <div className="grid grid-cols-7 flex-1 px-3 lg:px-0 auto-rows-fr">
         {days.map((day) => {
           const dayBookings = getBookingsForDay(day);
           const inMonth = isSameMonth(day, calendarDate);
@@ -70,7 +70,7 @@ export default function MonthView() {
             <button
               key={day.toISOString()}
               onClick={() => setSelectedDay(isSelected ? null : day)}
-              className={`relative flex flex-col items-center py-2 lg:py-1.5 lg:items-start lg:px-2 lg:min-h-[100px] border-b border-r border-border/30 transition-all cursor-pointer ${
+              className={`relative flex flex-col items-center py-3 lg:py-1.5 lg:items-start lg:px-2 lg:min-h-[100px] border-b border-r border-border/30 transition-all cursor-pointer ${
                 !inMonth ? 'opacity-30' : ''
               } ${isSelected ? 'bg-accent/5' : 'active:bg-elevated/40'} ${
                 today ? 'bg-accent-glow' : ''
@@ -78,7 +78,7 @@ export default function MonthView() {
             >
               {/* Date number */}
               <span
-                className={`text-sm lg:text-xs w-8 h-8 lg:w-6 lg:h-6 flex items-center justify-center rounded-full mb-1 ${
+                className={`text-sm lg:text-xs w-9 h-9 lg:w-6 lg:h-6 flex items-center justify-center rounded-full mb-1.5 ${
                   today
                     ? 'bg-accent text-bg font-semibold'
                     : isSelected
@@ -93,12 +93,12 @@ export default function MonthView() {
 
               {/* Mobile: colored dots */}
               {dayBookings.length > 0 && (
-                <div className="flex gap-0.5 lg:hidden">
+                <div className="flex gap-1 lg:hidden">
                   {dayBookings.slice(0, 3).map((b) => (
-                    <span key={b.id} className={`w-1.5 h-1.5 rounded-full ${statusDot[b.status]}`} />
+                    <span key={b.id} className={`w-2 h-2 rounded-full ${statusDot[b.status]}`} />
                   ))}
                   {dayBookings.length > 3 && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-accent-dim" />
+                    <span className="w-2 h-2 rounded-full bg-accent-dim" />
                   )}
                 </div>
               )}
@@ -132,26 +132,26 @@ export default function MonthView() {
 
       {/* Mobile: selected day booking list */}
       {selectedDay && (
-        <div className="lg:hidden border-t border-border bg-surface/50 px-4 py-3">
-          <div className="text-xs text-text-t uppercase tracking-wider mb-3 font-medium">
+        <div className="lg:hidden border-t border-border bg-surface/50 px-5 py-4">
+          <div className="text-sm text-text-t uppercase tracking-wider mb-4 font-medium">
             {format(selectedDay, 'EEEE, MMM d')}
           </div>
           {selectedDayBookings.length > 0 ? (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {selectedDayBookings.map((b) => {
                 const client = getClient(b.client_id ?? '');
                 return (
                   <button
                     key={b.id}
                     onClick={() => setSelectedBookingId(b.id)}
-                    className="w-full text-left flex items-center gap-3 p-3 rounded-xl bg-elevated/50 border border-border/40 cursor-pointer press-scale active:shadow-glow transition-all"
+                    className="w-full text-left flex items-center gap-4 p-4 rounded-xl bg-elevated/50 border border-border/40 cursor-pointer press-scale active:shadow-glow transition-all min-h-[56px]"
                   >
-                    <span className={`w-2.5 h-2.5 rounded-full ${statusDot[b.status]} shrink-0`} />
+                    <span className={`w-3 h-3 rounded-full ${statusDot[b.status]} shrink-0`} />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm text-text-p font-medium truncate">
+                      <div className="text-base text-text-p font-medium truncate">
                         {client?.name ?? 'Walk-in'}
                       </div>
-                      <div className="text-xs text-text-s">
+                      <div className="text-sm text-text-s mt-0.5">
                         {format(new Date(b.date), 'h:mm a')} &middot; {b.type} &middot; {b.duration}h
                       </div>
                     </div>
@@ -160,7 +160,7 @@ export default function MonthView() {
               })}
             </div>
           ) : (
-            <div className="text-sm text-text-t py-4 text-center">No bookings</div>
+            <div className="text-base text-text-t py-6 text-center">No bookings</div>
           )}
         </div>
       )}

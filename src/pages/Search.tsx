@@ -71,9 +71,9 @@ export default function SearchOverlay() {
           />
           <button
             onClick={() => setSearchOpen(false)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-full text-text-t active:text-text-s cursor-pointer"
+            className="absolute right-3 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center rounded-full text-text-t active:text-text-s cursor-pointer"
           >
-            <X size={18} />
+            <X size={22} />
           </button>
         </div>
 
@@ -82,7 +82,7 @@ export default function SearchOverlay() {
           <div className="mt-3 bg-elevated border border-border/40 rounded-2xl overflow-hidden max-h-[60vh] overflow-y-auto">
             {clientResults.length > 0 && (
               <div>
-                <div className="px-5 py-2.5 text-[10px] text-text-t uppercase tracking-wider font-medium bg-surface/50">
+                <div className="px-5 py-3 text-xs text-text-t uppercase tracking-wider font-medium bg-surface/50">
                   Clients
                 </div>
                 {clientResults.map((c) => (
@@ -92,14 +92,14 @@ export default function SearchOverlay() {
                       setSearchOpen(false);
                       navigate(`/clients/${c.id}`);
                     }}
-                    className="w-full text-left px-5 py-3.5 active:bg-surface transition-colors cursor-pointer flex items-center gap-3 press-scale"
+                    className="w-full text-left px-5 py-4 active:bg-surface transition-colors cursor-pointer flex items-center gap-4 press-scale min-h-[56px]"
                   >
-                    <div className="w-9 h-9 rounded-full bg-accent/10 flex items-center justify-center text-accent text-xs font-medium shrink-0">
+                    <div className="w-11 h-11 rounded-full bg-accent/10 flex items-center justify-center text-accent text-sm font-medium shrink-0">
                       {c.name.charAt(0)}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="text-sm text-text-p truncate">{c.name}</div>
-                      <div className="text-xs text-text-t truncate">
+                      <div className="text-base text-text-p truncate">{c.name}</div>
+                      <div className="text-sm text-text-t truncate">
                         {[c.phone, c.instagram].filter(Boolean).join(' · ')}
                       </div>
                     </div>
@@ -110,7 +110,7 @@ export default function SearchOverlay() {
 
             {bookingResults.length > 0 && (
               <div>
-                <div className="px-5 py-2.5 text-[10px] text-text-t uppercase tracking-wider font-medium bg-surface/50">
+                <div className="px-5 py-3 text-xs text-text-t uppercase tracking-wider font-medium bg-surface/50">
                   Bookings
                 </div>
                 {bookingResults.slice(0, 10).map((b) => (
@@ -120,14 +120,14 @@ export default function SearchOverlay() {
                       setSearchOpen(false);
                       setSelectedBookingId(b.id);
                     }}
-                    className="w-full text-left px-5 py-3.5 active:bg-surface transition-colors cursor-pointer flex items-center gap-3 press-scale"
+                    className="w-full text-left px-5 py-4 active:bg-surface transition-colors cursor-pointer flex items-center gap-4 press-scale min-h-[56px]"
                   >
-                    <span className={`w-2.5 h-2.5 rounded-full ${statusDot[b.status]} shrink-0`} />
+                    <span className={`w-3 h-3 rounded-full ${statusDot[b.status]} shrink-0`} />
                     <div className="min-w-0 flex-1">
-                      <div className="text-sm text-text-p truncate">
+                      <div className="text-base text-text-p truncate">
                         {getClientName(b.client_id)} &middot; {b.type}
                       </div>
-                      <div className="text-xs text-text-t">
+                      <div className="text-sm text-text-t">
                         {format(new Date(b.date), 'MMM d, yyyy')} &middot; {b.status}
                       </div>
                     </div>

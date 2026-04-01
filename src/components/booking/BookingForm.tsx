@@ -114,8 +114,8 @@ export default function BookingForm() {
 
   const isValid = form.date && form.client_id;
 
-  const inputClass = "w-full bg-input border border-border/60 rounded-xl px-4 py-3 text-sm text-text-p placeholder:text-text-t focus:outline-none focus:border-accent/40 transition-colors";
-  const labelClass = "text-xs text-text-t uppercase tracking-wider mb-1.5 block font-medium";
+  const inputClass = "w-full bg-input border border-border/60 rounded-xl px-4 py-3.5 text-base text-text-p placeholder:text-text-t focus:outline-none focus:border-accent/40 transition-colors min-h-[48px]";
+  const labelClass = "text-sm text-text-t uppercase tracking-wider mb-2 block font-medium";
 
   return (
     <Modal
@@ -148,7 +148,7 @@ export default function BookingForm() {
                     setClientSearch(c.name);
                     setShowClientDropdown(false);
                   }}
-                  className="w-full text-left px-4 py-3 text-sm text-text-p active:bg-surface transition-colors cursor-pointer first:rounded-t-xl last:rounded-b-xl"
+                  className="w-full text-left px-4 py-4 text-base text-text-p active:bg-surface transition-colors cursor-pointer first:rounded-t-xl last:rounded-b-xl min-h-[48px]"
                 >
                   {c.name}
                   {c.phone && <span className="text-text-t ml-2 text-xs">{c.phone}</span>}
@@ -195,12 +195,12 @@ export default function BookingForm() {
         {/* Type */}
         <div>
           <label className={labelClass}>Type</label>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-3">
             {bookingTypes.map((t) => (
               <button
                 key={t}
                 onClick={() => setForm((f) => ({ ...f, type: t }))}
-                className={`px-3 py-3 text-sm rounded-xl border transition-all cursor-pointer press-scale ${
+                className={`px-4 py-3.5 text-base rounded-xl border transition-all cursor-pointer press-scale min-h-[48px] ${
                   form.type === t
                     ? 'border-accent/60 text-accent bg-accent/8 shadow-glow'
                     : 'border-border/60 text-text-s active:text-text-p active:bg-elevated'
@@ -239,15 +239,15 @@ export default function BookingForm() {
         </div>
 
         {/* Size / Color */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-5">
           <div>
             <label className={labelClass}>Size</label>
-            <div className="flex gap-1.5">
+            <div className="flex gap-2">
               {sizes.map((s) => (
                 <button
                   key={s}
                   onClick={() => setForm((f) => ({ ...f, size: f.size === s ? '' : s }))}
-                  className={`flex-1 py-3 text-sm rounded-xl border transition-all cursor-pointer press-scale ${
+                  className={`flex-1 py-3.5 text-base rounded-xl border transition-all cursor-pointer press-scale min-h-[48px] ${
                     form.size === s
                       ? 'border-accent/60 text-accent bg-accent/8'
                       : 'border-border/60 text-text-s'
@@ -260,12 +260,12 @@ export default function BookingForm() {
           </div>
           <div>
             <label className={labelClass}>Color</label>
-            <div className="flex gap-1.5">
+            <div className="flex gap-2">
               {colorModes.map((cm) => (
                 <button
                   key={cm}
                   onClick={() => setForm((f) => ({ ...f, color_mode: f.color_mode === cm ? '' : cm }))}
-                  className={`flex-1 py-3 text-sm rounded-xl border transition-all cursor-pointer press-scale ${
+                  className={`flex-1 py-3.5 text-base rounded-xl border transition-all cursor-pointer press-scale min-h-[48px] ${
                     form.color_mode === cm
                       ? 'border-accent/60 text-accent bg-accent/8'
                       : 'border-border/60 text-text-s'
@@ -294,12 +294,12 @@ export default function BookingForm() {
           </div>
           <div>
             <label className={labelClass}>Deposit Status</label>
-            <div className="flex gap-1.5">
+            <div className="flex gap-2">
               {depositStatuses.map((ds) => (
                 <button
                   key={ds}
                   onClick={() => setForm((f) => ({ ...f, deposit_paid: ds }))}
-                  className={`flex-1 py-3 text-sm rounded-xl border transition-all cursor-pointer press-scale ${
+                  className={`flex-1 py-3.5 text-base rounded-xl border transition-all cursor-pointer press-scale min-h-[48px] ${
                     form.deposit_paid === ds
                       ? 'border-accent/60 text-accent bg-accent/8'
                       : 'border-border/60 text-text-s'
@@ -352,7 +352,7 @@ export default function BookingForm() {
         </div>
 
         {/* Save — full width on mobile, sticky */}
-        <div className="flex flex-col lg:flex-row lg:justify-end gap-2 pt-3 border-t border-border/40 sticky bottom-0 bg-elevated pb-1">
+        <div className="flex flex-col lg:flex-row lg:justify-end gap-3 pt-4 border-t border-border/40 sticky bottom-0 bg-elevated pb-2">
           <button
             onClick={closeBookingForm}
             className="hidden lg:block px-4 py-2.5 text-sm text-text-s hover:text-text-p transition-colors cursor-pointer"
@@ -362,7 +362,7 @@ export default function BookingForm() {
           <button
             onClick={handleSave}
             disabled={!isValid}
-            className="w-full lg:w-auto px-6 py-3.5 lg:py-2.5 text-sm bg-accent text-bg rounded-xl font-medium cursor-pointer press-scale transition-all disabled:opacity-40 disabled:cursor-not-allowed active:shadow-glow"
+            className="w-full lg:w-auto px-6 py-4 lg:py-2.5 text-base bg-accent text-bg rounded-xl font-medium cursor-pointer press-scale transition-all disabled:opacity-40 disabled:cursor-not-allowed active:shadow-glow min-h-[52px]"
           >
             {editingBookingId ? 'Update Booking' : 'Save Booking'}
           </button>

@@ -18,7 +18,7 @@ export default function LoginPage() {
     navigate('/');
   };
 
-  const inputClass = "w-full bg-input border border-border/60 rounded-xl px-4 py-3.5 text-sm text-text-p placeholder:text-text-t focus:outline-none focus:border-accent/40 transition-colors";
+  const inputClass = "w-full bg-input border border-border/60 rounded-xl px-4 py-4 text-base text-text-p placeholder:text-text-t focus:outline-none focus:border-accent/40 transition-colors min-h-[52px]";
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-bg p-5 relative overflow-hidden">
@@ -96,7 +96,7 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              className="w-full py-3.5 bg-accent text-bg text-sm rounded-xl font-medium cursor-pointer press-scale transition-all active:shadow-glow mt-2"
+              className="w-full py-4 bg-accent text-bg text-base rounded-xl font-medium cursor-pointer press-scale transition-all active:shadow-glow mt-3 min-h-[52px]"
             >
               {showTotp ? 'Verify' : 'Sign In'}
             </button>

@@ -37,13 +37,13 @@ export default function Modal({ title, onClose, children, width = 'lg:max-w-[620
           <div className="w-10 h-1 rounded-full bg-border-s/60" />
         </div>
 
-        <div className="flex items-center justify-between px-5 py-3 lg:px-6 lg:py-4 border-b border-border">
-          <h2 className="font-display text-lg text-text-p">{title}</h2>
+        <div className="flex items-center justify-between px-5 py-4 lg:px-6 lg:py-4 border-b border-border">
+          <h2 className="font-display text-xl text-text-p">{title}</h2>
           <button
             onClick={onClose}
-            className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface text-text-t hover:text-text-s transition-colors cursor-pointer"
+            className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface text-text-t hover:text-text-s transition-colors cursor-pointer"
           >
-            <X size={20} />
+            <X size={22} />
           </button>
         </div>
         <div className="px-5 py-5 lg:px-6 lg:py-5 overflow-y-auto flex-1"

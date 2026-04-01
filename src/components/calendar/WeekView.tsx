@@ -32,14 +32,14 @@ export default function WeekView() {
           const today = isToday(day);
 
           return (
-            <div key={day.toISOString()} className="flex flex-col min-w-[140px] lg:min-w-0">
+            <div key={day.toISOString()} className="flex flex-col min-w-[160px] lg:min-w-0">
               {/* Day header */}
-              <div className={`px-3 py-3 border-b border-border/30 text-center ${today ? 'bg-accent-glow' : ''}`}>
-                <div className="text-xs text-text-t uppercase font-medium">
+              <div className={`px-4 py-4 border-b border-border/30 text-center ${today ? 'bg-accent-glow' : ''}`}>
+                <div className="text-sm text-text-t uppercase font-medium">
                   {format(day, 'EEE')}
                 </div>
                 <div
-                  className={`font-display text-lg mt-0.5 ${
+                  className={`font-display text-xl mt-1 ${
                     today ? 'text-accent' : 'text-text-p'
                   }`}
                 >
@@ -48,13 +48,13 @@ export default function WeekView() {
               </div>
 
               {/* Booking cards */}
-              <div className="flex-1 p-2 flex flex-col gap-2 overflow-y-auto">
+              <div className="flex-1 p-3 flex flex-col gap-3 overflow-y-auto">
                 {dayBookings.map((b) => (
                   <BookingCard key={b.id} booking={b} />
                 ))}
                 {dayBookings.length === 0 && (
                   <div className="flex-1 flex items-center justify-center min-h-[60px]">
-                    <span className="text-xs text-text-t/50">—</span>
+                    <span className="text-sm text-text-t/50">—</span>
                   </div>
                 )}
               </div>
