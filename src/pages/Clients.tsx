@@ -69,7 +69,7 @@ export default function ClientsPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.03 }}
               onClick={() => navigate(`/clients/${client.id}`)}
-              className="w-full text-left flex items-center gap-4 px-4 py-4 lg:px-4 rounded-xl active:bg-elevated/40 lg:hover:bg-elevated/30 transition-colors cursor-pointer group press-scale min-h-[72px]"
+              className="w-full text-left flex items-center gap-4 px-5 py-4 lg:px-4 rounded-xl active:bg-elevated/40 lg:hover:bg-elevated/30 transition-colors cursor-pointer group press-scale min-h-[72px]"
             >
               <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center text-accent text-base font-medium shrink-0">
                 {client.name.charAt(0)}

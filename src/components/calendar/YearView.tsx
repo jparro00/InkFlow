@@ -93,7 +93,7 @@ export default function YearView() {
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden">
       {/* Scrollable year grid */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-4">
         <div ref={topSentinelRef} className="h-1" />
 
         {years.map((year) => {
@@ -107,12 +107,12 @@ export default function YearView() {
               className="mb-10"
             >
               {/* Year heading */}
-              <h1 className="font-display text-2xl text-text-p px-1 pt-4 pb-4">
+              <h1 className="font-display text-2xl text-text-p pt-4 pb-4">
                 {year}
               </h1>
 
               {/* 3-column month grid */}
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-3 gap-5">
                 {months.map((month) => {
                   const monthIdx = month.getMonth();
                   const isThisMonth = isCurrentYear && monthIdx === currentMonth;

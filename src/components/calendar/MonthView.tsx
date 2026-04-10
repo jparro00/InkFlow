@@ -112,7 +112,7 @@ export default function MonthView() {
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="px-5 pt-5 pb-3 flex items-center justify-between shrink-0">
+      <div className="px-6 pt-5 pb-3 flex items-center justify-between shrink-0">
         <button
           onClick={() => setCalendarView('year')}
           className="flex items-center gap-1 text-today active:opacity-70 transition-opacity cursor-pointer press-scale min-h-[44px]"
@@ -129,7 +129,7 @@ export default function MonthView() {
       </div>
 
       {/* Fixed day headers */}
-      <div className="grid grid-cols-7 px-3 shrink-0">
+      <div className="grid grid-cols-7 px-6 shrink-0">
         {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
           <div key={i} className="py-2 text-center text-sm text-text-t font-medium">
             {d}
@@ -138,7 +138,7 @@ export default function MonthView() {
       </div>
 
       {/* Scrollable months */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 pb-4">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 pb-4">
         <div ref={topSentinelRef} className="h-1" />
 
         {months.map((month) => {
@@ -156,7 +156,7 @@ export default function MonthView() {
               className="mb-6"
             >
               {/* Month name */}
-              <h2 className="font-display text-xl text-text-p px-1 pt-4 pb-3">
+              <h2 className="font-display text-xl text-text-p pt-4 pb-3">
                 {format(month, 'MMMM')}
               </h2>
 
@@ -172,7 +172,7 @@ export default function MonthView() {
                       key={day.toISOString()}
                       onClick={() => inMonth && handleDayClick(day)}
                       disabled={!inMonth}
-                      className={`flex flex-col items-start px-0.5 py-1 min-h-[72px] border-b border-border/15 transition-colors ${
+                      className={`flex flex-col items-start px-1 py-1 min-h-[72px] border-b border-border/15 transition-colors ${
                         inMonth ? 'cursor-pointer active:bg-elevated/30' : 'opacity-0 pointer-events-none'
                       }`}
                     >

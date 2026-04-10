@@ -64,7 +64,7 @@ export default function DayView() {
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="px-5 pt-5 pb-2 flex items-center justify-between shrink-0">
+      <div className="px-6 pt-5 pb-2 flex items-center justify-between shrink-0">
         <button
           onClick={handleBack}
           className="flex items-center gap-1 text-today active:opacity-70 transition-opacity cursor-pointer press-scale min-h-[44px]"
@@ -81,7 +81,7 @@ export default function DayView() {
       </div>
 
       {/* Week strip */}
-      <div className="grid grid-cols-7 px-3 py-2 border-b border-border/30 shrink-0">
+      <div className="grid grid-cols-7 px-6 py-2 border-b border-border/30 shrink-0">
         {weekDays.map((day) => {
           const today = isToday(day);
           const selected = isSameDay(day, calendarDate);
@@ -146,7 +146,7 @@ export default function DayView() {
             return (
               <button
                 key={booking.id}
-                className={`absolute left-16 right-4 rounded-xl p-3 ${statusBg[booking.status]} border border-border/30 cursor-pointer press-scale transition-all active:shadow-glow text-left`}
+                className={`absolute left-16 right-6 rounded-xl p-4 ${statusBg[booking.status]} border border-border/30 cursor-pointer press-scale transition-all active:shadow-glow text-left`}
                 style={{ top, height: Math.max(height, 48) }}
                 onClick={(e) => {
                   e.stopPropagation();

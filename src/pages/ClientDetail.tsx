@@ -181,7 +181,7 @@ export default function ClientDetailPage() {
             <button
               key={b.id}
               onClick={() => setSelectedBookingId(b.id)}
-              className="w-full text-left flex items-center gap-4 px-4 py-4 rounded-xl active:bg-elevated/40 transition-colors cursor-pointer press-scale min-h-[64px]"
+              className="w-full text-left flex items-center gap-4 px-5 py-4 rounded-xl active:bg-elevated/40 transition-colors cursor-pointer press-scale min-h-[64px]"
             >
               <span className={`w-3 h-3 rounded-full ${statusDot[b.status]} shrink-0`} />
               <div className="flex-1 min-w-0">

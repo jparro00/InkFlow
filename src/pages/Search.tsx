@@ -56,7 +56,7 @@ export default function SearchOverlay() {
     >
       {/* Search input area */}
       <div
-        className="px-4 pt-4 pb-2 lg:pt-[15vh] lg:px-0 lg:max-w-[600px] lg:mx-auto lg:w-full"
+        className="px-6 pt-5 pb-2 lg:pt-[15vh] lg:px-0 lg:max-w-[600px] lg:mx-auto lg:w-full"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="relative">
