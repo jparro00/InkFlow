@@ -60,8 +60,6 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
       return (
         clientName.toLowerCase().includes(q) ||
         b.type.toLowerCase().includes(q) ||
-        b.style?.toLowerCase().includes(q) ||
-        b.placement?.toLowerCase().includes(q) ||
         b.notes?.toLowerCase().includes(q) ||
         b.status.toLowerCase().includes(q)
       );

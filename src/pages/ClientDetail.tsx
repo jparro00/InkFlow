@@ -147,12 +147,10 @@ export default function ClientDetailPage() {
       {tab === 'overview' && (
         <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0 max-w-xl">
           {[
-            { label: 'Skin Tone', value: client.skin_tone },
-            { label: 'Allergies', value: client.allergies },
-            { label: 'Date of Birth', value: client.dob ? format(new Date(client.dob), 'MMM d, yyyy') : undefined },
+            { label: 'Phone', value: client.phone },
             { label: 'Email', value: client.email },
             { label: 'Instagram', value: client.instagram },
-            { label: 'Phone', value: client.phone },
+            { label: 'Date of Birth', value: client.dob ? format(new Date(client.dob), 'MMM d, yyyy') : undefined },
           ]
             .filter((f) => f.value)
             .map((f) => (
@@ -188,12 +186,10 @@ export default function ClientDetailPage() {
               <span className={`w-3 h-3 rounded-full ${statusDot[b.status]} shrink-0`} />
               <div className="flex-1 min-w-0">
                 <div className="text-base text-text-p truncate">
-                  {b.type}{b.style && ` · ${b.style}`}
+                  {b.type}
                 </div>
                 <div className="text-sm text-text-s mt-1">
-                  {format(new Date(b.date), 'MMM d, yyyy')}
-                  {b.placement && ` · ${b.placement}`}
-                  {` · ${b.duration}h`}
+                  {format(new Date(b.date), 'MMM d, yyyy')} · {b.duration}h
                 </div>
               </div>
               <span className="text-sm text-text-t shrink-0">{b.status}</span>

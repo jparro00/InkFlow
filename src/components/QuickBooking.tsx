@@ -31,7 +31,7 @@ export default function QuickBooking() {
           value={text}
           onChange={(e) => setText(e.target.value)}
           rows={5}
-          placeholder='e.g. "Sarah, left wrist floral, black & grey, Thursday 2pm, 2 hours"'
+          placeholder='e.g. "Sarah, new tattoo, Thursday 2pm, 2 hours"'
           className="w-full bg-input border border-border/60 rounded-xl px-4 py-4 text-base text-text-p placeholder:text-text-t focus:outline-none focus:border-accent/40 resize-none transition-colors"
           autoFocus
         />

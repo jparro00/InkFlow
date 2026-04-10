@@ -1,18 +1,16 @@
-import { format, isSameDay } from 'date-fns';
+import {
+  format,
+  isSameDay,
+  isToday,
+  startOfWeek,
+  endOfWeek,
+  eachDayOfInterval,
+} from 'date-fns';
+import { ChevronLeft, Plus } from 'lucide-react';
 import { useUIStore } from '../../stores/uiStore';
 import { useBookingStore } from '../../stores/bookingStore';
 import { useClientStore } from '../../stores/clientStore';
 import type { BookingStatus } from '../../types';
-
-const hours = Array.from({ length: 13 }, (_, i) => i + 8);
-
-const statusDot: Record<BookingStatus, string> = {
-  Confirmed: 'bg-text-p',
-  Tentative: 'bg-[#6B6560]',
-  Completed: 'bg-[#3D8C5C]',
-  Cancelled: 'bg-[#7A3535]',
-  'No-show': 'bg-[#8A6A2A]',
-};
 
 const statusBg: Record<BookingStatus, string> = {
   Confirmed: 'bg-[rgba(240,237,232,0.06)]',
@@ -22,19 +20,30 @@ const statusBg: Record<BookingStatus, string> = {
   'No-show': 'bg-[rgba(138,106,42,0.10)]',
 };
 
+const statusDot: Record<BookingStatus, string> = {
+  Confirmed: 'bg-text-p',
+  Tentative: 'bg-[#6B6560]',
+  Completed: 'bg-[#3D8C5C]',
+  Cancelled: 'bg-[#7A3535]',
+  'No-show': 'bg-[#8A6A2A]',
+};
+
+const hours = Array.from({ length: 24 }, (_, i) => i);
+
 export default function DayView() {
-  const calendarDate = useUIStore((s) => s.calendarDate);
-  const setSelectedBookingId = useUIStore((s) => s.setSelectedBookingId);
-  const openBookingForm = useUIStore((s) => s.openBookingForm);
-  const setPrefillBookingData = useUIStore((s) => s.setPrefillBookingData);
+  const { calendarDate, setCalendarDate, setCalendarView, openBookingForm, setSelectedBookingId, setPrefillBookingData } = useUIStore();
   const bookings = useBookingStore((s) => s.bookings);
   const getClient = useClientStore((s) => s.getClient);
+
+  const weekStart = startOfWeek(calendarDate, { weekStartsOn: 0 });
+  const weekEnd = endOfWeek(calendarDate, { weekStartsOn: 0 });
+  const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
   const dayBookings = bookings
     .filter((b) => isSameDay(new Date(b.date), calendarDate))
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-  const hourHeight = 80;
+  const hourHeight = 64;
 
   const handleSlotClick = (hour: number) => {
     const dateStr = new Date(
@@ -48,59 +57,115 @@ export default function DayView() {
     openBookingForm();
   };
 
-  return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="relative" style={{ minHeight: hours.length * hourHeight }}>
-        {/* Hour grid lines */}
-        {hours.map((hour) => (
-          <div
-            key={hour}
-            className="absolute w-full border-b border-border/20 flex active:bg-elevated/20 cursor-pointer transition-colors"
-            style={{ top: (hour - 8) * hourHeight, height: hourHeight }}
-            onClick={() => handleSlotClick(hour)}
-          >
-            <div className="w-16 lg:w-20 text-sm text-text-t py-3 text-right pr-4 shrink-0">
-              {format(new Date(2026, 0, 1, hour), 'h a')}
-            </div>
-            <div className="flex-1 border-l border-border/20" />
-          </div>
-        ))}
+  const handleBack = () => {
+    setCalendarView('month');
+  };
 
-        {/* Booking blocks */}
-        {dayBookings.map((booking) => {
-          const d = new Date(booking.date);
-          const startHour = d.getHours() + d.getMinutes() / 60;
-          const top = (startHour - 8) * hourHeight;
-          const height = booking.duration * hourHeight;
-          const client = getClient(booking.client_id ?? '');
+  return (
+    <div className="flex-1 flex flex-col h-full overflow-hidden">
+      {/* Header */}
+      <div className="px-5 pt-5 pb-2 flex items-center justify-between shrink-0">
+        <button
+          onClick={handleBack}
+          className="flex items-center gap-1 text-today active:opacity-70 transition-opacity cursor-pointer press-scale min-h-[44px]"
+        >
+          <ChevronLeft size={20} />
+          <span className="text-lg font-medium">{format(calendarDate, 'MMMM')}</span>
+        </button>
+        <button
+          onClick={() => openBookingForm()}
+          className="w-12 h-12 bg-accent text-bg rounded-xl flex items-center justify-center cursor-pointer press-scale transition-transform"
+        >
+          <Plus size={20} />
+        </button>
+      </div>
+
+      {/* Week strip */}
+      <div className="grid grid-cols-7 px-3 py-2 border-b border-border/30 shrink-0">
+        {weekDays.map((day) => {
+          const today = isToday(day);
+          const selected = isSameDay(day, calendarDate);
 
           return (
             <button
-              key={booking.id}
-              className={`absolute left-16 lg:left-20 right-4 lg:right-4 rounded-xl p-4 lg:p-4 ${statusBg[booking.status]} border border-border/30 cursor-pointer press-scale transition-all active:shadow-glow hover:shadow-glow hover:border-accent/20 text-left`}
-              style={{ top, height: Math.max(height, 56) }}
-              onClick={(e) => {
-                e.stopPropagation();
-                setSelectedBookingId(booking.id);
-              }}
+              key={day.toISOString()}
+              onClick={() => setCalendarDate(day)}
+              className="flex flex-col items-center gap-1 py-1 cursor-pointer transition-colors"
             >
-              <div className="flex items-center gap-2.5">
-                <span className={`w-2.5 h-2.5 rounded-full ${statusDot[booking.status]} shrink-0`} />
-                <span className="text-base text-text-p font-medium truncate">
-                  {client?.name ?? 'Walk-in'}
-                </span>
-              </div>
-              <div className="text-sm text-text-s mt-1.5 pl-5">
-                {format(d, 'h:mm a')} &middot; {booking.type} &middot; {booking.duration}h
-              </div>
-              {booking.style && height > 60 && (
-                <div className="text-sm text-text-t mt-1 pl-5">
-                  {booking.style} &middot; {booking.placement}
-                </div>
-              )}
+              <span
+                className={`text-xs font-medium ${
+                  today && !selected ? 'text-today' : 'text-text-t'
+                }`}
+              >
+                {format(day, 'EEEEE')}
+              </span>
+              <span
+                className={`w-9 h-9 flex items-center justify-center rounded-full text-sm font-medium transition-colors ${
+                  selected && today
+                    ? 'bg-today text-white'
+                    : selected
+                    ? 'bg-text-p text-bg'
+                    : today
+                    ? 'text-today'
+                    : 'text-text-p'
+                }`}
+              >
+                {format(day, 'd')}
+              </span>
             </button>
           );
         })}
+      </div>
+
+      {/* Timeline */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="relative" style={{ minHeight: hours.length * hourHeight }}>
+          {/* Hour grid */}
+          {hours.map((hour) => (
+            <div
+              key={hour}
+              className="absolute w-full border-b border-border/15 flex active:bg-elevated/20 cursor-pointer transition-colors"
+              style={{ top: hour * hourHeight, height: hourHeight }}
+              onClick={() => handleSlotClick(hour)}
+            >
+              <div className="w-16 text-xs text-text-t py-2 text-right pr-4 shrink-0">
+                {format(new Date(2026, 0, 1, hour), 'h a')}
+              </div>
+              <div className="flex-1 border-l border-border/20" />
+            </div>
+          ))}
+
+          {/* Booking blocks */}
+          {dayBookings.map((booking) => {
+            const d = new Date(booking.date);
+            const startHour = d.getHours() + d.getMinutes() / 60;
+            const top = startHour * hourHeight;
+            const height = booking.duration * hourHeight;
+            const client = getClient(booking.client_id ?? '');
+
+            return (
+              <button
+                key={booking.id}
+                className={`absolute left-16 right-4 rounded-xl p-3 ${statusBg[booking.status]} border border-border/30 cursor-pointer press-scale transition-all active:shadow-glow text-left`}
+                style={{ top, height: Math.max(height, 48) }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedBookingId(booking.id);
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <span className={`w-2.5 h-2.5 rounded-full ${statusDot[booking.status]} shrink-0`} />
+                  <span className="text-base text-text-p font-medium truncate">
+                    {client?.display_name || client?.name || 'Walk-in'}
+                  </span>
+                </div>
+                <div className="text-sm text-text-s mt-1 pl-[18px]">
+                  {format(d, 'h:mm a')} · {booking.type} · {booking.duration}h
+                </div>
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

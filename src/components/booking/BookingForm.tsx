@@ -4,12 +4,9 @@ import Modal from '../common/Modal';
 import { useUIStore } from '../../stores/uiStore';
 import { useBookingStore } from '../../stores/bookingStore';
 import { useClientStore } from '../../stores/clientStore';
-import type { Booking, BookingType, BookingStatus, DepositStatus, TattooSize, ColorMode } from '../../types';
+import type { Booking, BookingType, BookingStatus } from '../../types';
 
 const bookingTypes: BookingType[] = ['Consultation', 'New Tattoo', 'Touch-up', 'Cover-up'];
-const sizes: TattooSize[] = ['S', 'M', 'L', 'XL'];
-const colorModes: ColorMode[] = ['B&G', 'Color'];
-const depositStatuses: DepositStatus[] = ['Paid', 'Unpaid', 'Waived'];
 const statuses: BookingStatus[] = ['Confirmed', 'Tentative', 'Completed', 'Cancelled', 'No-show'];
 
 const defaultForm = {
@@ -18,12 +15,6 @@ const defaultForm = {
   time: '10:00',
   duration: 2,
   type: 'New Tattoo' as BookingType,
-  style: '',
-  placement: '',
-  size: '' as TattooSize | '',
-  color_mode: '' as ColorMode | '',
-  deposit: '',
-  deposit_paid: 'Unpaid' as DepositStatus,
   estimate: '',
   status: 'Confirmed' as BookingStatus,
   notes: '',
@@ -48,12 +39,6 @@ export default function BookingForm() {
         time: format(d, 'HH:mm'),
         duration: booking.duration,
         type: booking.type,
-        style: booking.style ?? '',
-        placement: booking.placement ?? '',
-        size: booking.size ?? '',
-        color_mode: booking.color_mode ?? '',
-        deposit: booking.deposit?.toString() ?? '',
-        deposit_paid: booking.deposit_paid ?? 'Unpaid',
         estimate: booking.estimate?.toString() ?? '',
         status: booking.status,
         notes: booking.notes ?? '',
@@ -74,10 +59,6 @@ export default function BookingForm() {
       }
       if (prefillBookingData.duration) updates.duration = prefillBookingData.duration;
       if (prefillBookingData.type) updates.type = prefillBookingData.type as BookingType;
-      if (prefillBookingData.style) updates.style = prefillBookingData.style;
-      if (prefillBookingData.placement) updates.placement = prefillBookingData.placement;
-      if (prefillBookingData.color_mode) updates.color_mode = prefillBookingData.color_mode as ColorMode;
-      if (prefillBookingData.size) updates.size = prefillBookingData.size as TattooSize;
       setForm((f) => ({ ...f, ...updates }));
     }
   }, [booking, prefillBookingData, clients]);
@@ -93,12 +74,6 @@ export default function BookingForm() {
       date: dateTime.toISOString(),
       duration: form.duration,
       type: form.type,
-      style: form.style || undefined,
-      placement: form.placement || undefined,
-      size: (form.size as TattooSize) || undefined,
-      color_mode: (form.color_mode as ColorMode) || undefined,
-      deposit: form.deposit ? parseFloat(form.deposit) : undefined,
-      deposit_paid: form.deposit ? form.deposit_paid : undefined,
       estimate: form.estimate ? parseFloat(form.estimate) : undefined,
       status: form.status,
       notes: form.notes || undefined,
@@ -151,14 +126,14 @@ export default function BookingForm() {
                   className="w-full text-left px-4 py-4 text-base text-text-p active:bg-surface transition-colors cursor-pointer first:rounded-t-xl last:rounded-b-xl min-h-[48px]"
                 >
                   {c.name}
-                  {c.phone && <span className="text-text-t ml-2 text-xs">{c.phone}</span>}
+                  {c.phone && <span className="text-text-t ml-2 text-sm">{c.phone}</span>}
                 </button>
               ))}
             </div>
           )}
         </div>
 
-        {/* Date / Time / Duration — stacked on mobile */}
+        {/* Date / Time / Duration */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
           <div>
             <label className={labelClass}>Date *</label>
@@ -214,104 +189,7 @@ export default function BookingForm() {
 
         <div className="h-px bg-border/40" />
 
-        {/* Style / Placement */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-          <div>
-            <label className={labelClass}>Style</label>
-            <input
-              type="text"
-              value={form.style}
-              onChange={(e) => setForm((f) => ({ ...f, style: e.target.value }))}
-              placeholder="e.g. Traditional"
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label className={labelClass}>Placement</label>
-            <input
-              type="text"
-              value={form.placement}
-              onChange={(e) => setForm((f) => ({ ...f, placement: e.target.value }))}
-              placeholder="e.g. left wrist"
-              className={inputClass}
-            />
-          </div>
-        </div>
-
-        {/* Size / Color */}
-        <div className="grid grid-cols-2 gap-5">
-          <div>
-            <label className={labelClass}>Size</label>
-            <div className="flex gap-2">
-              {sizes.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setForm((f) => ({ ...f, size: f.size === s ? '' : s }))}
-                  className={`flex-1 py-3.5 text-base rounded-xl border transition-all cursor-pointer press-scale min-h-[48px] ${
-                    form.size === s
-                      ? 'border-accent/60 text-accent bg-accent/8'
-                      : 'border-border/60 text-text-s'
-                  }`}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <label className={labelClass}>Color</label>
-            <div className="flex gap-2">
-              {colorModes.map((cm) => (
-                <button
-                  key={cm}
-                  onClick={() => setForm((f) => ({ ...f, color_mode: f.color_mode === cm ? '' : cm }))}
-                  className={`flex-1 py-3.5 text-base rounded-xl border transition-all cursor-pointer press-scale min-h-[48px] ${
-                    form.color_mode === cm
-                      ? 'border-accent/60 text-accent bg-accent/8'
-                      : 'border-border/60 text-text-s'
-                  }`}
-                >
-                  {cm}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="h-px bg-border/40" />
-
-        {/* Financials */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-          <div>
-            <label className={labelClass}>Deposit ($)</label>
-            <input
-              type="number"
-              value={form.deposit}
-              onChange={(e) => setForm((f) => ({ ...f, deposit: e.target.value }))}
-              placeholder="0"
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label className={labelClass}>Deposit Status</label>
-            <div className="flex gap-2">
-              {depositStatuses.map((ds) => (
-                <button
-                  key={ds}
-                  onClick={() => setForm((f) => ({ ...f, deposit_paid: ds }))}
-                  className={`flex-1 py-3.5 text-base rounded-xl border transition-all cursor-pointer press-scale min-h-[48px] ${
-                    form.deposit_paid === ds
-                      ? 'border-accent/60 text-accent bg-accent/8'
-                      : 'border-border/60 text-text-s'
-                  }`}
-                >
-                  {ds}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
+        {/* Estimate */}
         <div>
           <label className={labelClass}>Estimate ($)</label>
           <input
@@ -322,8 +200,6 @@ export default function BookingForm() {
             className={inputClass}
           />
         </div>
-
-        <div className="h-px bg-border/40" />
 
         {/* Notes */}
         <div>
@@ -351,7 +227,7 @@ export default function BookingForm() {
           </select>
         </div>
 
-        {/* Save — full width on mobile, sticky */}
+        {/* Save */}
         <div className="flex flex-col lg:flex-row lg:justify-end gap-3 pt-4 border-t border-border/40 sticky bottom-0 bg-elevated pb-2">
           <button
             onClick={closeBookingForm}

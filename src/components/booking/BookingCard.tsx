@@ -50,9 +50,6 @@ export default function BookingCard({ booking, compact }: BookingCardProps) {
       <div className="text-sm text-text-s pl-[22px]">
         {format(new Date(booking.date), 'h:mm a')} &middot; {booking.type} &middot; {booking.duration}h
       </div>
-      {booking.style && (
-        <div className="text-sm text-text-t mt-1 pl-[22px]">{booking.style} &middot; {booking.placement}</div>
-      )}
     </button>
   );
 }

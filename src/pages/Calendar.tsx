@@ -1,7 +1,6 @@
-import CalendarHeader from '../components/calendar/CalendarHeader';
 import MonthView from '../components/calendar/MonthView';
-import WeekView from '../components/calendar/WeekView';
 import DayView from '../components/calendar/DayView';
+import YearView from '../components/calendar/YearView';
 import { useUIStore } from '../stores/uiStore';
 
 export default function CalendarPage() {
@@ -9,9 +8,8 @@ export default function CalendarPage() {
 
   return (
     <div className="h-full flex flex-col">
-      <CalendarHeader />
+      {calendarView === 'year' && <YearView />}
       {calendarView === 'month' && <MonthView />}
-      {calendarView === 'week' && <WeekView />}
       {calendarView === 'day' && <DayView />}
     </div>
   );

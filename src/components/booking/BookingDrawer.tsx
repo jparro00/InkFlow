@@ -119,68 +119,10 @@ export default function BookingDrawer() {
             <div className="text-sm text-text-s mt-1">
               {format(d, 'h:mm a')} — {format(endTime, 'h:mm a')} ({booking.duration}h)
             </div>
+            {booking.estimate != null && (
+              <div className="text-sm text-text-s mt-1">Estimate: ${booking.estimate}</div>
+            )}
           </div>
-
-          {/* Tattoo details */}
-          {(booking.style || booking.placement || booking.size || booking.color_mode) && (
-            <>
-              <div className="h-px bg-border/40" />
-              <div className="grid grid-cols-2 gap-4">
-                {booking.style && (
-                  <div>
-                    <div className="text-sm text-text-t uppercase tracking-wider mb-1.5 font-medium">Style</div>
-                    <div className="text-sm text-text-p">{booking.style}</div>
-                  </div>
-                )}
-                {booking.placement && (
-                  <div>
-                    <div className="text-sm text-text-t uppercase tracking-wider mb-1.5 font-medium">Placement</div>
-                    <div className="text-sm text-text-p">{booking.placement}</div>
-                  </div>
-                )}
-                {booking.size && (
-                  <div>
-                    <div className="text-sm text-text-t uppercase tracking-wider mb-1.5 font-medium">Size</div>
-                    <div className="text-sm text-text-p">{booking.size}</div>
-                  </div>
-                )}
-                {booking.color_mode && (
-                  <div>
-                    <div className="text-sm text-text-t uppercase tracking-wider mb-1.5 font-medium">Color</div>
-                    <div className="text-sm text-text-p">{booking.color_mode}</div>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-
-          {/* Financials */}
-          {(booking.deposit != null || booking.estimate != null) && (
-            <>
-              <div className="h-px bg-border/40" />
-              <div>
-                {booking.deposit != null && (
-                  <div className="text-sm text-text-p">
-                    Deposit: ${booking.deposit}{' '}
-                    <span
-                      className={
-                        booking.deposit_paid === 'Paid'
-                          ? 'text-success'
-                          : booking.deposit_paid === 'Unpaid'
-                          ? 'text-danger'
-                          : 'text-text-s'
-                      }
-                    >
-                      &middot; {booking.deposit_paid}
-                    </span>
-                  </div>
-                )}
-                {booking.estimate != null && (
-                  <div className="text-sm text-text-s mt-1">Estimate: ${booking.estimate}</div>
-                )}
-              </div>
-            </>
-          )}
 
           {/* Notes */}
           {booking.notes && (

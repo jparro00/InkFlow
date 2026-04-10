@@ -5,25 +5,7 @@ interface ParsedBooking {
   date?: string;
   duration?: number;
   type?: string;
-  style?: string;
-  placement?: string;
-  color_mode?: string;
-  size?: string;
 }
-
-const styleKeywords = [
-  'traditional', 'neo-traditional', 'japanese', 'realism', 'watercolor',
-  'minimalist', 'fine line', 'tribal', 'geometric', 'blackwork',
-  'dotwork', 'new school', 'old school', 'chicano', 'biomechanical',
-];
-
-const placements = [
-  'wrist', 'forearm', 'upper arm', 'shoulder', 'back', 'chest',
-  'ribs', 'hip', 'thigh', 'calf', 'ankle', 'foot', 'neck',
-  'collarbone', 'bicep', 'tricep', 'shin', 'knee',
-];
-
-const sideKeywords = ['left', 'right', 'inner', 'outer', 'upper', 'lower'];
 
 export function parseQuickBooking(text: string): ParsedBooking {
   const result: ParsedBooking = {};
@@ -40,54 +22,10 @@ export function parseQuickBooking(text: string): ParsedBooking {
     }
   }
 
-  // Color mode
-  if (lower.includes('b&g') || lower.includes('black and grey') || lower.includes('black & grey') || lower.includes('black and gray')) {
-    result.color_mode = 'B&G';
-  } else if (lower.includes('color') || lower.includes('colour') || lower.includes('full color')) {
-    result.color_mode = 'Color';
-  }
-
-  // Style
-  for (const style of styleKeywords) {
-    if (lower.includes(style)) {
-      result.style = style.split(' ').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-      break;
-    }
-  }
-
-  // Placement (with side)
-  for (const placement of placements) {
-    const idx = lower.indexOf(placement);
-    if (idx !== -1) {
-      let fullPlacement = placement;
-      // Check for side modifier before placement
-      const before = lower.slice(Math.max(0, idx - 10), idx).trim();
-      for (const side of sideKeywords) {
-        if (before.endsWith(side)) {
-          fullPlacement = `${side} ${placement}`;
-          break;
-        }
-      }
-      result.placement = fullPlacement.split(' ').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-      break;
-    }
-  }
-
   // Duration
   const durationMatch = lower.match(/(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|h)\b/);
   if (durationMatch) {
     result.duration = parseFloat(durationMatch[1]);
-  }
-
-  // Size
-  if (/\bxl\b/i.test(lower) || /\bextra\s*large\b/i.test(lower)) {
-    result.size = 'XL';
-  } else if (/\blarge\b/i.test(lower) || /\bbig\b/i.test(lower)) {
-    result.size = 'L';
-  } else if (/\bmedium\b/i.test(lower) || /\bmed\b/i.test(lower)) {
-    result.size = 'M';
-  } else if (/\bsmall\b/i.test(lower) || /\btiny\b/i.test(lower)) {
-    result.size = 'S';
   }
 
   // Type
@@ -101,7 +39,7 @@ export function parseQuickBooking(text: string): ParsedBooking {
     result.type = 'New Tattoo';
   }
 
-  // Date/time — look for common patterns
+  // Date/time
   const timeMatch = lower.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)/);
   if (timeMatch) {
     let hour = parseInt(timeMatch[1]);
@@ -109,7 +47,6 @@ export function parseQuickBooking(text: string): ParsedBooking {
     if (timeMatch[3] === 'pm' && hour < 12) hour += 12;
     if (timeMatch[3] === 'am' && hour === 12) hour = 0;
 
-    // Find a date reference
     const now = new Date();
     let targetDate = new Date(now);
 

@@ -8,32 +8,40 @@ interface ClientFormProps {
   onClose: () => void;
 }
 
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const instagramRegex = /^@[\w.]+$/;
+const facebookRegex = /^(\d+|https?:\/\/(www\.)?facebook\.com\/.+)$/;
+
 export default function ClientForm({ client, onClose }: ClientFormProps) {
   const addClient = useClientStore((s) => s.addClient);
   const updateClient = useClientStore((s) => s.updateClient);
 
   const [form, setForm] = useState({
     name: client?.name ?? '',
-    nickname: client?.nickname ?? '',
+    display_name: client?.display_name ?? '',
     phone: client?.phone ?? '',
     email: client?.email ?? '',
     instagram: client?.instagram ?? '',
+    facebook_id: client?.facebook_id ?? '',
     dob: client?.dob ?? '',
-    skin_tone: client?.skin_tone ?? '',
-    allergies: client?.allergies ?? '',
     tags: client?.tags.join(', ') ?? '',
   });
 
+  const emailValid = !form.email || emailRegex.test(form.email);
+  const instagramValid = !form.instagram || instagramRegex.test(form.instagram);
+  const facebookValid = !form.facebook_id || facebookRegex.test(form.facebook_id);
+  const isValid = form.name.trim() && emailValid && instagramValid && facebookValid;
+
   const handleSave = () => {
+    if (!isValid) return;
     const data = {
       name: form.name,
-      nickname: form.nickname || undefined,
+      display_name: form.display_name || undefined,
       phone: form.phone || undefined,
       email: form.email || undefined,
       instagram: form.instagram || undefined,
+      facebook_id: form.facebook_id || undefined,
       dob: form.dob || undefined,
-      skin_tone: form.skin_tone || undefined,
-      allergies: form.allergies || undefined,
       tags: form.tags
         .split(',')
         .map((t) => t.trim())
@@ -49,20 +57,33 @@ export default function ClientForm({ client, onClose }: ClientFormProps) {
   };
 
   const inputClass = "w-full bg-input border border-border/60 rounded-xl px-4 py-3.5 text-base text-text-p placeholder:text-text-t focus:outline-none focus:border-accent/40 transition-colors min-h-[48px]";
+  const errorInputClass = "w-full bg-input border border-danger/60 rounded-xl px-4 py-3.5 text-base text-text-p placeholder:text-text-t focus:outline-none focus:border-danger/40 transition-colors min-h-[48px]";
   const labelClass = "text-sm text-text-t uppercase tracking-wider mb-2 block font-medium";
 
   return (
     <Modal title={client ? 'Edit Client' : 'New Client'} onClose={onClose} width="lg:max-w-[520px]">
       <div className="space-y-5">
-        <div>
-          <label className={labelClass}>Name *</label>
-          <input
-            type="text"
-            value={form.name}
-            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-            className={inputClass}
-            autoFocus
-          />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <div>
+            <label className={labelClass}>Name *</label>
+            <input
+              type="text"
+              value={form.name}
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+              className={inputClass}
+              autoFocus
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Display Name</label>
+            <input
+              type="text"
+              value={form.display_name}
+              onChange={(e) => setForm((f) => ({ ...f, display_name: e.target.value }))}
+              placeholder="What you call them"
+              className={inputClass}
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -81,8 +102,12 @@ export default function ClientForm({ client, onClose }: ClientFormProps) {
               type="email"
               value={form.email}
               onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-              className={inputClass}
+              placeholder="name@example.com"
+              className={form.email && !emailValid ? errorInputClass : inputClass}
             />
+            {form.email && !emailValid && (
+              <span className="text-xs text-danger mt-1 block">Enter a valid email</span>
+            )}
           </div>
         </div>
 
@@ -94,48 +119,34 @@ export default function ClientForm({ client, onClose }: ClientFormProps) {
               value={form.instagram}
               onChange={(e) => setForm((f) => ({ ...f, instagram: e.target.value }))}
               placeholder="@handle"
-              className={inputClass}
+              className={form.instagram && !instagramValid ? errorInputClass : inputClass}
             />
+            {form.instagram && !instagramValid && (
+              <span className="text-xs text-danger mt-1 block">Must start with @ (letters, numbers, dots, underscores)</span>
+            )}
           </div>
           <div>
-            <label className={labelClass}>Date of Birth</label>
-            <input
-              type="date"
-              value={form.dob}
-              onChange={(e) => setForm((f) => ({ ...f, dob: e.target.value }))}
-              className={`${inputClass} [color-scheme:dark]`}
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-          <div>
-            <label className={labelClass}>Skin Tone</label>
+            <label className={labelClass}>Facebook</label>
             <input
               type="text"
-              value={form.skin_tone}
-              onChange={(e) => setForm((f) => ({ ...f, skin_tone: e.target.value }))}
-              className={inputClass}
+              value={form.facebook_id}
+              onChange={(e) => setForm((f) => ({ ...f, facebook_id: e.target.value }))}
+              placeholder="Profile URL or ID"
+              className={form.facebook_id && !facebookValid ? errorInputClass : inputClass}
             />
-          </div>
-          <div>
-            <label className={labelClass}>Nickname</label>
-            <input
-              type="text"
-              value={form.nickname}
-              onChange={(e) => setForm((f) => ({ ...f, nickname: e.target.value }))}
-              className={inputClass}
-            />
+            {form.facebook_id && !facebookValid && (
+              <span className="text-xs text-danger mt-1 block">Enter a Facebook URL or numeric ID</span>
+            )}
           </div>
         </div>
 
         <div>
-          <label className={labelClass}>Allergies</label>
-          <textarea
-            value={form.allergies}
-            onChange={(e) => setForm((f) => ({ ...f, allergies: e.target.value }))}
-            rows={2}
-            className={`${inputClass} resize-none`}
+          <label className={labelClass}>Date of Birth</label>
+          <input
+            type="date"
+            value={form.dob}
+            onChange={(e) => setForm((f) => ({ ...f, dob: e.target.value }))}
+            className={`${inputClass} [color-scheme:dark]`}
           />
         </div>
 
@@ -159,7 +170,7 @@ export default function ClientForm({ client, onClose }: ClientFormProps) {
           </button>
           <button
             onClick={handleSave}
-            disabled={!form.name.trim()}
+            disabled={!isValid}
             className="w-full lg:w-auto px-6 py-4 lg:py-2.5 text-base bg-accent text-bg rounded-xl font-medium cursor-pointer press-scale transition-all disabled:opacity-40 disabled:cursor-not-allowed min-h-[52px]"
           >
             {client ? 'Update Client' : 'Add Client'}
