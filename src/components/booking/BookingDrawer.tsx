@@ -30,7 +30,9 @@ export default function BookingDrawer() {
   const dragY = useMotionValue(0);
   const backdropOpacity = useTransform(dragY, [0, 400], [1, 0]);
   const sheetRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const isDismissing = useRef(false);
+  const isDragging = useRef(false);
 
   const dismiss = () => {
     if (isDismissing.current) return;
@@ -45,17 +47,32 @@ export default function BookingDrawer() {
     });
   };
 
+  // Drag on the entire sheet — only activates when scrolled to top
   const bindDrag = useDrag(
-    ({ movement: [, my], velocity: [, vy], direction: [, dy], last }) => {
+    ({ movement: [, my], velocity: [, vy], direction: [, dy], first, last, cancel }) => {
       if (isDismissing.current) return;
-      if (my < 0) {
-        dragY.set(my * 0.1); // slight resistance when dragging up
-        if (last) animate(dragY, 0, { type: 'spring', stiffness: 400, damping: 30 });
-        return;
+
+      // On first move, check if content is scrolled down
+      if (first) {
+        const scrollTop = contentRef.current?.scrollTop ?? 0;
+        if (scrollTop > 0 && dy > 0) {
+          // Content is scrolled — let native scroll handle it
+          cancel();
+          return;
+        }
+        isDragging.current = true;
       }
-      dragY.set(my);
+
+      if (!isDragging.current) return;
+
+      if (my < 0) {
+        dragY.set(my * 0.1);
+      } else {
+        dragY.set(my);
+      }
 
       if (last) {
+        isDragging.current = false;
         if (my > 80 || (vy > 0.4 && dy > 0)) {
           dismiss();
         } else {
@@ -63,7 +80,12 @@ export default function BookingDrawer() {
         }
       }
     },
-    { axis: 'y', filterTaps: true, threshold: 5, pointer: { touch: true } }
+    {
+      axis: 'y',
+      filterTaps: true,
+      threshold: 5,
+      pointer: { touch: true },
+    }
   );
 
   if (!booking) return null;
@@ -107,15 +129,15 @@ export default function BookingDrawer() {
         style={{ y: dragY }}
         className="fixed bottom-0 left-0 right-0 lg:top-0 lg:left-auto lg:right-0 lg:bottom-0 max-h-[85vh] lg:max-h-full lg:w-[400px] bg-elevated rounded-t-2xl lg:rounded-none border-t lg:border-t-0 lg:border-l border-border/40 shadow-lg z-50 flex flex-col overflow-hidden"
       >
-        {/* Drag zone — handle + header, entire top area is grabbable */}
-        <div {...bindDrag()} className="touch-none cursor-grab active:cursor-grabbing">
+        {/* Entire sheet is drag-bound — gesture only activates when at scroll top */}
+        <div {...bindDrag()} className="flex flex-col flex-1 overflow-hidden touch-none">
           {/* Drag handle — mobile */}
           <div className="flex justify-center pt-3 pb-1 lg:hidden">
             <div className="w-10 h-1 rounded-full bg-border-s/60" />
           </div>
 
           {/* Header */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-border/40">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-border/40 shrink-0">
             <button
               onClick={dismiss}
               className="flex items-center gap-2.5 text-text-s active:text-text-p transition-colors cursor-pointer press-scale min-h-[44px]"
@@ -141,85 +163,85 @@ export default function BookingDrawer() {
               </button>
             </div>
           </div>
-        </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-6">
-          {/* Client */}
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center text-accent text-base font-medium shrink-0">
-              {client ? client.name.charAt(0) : <User size={20} />}
+          {/* Content */}
+          <div ref={contentRef} className="flex-1 overflow-y-auto p-5 space-y-6">
+            {/* Client */}
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center text-accent text-base font-medium shrink-0">
+                {client ? client.name.charAt(0) : <User size={20} />}
+              </div>
+              <div>
+                <div className="text-base text-text-p font-medium">{client?.name ?? 'Walk-in'}</div>
+                {client?.phone && <div className="text-sm text-text-s mt-0.5">{client.phone}</div>}
+              </div>
             </div>
+
+            <div className="h-px bg-border/40" />
+
+            {/* Appointment */}
             <div>
-              <div className="text-base text-text-p font-medium">{client?.name ?? 'Walk-in'}</div>
-              {client?.phone && <div className="text-sm text-text-s mt-0.5">{client.phone}</div>}
+              <div className="text-text-p font-medium">
+                {booking.type} &middot; {format(d, 'EEEE, MMM d, yyyy')}
+              </div>
+              <div className="text-sm text-text-s mt-1">
+                {format(d, 'h:mm a')} — {format(endTime, 'h:mm a')} ({booking.duration}h)
+              </div>
+              {booking.estimate != null && (
+                <div className="text-sm text-text-s mt-1">Estimate: ${booking.estimate}</div>
+              )}
             </div>
-          </div>
 
-          <div className="h-px bg-border/40" />
+            {/* Notes */}
+            {booking.notes && (
+              <>
+                <div className="h-px bg-border/40" />
+                <div>
+                  <div className="text-sm text-text-t uppercase tracking-wider mb-2 font-medium">Notes</div>
+                  <div className="text-sm text-text-s leading-relaxed">{booking.notes}</div>
+                </div>
+              </>
+            )}
 
-          {/* Appointment */}
-          <div>
-            <div className="text-text-p font-medium">
-              {booking.type} &middot; {format(d, 'EEEE, MMM d, yyyy')}
+            {/* Status */}
+            <div className="h-px bg-border/40" />
+            <div>
+              <div className="text-sm text-text-t uppercase tracking-wider mb-2.5 font-medium">Status</div>
+              <div className="flex items-center gap-2.5 mb-4">
+                <span className={`w-3 h-3 rounded-full ${statusDot[booking.status]}`} />
+                <span className="text-base text-text-p">{booking.status}</span>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                {allStatuses
+                  .filter((s) => s !== booking.status)
+                  .map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => handleStatusChange(s)}
+                      className="px-4 py-3 text-sm rounded-xl border border-border/60 text-text-s active:text-text-p active:bg-surface transition-colors cursor-pointer press-scale min-h-[44px]"
+                    >
+                      {s}
+                    </button>
+                  ))}
+              </div>
             </div>
-            <div className="text-sm text-text-s mt-1">
-              {format(d, 'h:mm a')} — {format(endTime, 'h:mm a')} ({booking.duration}h)
-            </div>
-            {booking.estimate != null && (
-              <div className="text-sm text-text-s mt-1">Estimate: ${booking.estimate}</div>
+
+            {/* View Client */}
+            {client && (
+              <>
+                <div className="h-px bg-border/40" />
+                <button
+                  onClick={() => {
+                    setSelectedBookingId(null);
+                    navigate(`/clients/${client.id}`);
+                  }}
+                  className="w-full text-left text-base text-accent active:text-accent-dim transition-colors cursor-pointer press-scale py-3 min-h-[44px]"
+                >
+                  View Client Profile &rarr;
+                </button>
+              </>
             )}
           </div>
-
-          {/* Notes */}
-          {booking.notes && (
-            <>
-              <div className="h-px bg-border/40" />
-              <div>
-                <div className="text-sm text-text-t uppercase tracking-wider mb-2 font-medium">Notes</div>
-                <div className="text-sm text-text-s leading-relaxed">{booking.notes}</div>
-              </div>
-            </>
-          )}
-
-          {/* Status */}
-          <div className="h-px bg-border/40" />
-          <div>
-            <div className="text-sm text-text-t uppercase tracking-wider mb-2.5 font-medium">Status</div>
-            <div className="flex items-center gap-2.5 mb-4">
-              <span className={`w-3 h-3 rounded-full ${statusDot[booking.status]}`} />
-              <span className="text-base text-text-p">{booking.status}</span>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              {allStatuses
-                .filter((s) => s !== booking.status)
-                .map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => handleStatusChange(s)}
-                    className="px-4 py-3 text-sm rounded-xl border border-border/60 text-text-s active:text-text-p active:bg-surface transition-colors cursor-pointer press-scale min-h-[44px]"
-                  >
-                    {s}
-                  </button>
-                ))}
-            </div>
-          </div>
-
-          {/* View Client */}
-          {client && (
-            <>
-              <div className="h-px bg-border/40" />
-              <button
-                onClick={() => {
-                  setSelectedBookingId(null);
-                  navigate(`/clients/${client.id}`);
-                }}
-                className="w-full text-left text-base text-accent active:text-accent-dim transition-colors cursor-pointer press-scale py-3 min-h-[44px]"
-              >
-                View Client Profile &rarr;
-              </button>
-            </>
-          )}
         </div>
       </motion.div>
     </>
