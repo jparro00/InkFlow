@@ -14,24 +14,23 @@ export async function parseBookingWithAI(text: string, apiKey: string): Promise<
   const clientList = clients.map((c) => ({ id: c.id, name: c.name }));
   const now = new Date();
 
-  const systemPrompt = `You are a booking assistant for a tattoo studio. Extract booking details from the user's text and return a JSON object.
+  const systemPrompt = `You extract booking details from text for a tattoo studio. Return a JSON object.
 
-Today's date is ${now.toISOString().split('T')[0]} (${now.toLocaleDateString('en-US', { weekday: 'long' })}).
+Today: ${now.toISOString().split('T')[0]} (${now.toLocaleDateString('en-US', { weekday: 'long' })}).
 
-Available clients:
-${clientList.map((c) => `- id: "${c.id}", name: "${c.name}"`).join('\n')}
+Clients: ${clientList.map((c) => `${c.id}="${c.name}"`).join(', ')}
 
-Booking types (use exactly one): "Regular", "Touch Up", "Consultation", "Full Day"
+Types: "Regular", "Touch Up", "Consultation", "Full Day"
 
-Return a JSON object with these fields (omit any you can't determine):
-- client_id: string (match to a client ID from the list above, use fuzzy first-name matching)
-- date: ISO 8601 datetime string (e.g. "2026-04-15T14:00:00")
-- duration: number (hours, e.g. 2.5)
-- type: string (one of the booking types above)
-- estimate: number (dollar amount, no $ sign)
-- notes: string (any additional details not captured by other fields)
+JSON fields (omit any you can't determine, NEVER add error messages):
+- client_id: match to an ID above (fuzzy first-name match OK). If no match, omit this field entirely.
+- date: ISO 8601 datetime (e.g. "2026-04-15T14:00:00")
+- duration: number (hours)
+- type: one of the types above
+- estimate: number (dollars)
+- notes: string (tattoo details, placement, style — NOT error messages)
 
-Return ONLY valid JSON, no markdown, no explanation.`;
+CRITICAL: Always extract every field you can. A missing client match must NOT prevent you from extracting date, time, type, duration, estimate, or notes. Never put error messages or explanations in any field. Return ONLY valid JSON.`;
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
