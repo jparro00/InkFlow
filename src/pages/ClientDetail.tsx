@@ -83,7 +83,7 @@ export default function ClientDetailPage() {
           </button>
           <button
             onClick={handleNewBooking}
-            className="w-12 h-12 rounded-md flex items-center justify-center bg-accent text-bg cursor-pointer press-scale"
+            className="w-12 h-12 rounded-md flex items-center justify-center bg-accent text-bg cursor-pointer press-scale shadow-glow active:shadow-glow-strong"
           >
             <Plus size={18} />
           </button>
@@ -215,7 +215,7 @@ export default function ClientDetailPage() {
             <button
               onClick={handleAddNote}
               disabled={!noteText.trim()}
-              className="px-5 bg-accent text-bg text-base rounded-md cursor-pointer press-scale transition-all disabled:opacity-40 disabled:cursor-not-allowed self-end py-3.5 min-h-[48px]"
+              className="px-5 bg-accent text-bg text-base rounded-md cursor-pointer press-scale transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-glow active:shadow-glow-strong self-end py-3.5 min-h-[48px]"
             >
               Add
             </button>

@@ -123,7 +123,7 @@ export default function SettingsPage() {
               setTimesSaved(true);
               setTimeout(() => setTimesSaved(false), 2000);
             }}
-            className="w-full py-3.5 text-base bg-accent text-bg rounded-md cursor-pointer press-scale transition-all min-h-[48px]"
+            className="w-full py-3.5 text-base bg-accent text-bg rounded-md cursor-pointer press-scale transition-all shadow-glow active:shadow-glow-strong min-h-[48px]"
           >
             {timesSaved ? 'Saved!' : 'Save Times'}
           </button>
@@ -145,7 +145,7 @@ export default function SettingsPage() {
             <button
               onClick={handleExport}
               disabled={!exportClient.trim()}
-              className="px-5 py-3.5 text-base bg-accent text-bg rounded-md cursor-pointer press-scale transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0 min-h-[48px]"
+              className="px-5 py-3.5 text-base bg-accent text-bg rounded-md cursor-pointer press-scale transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-glow active:shadow-glow-strong shrink-0 min-h-[48px]"
             >
               {exported ? 'Done!' : 'Export'}
             </button>

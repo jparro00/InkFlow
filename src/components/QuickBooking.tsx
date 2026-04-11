@@ -66,7 +66,7 @@ export default function QuickBooking() {
         <button
           onClick={handleSubmit}
           disabled={!text.trim() || loading}
-          className="w-full py-4 bg-accent text-bg text-base rounded-md font-medium cursor-pointer press-scale transition-all disabled:opacity-40 disabled:cursor-not-allowed active:shadow-glow min-h-[52px] flex items-center justify-center gap-2"
+          className="w-full py-4 bg-accent text-bg text-base rounded-md font-medium cursor-pointer press-scale transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-glow active:shadow-glow-strong min-h-[52px] flex items-center justify-center gap-2"
         >
           {loading ? (
             <>

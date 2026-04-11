@@ -99,7 +99,7 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              className="w-full py-4 bg-accent text-bg text-base rounded-md font-medium cursor-pointer press-scale transition-all active:shadow-glow mt-3 min-h-[52px]"
+              className="w-full py-4 bg-accent text-bg text-base rounded-md font-medium cursor-pointer press-scale transition-all shadow-glow active:shadow-glow-strong mt-3 min-h-[52px]"
             >
               {showTotp ? 'Verify' : 'Sign In'}
             </button>

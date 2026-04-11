@@ -38,7 +38,7 @@ export default function ClientsPage() {
           <h1 className="font-display text-[22px] lg:text-2xl text-text-p">Clients</h1>
           <button
             onClick={() => setShowForm(true)}
-            className="w-12 h-12 lg:w-auto lg:h-auto lg:px-4 lg:py-2.5 bg-accent text-bg rounded-md flex items-center justify-center gap-2 text-sm cursor-pointer press-scale transition-transform"
+            className="w-12 h-12 lg:w-auto lg:h-auto lg:px-4 lg:py-2.5 bg-accent text-bg rounded-md flex items-center justify-center gap-2 text-sm cursor-pointer press-scale transition-transform shadow-glow active:shadow-glow-strong"
           >
             <Plus size={20} />
             <span className="hidden lg:inline">New Client</span>
