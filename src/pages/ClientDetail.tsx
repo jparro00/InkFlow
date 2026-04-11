@@ -64,7 +64,7 @@ export default function ClientDetailPage() {
   };
 
   return (
-    <div className="px-5 pt-5 pb-4 lg:px-6 lg:pt-6">
+    <div className="px-5 pt-5 pb-32 lg:px-6 lg:pt-6 lg:pb-6">
       {/* Back + actions */}
       <div className="flex items-center justify-between mb-6">
         <button
