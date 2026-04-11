@@ -36,7 +36,7 @@ const statusDot: Record<BookingStatus, string> = {
 };
 
 const hours = Array.from({ length: 24 }, (_, i) => i);
-const HOUR_HEIGHT = 64;
+const HOUR_HEIGHT = 48;
 const SWIPE_THRESHOLD = 50;
 const VELOCITY_THRESHOLD = 0.4;
 
@@ -61,14 +61,14 @@ function DayPanel({
         return (
           <div
             key={hour}
-            className={`absolute w-full border-b border-border/15 flex cursor-pointer transition-colors ${isOffHours ? 'bg-white/[0.015]' : ''}`}
+            className={`absolute w-full flex cursor-pointer transition-colors ${isOffHours ? 'bg-white/[0.015]' : ''}`}
             style={{ top: hour * HOUR_HEIGHT, height: HOUR_HEIGHT }}
             onClick={() => onSlotClick(hour, day)}
           >
-            <div className={`w-16 text-xs py-2 text-right pr-4 shrink-0 ${isOffHours ? 'text-text-t/50' : 'text-text-t'}`}>
-              {format(new Date(2026, 0, 1, hour), 'h a')}
+            <div className={`w-16 text-xs text-right pr-4 shrink-0 ${isOffHours ? 'text-text-t/50' : 'text-text-t'}`} style={{ marginTop: -7 }}>
+              {hour > 0 ? format(new Date(2026, 0, 1, hour), 'h a') : ''}
             </div>
-            <div className="flex-1 border-l border-border/20" />
+            <div className="flex-1 border-t border-border/15" />
           </div>
         );
       })}
@@ -82,7 +82,7 @@ function DayPanel({
         return (
           <button
             key={booking.id}
-            className={`absolute left-[65px] right-1 rounded-[4px] p-3 ${statusBg[booking.status]} border border-border/30 cursor-pointer press-scale transition-all active:shadow-glow text-left`}
+            className={`absolute left-16 right-1 rounded-[4px] p-3 ${statusBg[booking.status]} border border-border/30 cursor-pointer press-scale transition-all active:shadow-glow text-left`}
             style={{ top, height: Math.max(height, 48) }}
             onClick={(e) => { e.stopPropagation(); onBookingClick(booking.id); }}
           >

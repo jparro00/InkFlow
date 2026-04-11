@@ -47,7 +47,7 @@ export default function Modal({ title, onClose, children, width = 'lg:max-w-[620
           </button>
         </div>
         <div className="px-5 py-5 lg:px-6 lg:py-5 overflow-y-auto flex-1"
-          style={{ maxHeight: 'calc(100% - 70px)' }}
+          style={{ maxHeight: 'calc(100% - 70px)', overscrollBehavior: 'contain', touchAction: 'pan-y' }}
         >
           {children}
         </div>

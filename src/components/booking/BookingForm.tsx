@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
+import { Calendar, UserPlus } from 'lucide-react';
 import Modal from '../common/Modal';
+import ClientForm from '../client/ClientForm';
 import { useUIStore } from '../../stores/uiStore';
 import { useBookingStore } from '../../stores/bookingStore';
 import { useClientStore } from '../../stores/clientStore';
 import type { Booking, BookingType, BookingStatus } from '../../types';
 
 const bookingTypes: BookingType[] = ['Consultation', 'New Tattoo', 'Touch-up', 'Cover-up'];
-const statuses: BookingStatus[] = ['Confirmed', 'Tentative', 'Completed', 'Cancelled', 'No-show'];
 
 const defaultForm = {
   client_id: '',
@@ -28,6 +29,7 @@ export default function BookingForm() {
   const clients = useClientStore((s) => s.clients);
   const [clientSearch, setClientSearch] = useState('');
   const [showClientDropdown, setShowClientDropdown] = useState(false);
+  const [showNewClient, setShowNewClient] = useState(false);
   const [form, setForm] = useState(defaultForm);
 
   useEffect(() => {
@@ -93,6 +95,7 @@ export default function BookingForm() {
   const labelClass = "text-sm text-text-t uppercase tracking-wider mb-2 block font-medium";
 
   return (
+    <>
     <Modal
       title={editingBookingId ? 'Edit Booking' : 'New Booking'}
       onClose={closeBookingForm}
@@ -100,7 +103,16 @@ export default function BookingForm() {
       <div className="space-y-6">
         {/* Client */}
         <div className="relative">
-          <label className={labelClass}>Client *</label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-sm text-text-t uppercase tracking-wider font-medium">Client *</label>
+            <button
+              onClick={() => setShowNewClient(true)}
+              className="flex items-center gap-1.5 text-sm text-accent active:text-accent-dim transition-colors cursor-pointer press-scale"
+            >
+              <UserPlus size={14} />
+              <span>New Client</span>
+            </button>
+          </div>
           <input
             type="text"
             value={clientSearch}
@@ -134,15 +146,18 @@ export default function BookingForm() {
         </div>
 
         {/* Date / Time / Duration */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <div>
             <label className={labelClass}>Date *</label>
-            <input
-              type="date"
-              value={form.date}
-              onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
-              className={`${inputClass} [color-scheme:dark]`}
-            />
+            <div className="relative">
+              <Calendar size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-t pointer-events-none" />
+              <input
+                type="date"
+                value={form.date}
+                onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
+                className={`${inputClass} pl-10 [color-scheme:dark]`}
+              />
+            </div>
           </div>
           <div>
             <label className={labelClass}>Time</label>
@@ -153,7 +168,7 @@ export default function BookingForm() {
               className={`${inputClass} [color-scheme:dark]`}
             />
           </div>
-          <div>
+          <div className="col-span-2">
             <label className={labelClass}>Duration</label>
             <select
               value={form.duration}
@@ -213,20 +228,6 @@ export default function BookingForm() {
           />
         </div>
 
-        {/* Status */}
-        <div>
-          <label className={labelClass}>Status</label>
-          <select
-            value={form.status}
-            onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as BookingStatus }))}
-            className={`${inputClass} cursor-pointer`}
-          >
-            {statuses.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
-        </div>
-
         {/* Save */}
         <div className="flex flex-col lg:flex-row lg:justify-end gap-3 pt-4 border-t border-border/40 sticky bottom-0 bg-elevated pb-2">
           <button
@@ -245,5 +246,20 @@ export default function BookingForm() {
         </div>
       </div>
     </Modal>
+
+    {showNewClient && (
+      <ClientForm
+        onClose={() => {
+          setShowNewClient(false);
+          // Auto-select the most recently added client
+          const latest = useClientStore.getState().clients[useClientStore.getState().clients.length - 1];
+          if (latest) {
+            setForm((f) => ({ ...f, client_id: latest.id }));
+            setClientSearch(latest.name);
+          }
+        }}
+      />
+    )}
+    </>
   );
 }
