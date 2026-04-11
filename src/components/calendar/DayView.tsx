@@ -91,7 +91,7 @@ function DayPanel({
         );
       })}
 
-      {/* Current time indicator — red line */}
+      {/* Current time indicator — red line with badge */}
       {isToday(day) && (() => {
         const now = new Date();
         const currentHour = now.getHours() + now.getMinutes() / 60;
@@ -99,14 +99,13 @@ function DayPanel({
         return (
           <div className="absolute left-0 right-0 z-20 pointer-events-none" style={{ top }}>
             <div className="flex items-center">
-              <div className="w-16 text-right pr-2">
-                <span className="text-[10px] text-today font-medium">
+              <div className="w-16 flex justify-end pr-1">
+                <span className="text-xs text-white font-medium bg-today rounded-md px-1.5 py-0.5">
                   {format(now, 'h:mm')}
                 </span>
               </div>
               <div className="flex-1 h-[2px] bg-today" />
             </div>
-            <div className="absolute left-[60px] top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-today" />
           </div>
         );
       })()}
@@ -357,14 +356,12 @@ export default function DayView() {
       </div>
 
       {/* Today button */}
-      {!isToday(calendarDate) && (
-        <button
-          onClick={() => setCalendarDate(new Date())}
-          className="fixed bottom-[100px] left-5 lg:left-auto lg:bottom-8 px-4 py-2.5 bg-today text-white text-sm font-medium rounded-xl shadow-md cursor-pointer press-scale transition-all z-30"
-        >
-          Today
-        </button>
-      )}
+      <button
+        onClick={() => setCalendarDate(new Date())}
+        className="fixed bottom-[100px] left-5 lg:left-auto lg:bottom-8 px-4 py-2.5 bg-elevated border border-border/60 text-text-p text-sm font-medium rounded-xl shadow-md cursor-pointer press-scale transition-all z-30"
+      >
+        Today
+      </button>
     </div>
   );
 }
