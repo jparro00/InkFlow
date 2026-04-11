@@ -56,7 +56,6 @@ export default function QuickBooking() {
           value={text}
           onChange={(e) => setText(e.target.value)}
           rows={5}
-          autoFocus
           placeholder="Describe the booking in your own words..."
           className="w-full bg-input border border-border/60 rounded-xl px-4 py-4 text-base text-text-p placeholder:text-text-t focus:outline-none focus:border-accent/40 resize-none transition-colors"
           disabled={loading}
