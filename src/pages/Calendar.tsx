@@ -1,17 +1,100 @@
+import { useState, useEffect, useRef } from 'react';
+import { Search, X } from 'lucide-react';
+import { format } from 'date-fns';
 import MonthView from '../components/calendar/MonthView';
 import DayView from '../components/calendar/DayView';
 import YearView from '../components/calendar/YearView';
 import { useUIStore } from '../stores/uiStore';
+import { useBookingStore } from '../stores/bookingStore';
+import { useClientStore } from '../stores/clientStore';
+import { typeColor } from '../types';
 
 export default function CalendarPage() {
   const calendarView = useUIStore((s) => s.calendarView);
   const todayHandler = useUIStore((s) => s.todayHandler);
+  const calendarSearchOpen = useUIStore((s) => s.calendarSearchOpen);
+  const setCalendarSearchOpen = useUIStore((s) => s.setCalendarSearchOpen);
+  const setSelectedBookingId = useUIStore((s) => s.setSelectedBookingId);
+  const searchBookings = useBookingStore((s) => s.searchBookings);
+  const clients = useClientStore((s) => s.clients);
+
+  const [query, setQuery] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Focus input when search opens
+  useEffect(() => {
+    if (calendarSearchOpen) {
+      setTimeout(() => inputRef.current?.focus(), 50);
+    } else {
+      setQuery('');
+    }
+  }, [calendarSearchOpen]);
+
+  const bookingResults =
+    query.length >= 2
+      ? searchBookings(query, clients.map((c) => ({ id: c.id, name: c.name })))
+      : [];
+
+  const getClientName = (clientId: string | null) =>
+    clients.find((c) => c.id === clientId)?.name ?? 'Walk-in';
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col relative">
       {calendarView === 'year' && <YearView />}
       {calendarView === 'month' && <MonthView />}
       {calendarView === 'day' && <DayView />}
+
+      {/* Search dropdown */}
+      {calendarSearchOpen && (
+        <div className="absolute top-0 left-0 right-0 z-40 px-3 pt-3 pb-2 bg-bg/95 backdrop-blur-sm border-b border-border/30">
+          <div className="relative">
+            <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-t" />
+            <input
+              ref={inputRef}
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search bookings..."
+              className="w-full bg-surface border border-border/40 rounded-xl pl-10 pr-10 py-3 text-base text-text-p placeholder:text-text-t focus:outline-none focus:border-accent/40 transition-colors"
+            />
+            <button
+              onClick={() => setCalendarSearchOpen(false)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center rounded-full text-text-t active:text-text-s cursor-pointer"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          {/* Results */}
+          {query.length >= 2 && (
+            <div className="mt-2 bg-elevated border border-border/40 rounded-xl overflow-hidden max-h-[50vh] overflow-y-auto">
+              {bookingResults.length > 0 ? (
+                bookingResults.slice(0, 8).map((b) => (
+                  <button
+                    key={b.id}
+                    onClick={() => {
+                      setCalendarSearchOpen(false);
+                      setSelectedBookingId(b.id);
+                    }}
+                    className="w-full text-left px-4 py-3 active:bg-surface transition-colors cursor-pointer flex items-center gap-3 press-scale border-b border-border/10 last:border-b-0"
+                  >
+                    <div className="min-w-0 flex-1" style={{ borderLeftWidth: 3, borderLeftColor: typeColor[b.type], paddingLeft: 10 }}>
+                      <div className="text-[15px] text-text-p truncate">
+                        {getClientName(b.client_id)} &middot; {b.type}
+                      </div>
+                      <div className="text-[13px] text-text-t">
+                        {format(new Date(b.date), 'MMM d, yyyy · h:mm a')} &middot; {b.status}
+                      </div>
+                    </div>
+                  </button>
+                ))
+              ) : (
+                <div className="px-4 py-8 text-center text-text-t text-sm">No bookings found.</div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Shared Today button — same position across all views */}
       {todayHandler && (

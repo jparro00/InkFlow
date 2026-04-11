@@ -14,7 +14,7 @@ import {
 } from 'date-fns';
 import { motion, useMotionValue, animate } from 'framer-motion';
 import { useDrag } from '@use-gesture/react';
-import { ChevronLeft, Plus } from 'lucide-react';
+import { ChevronLeft, Plus, Search } from 'lucide-react';
 import { useUIStore } from '../../stores/uiStore';
 import { useBookingStore } from '../../stores/bookingStore';
 import { useClientStore } from '../../stores/clientStore';
@@ -190,7 +190,7 @@ function WeekRow({ baseDate, selectedDate, onDayClick, bookings }: {
 }
 
 export default function DayView() {
-  const { calendarDate, setCalendarDate, setCalendarView, openBookingForm, setSelectedBookingId, setPrefillBookingData, setTodayHandler } = useUIStore();
+  const { calendarDate, setCalendarDate, setCalendarView, openBookingForm, setSelectedBookingId, setPrefillBookingData, setTodayHandler, setCalendarSearchOpen } = useUIStore();
   const bookings = useBookingStore((s) => s.bookings);
   const getClient = useClientStore((s) => s.getClient);
 
@@ -380,15 +380,23 @@ export default function DayView() {
           <ChevronLeft size={20} />
           <span className="text-[22px] font-medium">{format(calendarDate, 'MMMM')}</span>
         </button>
-        <button
-          onClick={() => {
-            setPrefillBookingData({ date: new Date(calendarDate.getFullYear(), calendarDate.getMonth(), calendarDate.getDate(), 10, 0).toISOString() });
-            openBookingForm();
-          }}
-          className="w-12 h-12 bg-accent text-bg rounded-xl flex items-center justify-center cursor-pointer press-scale transition-transform"
-        >
-          <Plus size={20} />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setCalendarSearchOpen(true)}
+            className="w-12 h-12 bg-surface border border-border/40 text-text-s rounded-xl flex items-center justify-center cursor-pointer press-scale transition-transform"
+          >
+            <Search size={20} />
+          </button>
+          <button
+            onClick={() => {
+              setPrefillBookingData({ date: new Date(calendarDate.getFullYear(), calendarDate.getMonth(), calendarDate.getDate(), 10, 0).toISOString() });
+              openBookingForm();
+            }}
+            className="w-12 h-12 bg-accent text-bg rounded-xl flex items-center justify-center cursor-pointer press-scale transition-transform"
+          >
+            <Plus size={20} />
+          </button>
+        </div>
       </div>
 
       {/* Fixed day headers — shared with month view */}

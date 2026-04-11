@@ -31,6 +31,8 @@ interface UIStore {
   setPrefillBookingData: (data: UIStore['prefillBookingData']) => void;
   todayHandler: (() => void) | null;
   setTodayHandler: (handler: (() => void) | null) => void;
+  calendarSearchOpen: boolean;
+  setCalendarSearchOpen: (open: boolean) => void;
 }
 
 export const useUIStore = create<UIStore>((set) => ({
@@ -65,4 +67,6 @@ export const useUIStore = create<UIStore>((set) => ({
   setPrefillBookingData: (data) => set({ prefillBookingData: data }),
   todayHandler: null,
   setTodayHandler: (handler) => set({ todayHandler: handler }),
+  calendarSearchOpen: false,
+  setCalendarSearchOpen: (open) => set({ calendarSearchOpen: open }),
 }));
