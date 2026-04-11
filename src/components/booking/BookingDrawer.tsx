@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useState } from 'react';
 import { motion, useMotionValue, useTransform, animate, AnimatePresence } from 'framer-motion';
 import { useDrag } from '@use-gesture/react';
 import { format } from 'date-fns';
@@ -13,6 +13,7 @@ import ImageThumbnailGrid from './ImageThumbnailGrid';
 import ImageViewer from './ImageViewer';
 import { useNavigate } from 'react-router-dom';
 import type { BookingStatus } from '../../types';
+import { iosSpring } from '../../utils/springs';
 
 const allStatuses: BookingStatus[] = ['Confirmed', 'Tentative', 'Completed', 'Cancelled', 'No-show'];
 
@@ -35,31 +36,12 @@ export default function BookingDrawer() {
   const isDismissing = useRef(false);
   const isDragging = useRef(false);
 
-  // Prevent overscroll bounce at top only — keep bounce at bottom
-  useEffect(() => {
-    const el = contentRef.current;
-    if (!el) return;
-    let startY = 0;
-    const onTouchStart = (e: TouchEvent) => { startY = e.touches[0].clientY; };
-    const onTouchMove = (e: TouchEvent) => {
-      if (el.scrollTop <= 0 && e.touches[0].clientY > startY) {
-        e.preventDefault();
-      }
-    };
-    el.addEventListener('touchstart', onTouchStart, { passive: true });
-    el.addEventListener('touchmove', onTouchMove, { passive: false });
-    return () => {
-      el.removeEventListener('touchstart', onTouchStart);
-      el.removeEventListener('touchmove', onTouchMove);
-    };
-  }, [booking]);
-
   const dismiss = () => {
     if (isDismissing.current) return;
     isDismissing.current = true;
     const sheetHeight = sheetRef.current?.offsetHeight ?? 600;
     animate(dragY, sheetHeight, {
-      type: 'spring', stiffness: 300, damping: 30, mass: 0.8,
+      ...iosSpring.dismiss,
       onComplete: () => {
         setSelectedBookingId(null);
         isDismissing.current = false;
@@ -98,7 +80,7 @@ export default function BookingDrawer() {
         if (my > 80 || (vy > 0.4 && dy > 0)) {
           dismiss();
         } else {
-          animate(dragY, 0, { type: 'spring', stiffness: 400, damping: 30 });
+          animate(dragY, 0, iosSpring.cancel);
         }
       }
     },
@@ -150,7 +132,7 @@ export default function BookingDrawer() {
         initial={{ y: '100%' }}
         animate={{ y: 0 }}
         exit={{ y: '100%' }}
-        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+        transition={iosSpring.present}
         style={{ y: dragY }}
         className="fixed bottom-0 left-0 right-0 lg:top-0 lg:left-auto lg:right-0 lg:bottom-0 max-h-[85vh] lg:max-h-full lg:w-[400px] bg-elevated rounded-t-2xl lg:rounded-none border-t lg:border-t-0 lg:border-l border-border/40 shadow-lg z-50 flex flex-col overflow-hidden"
       >
@@ -190,7 +172,7 @@ export default function BookingDrawer() {
           </div>
 
           {/* Content */}
-          <div ref={contentRef} className="flex-1 overflow-y-auto p-5 space-y-6">
+          <div ref={contentRef} className="flex-1 overflow-y-auto p-5 space-y-6" style={{ overscrollBehavior: 'contain' }}>
             {/* Client */}
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center text-accent text-base font-medium shrink-0">

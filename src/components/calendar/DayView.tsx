@@ -1,4 +1,4 @@
-import { useRef, useCallback, useEffect } from 'react';
+import { useRef, useCallback, useEffect, useLayoutEffect } from 'react';
 import {
   format,
   isSameDay,
@@ -11,8 +11,6 @@ import {
   addWeeks,
   subWeeks,
 } from 'date-fns';
-import { motion, useMotionValue, animate } from 'framer-motion';
-import { useDrag } from '@use-gesture/react';
 import { ChevronLeft, Plus } from 'lucide-react';
 import { useUIStore } from '../../stores/uiStore';
 import { useBookingStore } from '../../stores/bookingStore';
@@ -23,8 +21,7 @@ import { typeColor } from '../../types';
 
 const hours = Array.from({ length: 24 }, (_, i) => i);
 const HOUR_HEIGHT = 48;
-const SWIPE_THRESHOLD = 50;
-const VELOCITY_THRESHOLD = 0.4;
+const SCROLL_SETTLE_MS = 120;
 
 // Full day panel: hour labels + grid lines + bookings
 function DayPanel({
@@ -41,7 +38,7 @@ function DayPanel({
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   return (
-    <div className="shrink-0 relative" style={{ minHeight: hours.length * HOUR_HEIGHT, width: 'calc(100% / 3)' }}>
+    <div className="shrink-0 relative" style={{ minHeight: hours.length * HOUR_HEIGHT, width: '100%' }}>
       {hours.map((hour) => {
         const isOffHours = hour < 8;
         return (
@@ -96,7 +93,7 @@ function WeekRow({ baseDate, selectedDate, onDayClick }: {
   const days = eachDayOfInterval({ start: ws, end: we });
 
   return (
-    <div className="shrink-0 grid grid-cols-7 px-6 py-2" style={{ width: 'calc(100% / 3)' }}>
+    <div className="shrink-0 grid grid-cols-7 px-6 py-2 w-full">
       {days.map((day) => {
         const today = isToday(day);
         const selected = isSameDay(day, selectedDate);
@@ -129,34 +126,123 @@ function WeekRow({ baseDate, selectedDate, onDayClick }: {
   );
 }
 
+// Hook: scroll-snap carousel that cycles prev/center/next panels.
+// onSnap is called with direction; the hook handles resetting scroll
+// position and preserving vertical scroll of the snapped panel.
+function useSnapCarousel(
+  onSnap: (direction: -1 | 1) => void,
+  preserveVerticalScroll = false,
+) {
+  const ref = useRef<HTMLDivElement>(null);
+  const scrollTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const isResetting = useRef(false);
+
+  const resetToCenter = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    isResetting.current = true;
+    el.scrollLeft = el.offsetWidth;
+    requestAnimationFrame(() => { isResetting.current = false; });
+  }, []);
+
+  // Initialize scroll to center panel
+  useLayoutEffect(() => {
+    resetToCenter();
+  }, [resetToCenter]);
+
+  // Debounced scroll-end detection (works on all browsers, including Safari <18)
+  const handleScroll = useCallback(() => {
+    if (isResetting.current) return;
+    clearTimeout(scrollTimer.current);
+    scrollTimer.current = setTimeout(() => {
+      const el = ref.current;
+      if (!el || isResetting.current) return;
+      const panelWidth = el.offsetWidth;
+      const index = Math.round(el.scrollLeft / panelWidth);
+
+      if (index === 0 || index === 2) {
+        const direction: -1 | 1 = index === 0 ? -1 : 1;
+
+        // Save vertical scroll of the panel user swiped to
+        let savedScrollTop = 0;
+        if (preserveVerticalScroll) {
+          const panel = el.children[index] as HTMLElement | undefined;
+          if (panel) savedScrollTop = panel.scrollTop;
+        }
+
+        onSnap(direction);
+
+        // Reset to center after React processes the state update
+        requestAnimationFrame(() => {
+          resetToCenter();
+          if (preserveVerticalScroll && savedScrollTop > 0) {
+            const center = el.children?.[1] as HTMLElement | undefined;
+            if (center) center.scrollTop = savedScrollTop;
+          }
+        });
+      }
+    }, SCROLL_SETTLE_MS);
+  }, [onSnap, preserveVerticalScroll, resetToCenter]);
+
+  useEffect(() => {
+    return () => clearTimeout(scrollTimer.current);
+  }, []);
+
+  return { ref, handleScroll, resetToCenter };
+}
+
 export default function DayView() {
   const { calendarDate, setCalendarDate, setCalendarView, openBookingForm, setSelectedBookingId, setPrefillBookingData } = useUIStore();
   const bookings = useBookingStore((s) => s.bookings);
   const getClient = useClientStore((s) => s.getClient);
-
-  const containerRef = useRef<HTMLDivElement>(null);
-  const hasScrolledToStart = useRef(false);
-
-  const weekStripRef = useRef<HTMLDivElement>(null);
-  const stripX = useMotionValue(0);
-  const weekX = useMotionValue(0);
-  const stripAnim = useRef<ReturnType<typeof animate> | null>(null);
-  const stripPendingDate = useRef<Date | null>(null);
-  const weekAnim = useRef<ReturnType<typeof animate> | null>(null);
-  const weekPendingDate = useRef<Date | null>(null);
 
   const prevDay = subDays(calendarDate, 1);
   const nextDay = addDays(calendarDate, 1);
   const prevWeekDate = subWeeks(calendarDate, 1);
   const nextWeekDate = addWeeks(calendarDate, 1);
 
-  // Scroll to 8am on first render
+  // --- Timeline scroll-snap carousel ---
+  const centerPanelRef = useRef<HTMLDivElement>(null);
+  const hasScrolledTo8am = useRef(false);
+
+  const handleTimelineSnap = useCallback((direction: -1 | 1) => {
+    const newDate = direction === 1 ? addDays(calendarDate, 1) : subDays(calendarDate, 1);
+    setCalendarDate(newDate);
+  }, [calendarDate, setCalendarDate]);
+
+  const timelineCarousel = useSnapCarousel(handleTimelineSnap, true);
+
+  // Scroll center panel to 8am on first render
   useEffect(() => {
-    if (!hasScrolledToStart.current && containerRef.current) {
-      containerRef.current.scrollTop = 8 * HOUR_HEIGHT;
-      hasScrolledToStart.current = true;
+    if (!hasScrolledTo8am.current && centerPanelRef.current) {
+      centerPanelRef.current.scrollTop = 8 * HOUR_HEIGHT;
+      hasScrolledTo8am.current = true;
     }
   }, []);
+
+  // --- Week strip scroll-snap carousel ---
+  const handleWeekSnap = useCallback((direction: -1 | 1) => {
+    const newDate = direction === 1 ? addWeeks(calendarDate, 1) : subWeeks(calendarDate, 1);
+    setCalendarDate(newDate);
+  }, [calendarDate, setCalendarDate]);
+
+  const weekCarousel = useSnapCarousel(handleWeekSnap);
+
+  // Swipe-up on week strip → go to month view
+  const weekTouchStart = useRef<{ x: number; y: number } | null>(null);
+  const handleWeekTouchStart = useCallback((e: React.TouchEvent) => {
+    weekTouchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }, []);
+  const handleWeekTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (!weekTouchStart.current) return;
+    const dx = e.changedTouches[0].clientX - weekTouchStart.current.x;
+    const dy = e.changedTouches[0].clientY - weekTouchStart.current.y;
+    weekTouchStart.current = null;
+    // Predominantly upward swipe
+    if (dy < -40 && Math.abs(dy) > Math.abs(dx)) {
+      setCalendarView('month');
+    }
+  }, [setCalendarView]);
 
   const handleSlotClick = useCallback((hour: number, day: Date) => {
     const dateStr = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 0).toISOString();
@@ -167,85 +253,6 @@ export default function DayView() {
   const handleBookingClick = useCallback((id: string) => {
     setSelectedBookingId(id);
   }, [setSelectedBookingId]);
-
-  // Timeline carousel: horizontal swipe changes day
-  const timelineBind = useDrag(
-    ({ movement: [mx], velocity: [vx], direction: [dx], first, last }) => {
-      if (first) {
-        // If mid-animation, commit the pending date so next swipe starts from correct day
-        if (stripAnim.current && stripPendingDate.current) {
-          stripAnim.current.stop();
-          setCalendarDate(stripPendingDate.current);
-          stripPendingDate.current = null;
-          stripAnim.current = null;
-        }
-        stripX.set(0);
-      }
-      stripX.set(mx);
-      if (last) {
-        if (Math.abs(mx) > SWIPE_THRESHOLD || Math.abs(vx) > VELOCITY_THRESHOLD) {
-          const dir = dx > 0 ? -1 : 1;
-          const w = containerRef.current?.offsetWidth ?? 375;
-          const newDate = dir === 1 ? addDays(calendarDate, 1) : subDays(calendarDate, 1);
-          stripPendingDate.current = newDate;
-          stripAnim.current = animate(stripX, -dir * w, {
-            type: 'spring', stiffness: 300, damping: 30, mass: 0.8,
-            onComplete: () => {
-              setCalendarDate(newDate);
-              stripX.set(0);
-              stripAnim.current = null;
-              stripPendingDate.current = null;
-            },
-          });
-        } else {
-          animate(stripX, 0, { type: 'spring', stiffness: 400, damping: 30 });
-        }
-      }
-    },
-    { axis: 'x', filterTaps: true, threshold: 10, pointer: { touch: true } }
-  );
-
-  // Week strip carousel
-  const weekBind = useDrag(
-    ({ movement: [mx, my], velocity: [vx, vy], direction: [, dy], first, last, swipe: [, sy], axis }) => {
-      if (axis === 'y') {
-        if (last && (sy === -1 || (my < -30 && Math.abs(my) > Math.abs(mx) && (Math.abs(my) > 40 || vy > 0.3) && dy < 0))) {
-          setCalendarView('month');
-        }
-        return;
-      }
-      if (first) {
-        if (weekAnim.current && weekPendingDate.current) {
-          weekAnim.current.stop();
-          setCalendarDate(weekPendingDate.current);
-          weekPendingDate.current = null;
-          weekAnim.current = null;
-        }
-        weekX.set(0);
-      }
-      weekX.set(mx);
-      if (last) {
-        if (Math.abs(mx) > SWIPE_THRESHOLD || Math.abs(vx) > VELOCITY_THRESHOLD) {
-          const dir = mx < 0 ? 1 : -1;
-          const w = weekStripRef.current?.offsetWidth ?? 375;
-          const newDate = dir === 1 ? addWeeks(calendarDate, 1) : subWeeks(calendarDate, 1);
-          weekPendingDate.current = newDate;
-          weekAnim.current = animate(weekX, -dir * w, {
-            type: 'spring', stiffness: 300, damping: 30, mass: 0.8,
-            onComplete: () => {
-              setCalendarDate(newDate);
-              weekX.set(0);
-              weekAnim.current = null;
-              weekPendingDate.current = null;
-            },
-          });
-        } else {
-          animate(weekX, 0, { type: 'spring', stiffness: 400, damping: 30 });
-        }
-      }
-    },
-    { filterTaps: true, threshold: 8, pointer: { touch: true }, axis: 'lock' }
-  );
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden">
@@ -266,25 +273,41 @@ export default function DayView() {
         </button>
       </div>
 
-      {/* Week strip carousel */}
-      <div ref={weekStripRef} className="shrink-0 border-b border-border/30 overflow-hidden touch-none">
-        <div {...weekBind()}>
-          <motion.div className="flex" style={{ x: weekX, width: '300%', marginLeft: '-100%' }}>
-            <WeekRow baseDate={prevWeekDate} selectedDate={calendarDate} onDayClick={setCalendarDate} />
-            <WeekRow baseDate={calendarDate} selectedDate={calendarDate} onDayClick={setCalendarDate} />
-            <WeekRow baseDate={nextWeekDate} selectedDate={calendarDate} onDayClick={setCalendarDate} />
-          </motion.div>
+      {/* Week strip — scroll-snap carousel with swipe-up detection */}
+      <div
+        ref={weekCarousel.ref}
+        className="shrink-0 border-b border-border/30 overflow-x-auto snap-x snap-mandatory flex"
+        style={{ scrollbarWidth: 'none' }}
+        onScroll={weekCarousel.handleScroll}
+        onTouchStart={handleWeekTouchStart}
+        onTouchEnd={handleWeekTouchEnd}
+      >
+        <div className="snap-start shrink-0 w-full">
+          <WeekRow baseDate={prevWeekDate} selectedDate={calendarDate} onDayClick={setCalendarDate} />
+        </div>
+        <div className="snap-start shrink-0 w-full">
+          <WeekRow baseDate={calendarDate} selectedDate={calendarDate} onDayClick={setCalendarDate} />
+        </div>
+        <div className="snap-start shrink-0 w-full">
+          <WeekRow baseDate={nextWeekDate} selectedDate={calendarDate} onDayClick={setCalendarDate} />
         </div>
       </div>
 
-      {/* Timeline carousel: full day panels slide together */}
-      <div ref={containerRef} className="flex-1 overflow-y-auto overflow-x-hidden">
-        <div {...timelineBind()} style={{ touchAction: 'pan-y' }}>
-          <motion.div className="flex" style={{ x: stripX, width: '300%', marginLeft: '-100%' }}>
-            <DayPanel day={prevDay} bookings={bookings} getClient={getClient} onSlotClick={handleSlotClick} onBookingClick={handleBookingClick} />
-            <DayPanel day={calendarDate} bookings={bookings} getClient={getClient} onSlotClick={handleSlotClick} onBookingClick={handleBookingClick} />
-            <DayPanel day={nextDay} bookings={bookings} getClient={getClient} onSlotClick={handleSlotClick} onBookingClick={handleBookingClick} />
-          </motion.div>
+      {/* Timeline — scroll-snap carousel, each panel scrolls vertically */}
+      <div
+        ref={timelineCarousel.ref}
+        className="flex-1 overflow-x-auto snap-x snap-mandatory flex overflow-y-hidden"
+        style={{ scrollbarWidth: 'none' }}
+        onScroll={timelineCarousel.handleScroll}
+      >
+        <div className="snap-start shrink-0 w-full h-full overflow-y-auto" style={{ overscrollBehavior: 'contain' }}>
+          <DayPanel day={prevDay} bookings={bookings} getClient={getClient} onSlotClick={handleSlotClick} onBookingClick={handleBookingClick} />
+        </div>
+        <div ref={centerPanelRef} className="snap-start shrink-0 w-full h-full overflow-y-auto" style={{ overscrollBehavior: 'contain' }}>
+          <DayPanel day={calendarDate} bookings={bookings} getClient={getClient} onSlotClick={handleSlotClick} onBookingClick={handleBookingClick} />
+        </div>
+        <div className="snap-start shrink-0 w-full h-full overflow-y-auto" style={{ overscrollBehavior: 'contain' }}>
+          <DayPanel day={nextDay} bookings={bookings} getClient={getClient} onSlotClick={handleSlotClick} onBookingClick={handleBookingClick} />
         </div>
       </div>
     </div>

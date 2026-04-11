@@ -3,6 +3,7 @@ import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
 import { useDrag } from '@use-gesture/react';
 import { X } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { iosSpring } from '../../utils/springs';
 
 interface ModalProps {
   title: string;
@@ -35,25 +36,6 @@ export default function Modal({ title, onClose, children, width = 'lg:max-w-[620
     return () => vp.removeEventListener('resize', handler);
   }, []);
 
-  // Prevent overscroll bounce at top only
-  useEffect(() => {
-    const el = contentRef.current;
-    if (!el) return;
-    let startY = 0;
-    const onTouchStart = (e: TouchEvent) => { startY = e.touches[0].clientY; };
-    const onTouchMove = (e: TouchEvent) => {
-      if (el.scrollTop <= 0 && e.touches[0].clientY > startY) {
-        e.preventDefault();
-      }
-    };
-    el.addEventListener('touchstart', onTouchStart, { passive: true });
-    el.addEventListener('touchmove', onTouchMove, { passive: false });
-    return () => {
-      el.removeEventListener('touchstart', onTouchStart);
-      el.removeEventListener('touchmove', onTouchMove);
-    };
-  }, []);
-
   // When an input is focused, scroll it into view within the modal content
   useEffect(() => {
     const el = contentRef.current;
@@ -75,7 +57,7 @@ export default function Modal({ title, onClose, children, width = 'lg:max-w-[620
     isDismissing.current = true;
     const sheetHeight = sheetRef.current?.offsetHeight ?? 600;
     animate(dragY, sheetHeight, {
-      type: 'spring', stiffness: 300, damping: 30, mass: 0.8,
+      ...iosSpring.dismiss,
       onComplete: () => {
         onClose();
         isDismissing.current = false;
@@ -117,7 +99,7 @@ export default function Modal({ title, onClose, children, width = 'lg:max-w-[620
         if (my > 80 || (vy > 0.4 && dy > 0)) {
           dismiss();
         } else {
-          animate(dragY, 0, { type: 'spring', stiffness: 400, damping: 30 });
+          animate(dragY, 0, iosSpring.cancel);
         }
       }
     },
@@ -145,7 +127,7 @@ export default function Modal({ title, onClose, children, width = 'lg:max-w-[620
         initial={{ y: '100%' }}
         animate={{ y: 0 }}
         exit={{ y: '100%' }}
-        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+        transition={iosSpring.present}
         style={{
           y: dragY,
           bottom: 0,
@@ -155,7 +137,7 @@ export default function Modal({ title, onClose, children, width = 'lg:max-w-[620
         className={`fixed left-0 right-0 lg:top-1/2 lg:left-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2 lg:bottom-auto ${width} bg-elevated shadow-lg z-50 flex flex-col overflow-hidden rounded-t-2xl lg:rounded-2xl lg:h-auto lg:max-h-[85vh]`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div {...bindDrag()} className="flex flex-col flex-1 overflow-hidden" style={{ touchAction: 'pan-y', overscrollBehavior: 'none' }}>
+        <div {...bindDrag()} className="flex flex-col flex-1 overflow-hidden" style={{ touchAction: 'pan-y' }}>
           {/* Drag handle — mobile */}
           <div className="flex justify-center pt-3 pb-1 lg:hidden">
             <div className="w-10 h-1 rounded-full bg-border-s/60" />
