@@ -123,8 +123,13 @@ export default function DatePicker({ value, onChange, missing }: DatePickerProps
           animRef.current = animate(offsetX, -dir * w, {
             type: 'spring', stiffness: 300, damping: 30, mass: 0.8,
             onComplete: () => {
-              setViewMonth(newMonth);
+              // Reset transform synchronously before React re-render to avoid flicker
+              if (trackRef.current) {
+                const panelW = trackRef.current.parentElement?.offsetWidth ?? 300;
+                trackRef.current.style.transform = `translateX(${-panelW}px)`;
+              }
               offsetX.set(0);
+              setViewMonth(newMonth);
               animRef.current = null;
               pendingMonth.current = null;
             },
