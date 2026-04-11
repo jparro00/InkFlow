@@ -11,9 +11,10 @@ interface ModalProps {
   width?: string;
   fullScreenMobile?: boolean;
   onReady?: () => void;
+  instant?: boolean;
 }
 
-export default function Modal({ title, onClose, children, width = 'lg:max-w-[620px]', fullScreenMobile = true, onReady }: ModalProps) {
+export default function Modal({ title, onClose, children, width = 'lg:max-w-[620px]', fullScreenMobile = true, onReady, instant }: ModalProps) {
   const dragY = useMotionValue(0);
   const backdropOpacity = useTransform(dragY, [0, 400], [1, 0]);
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -105,10 +106,10 @@ export default function Modal({ title, onClose, children, width = 'lg:max-w-[620
       {/* Mobile: bottom sheet sized to visual viewport. Desktop: centered modal */}
       <motion.div
         ref={sheetRef}
-        initial={{ y: '100%' }}
+        initial={instant ? false : { y: '100%' }}
         animate={{ y: 0 }}
-        exit={{ y: '100%' }}
-        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+        exit={instant ? { opacity: 0 } : { y: '100%' }}
+        transition={instant ? { duration: 0 } : { type: 'spring', damping: 30, stiffness: 300 }}
         onAnimationComplete={() => onReady?.()}
         style={{ y: dragY }}
         className={`fixed inset-0 lg:inset-auto lg:top-1/2 lg:left-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2 ${width} bg-elevated shadow-lg z-50 flex flex-col overflow-hidden ${
