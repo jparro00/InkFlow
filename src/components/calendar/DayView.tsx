@@ -40,13 +40,14 @@ const HOUR_HEIGHT = 64;
 const SWIPE_THRESHOLD = 50;
 const VELOCITY_THRESHOLD = 0.4;
 
-// Renders only the booking blocks for a single day (no hour labels/grid)
-function DayBookings({
-  day, bookings, getClient, onBookingClick,
+// Full day panel: hour labels + grid lines + bookings (everything slides together)
+function DayPanel({
+  day, bookings, getClient, onSlotClick, onBookingClick,
 }: {
   day: Date;
   bookings: Booking[];
   getClient: (id: string) => { name: string; display_name?: string } | undefined;
+  onSlotClick: (hour: number, day: Date) => void;
   onBookingClick: (id: string) => void;
 }) {
   const dayBookings = bookings
@@ -55,6 +56,25 @@ function DayBookings({
 
   return (
     <div className="shrink-0 relative" style={{ minHeight: hours.length * HOUR_HEIGHT, width: 'calc(100% / 3)' }}>
+      {/* Hour labels + grid lines */}
+      {hours.map((hour) => {
+        const isOffHours = hour < 8;
+        return (
+          <div
+            key={hour}
+            className={`absolute w-full border-b border-border/15 flex cursor-pointer transition-colors ${isOffHours ? 'bg-white/[0.015]' : ''}`}
+            style={{ top: hour * HOUR_HEIGHT, height: HOUR_HEIGHT }}
+            onClick={() => onSlotClick(hour, day)}
+          >
+            <div className={`w-16 text-xs py-2 text-right pr-4 shrink-0 ${isOffHours ? 'text-text-t/50' : 'text-text-t'}`}>
+              {format(new Date(2026, 0, 1, hour), 'h a')}
+            </div>
+            <div className="flex-1 border-l border-border/20" />
+          </div>
+        );
+      })}
+
+      {/* Booking blocks */}
       {dayBookings.map((booking) => {
         const d = new Date(booking.date);
         const startHour = d.getHours() + d.getMinutes() / 60;
@@ -64,7 +84,7 @@ function DayBookings({
         return (
           <button
             key={booking.id}
-            className={`absolute left-2 right-6 rounded-xl p-4 ${statusBg[booking.status]} border border-border/30 cursor-pointer press-scale transition-all active:shadow-glow text-left`}
+            className={`absolute left-16 right-6 rounded-xl p-4 ${statusBg[booking.status]} border border-border/30 cursor-pointer press-scale transition-all active:shadow-glow text-left`}
             style={{ top, height: Math.max(height, 48) }}
             onClick={(e) => { e.stopPropagation(); onBookingClick(booking.id); }}
           >
@@ -142,13 +162,11 @@ export default function DayView() {
   const prevWeekDate = subWeeks(calendarDate, 1);
   const nextWeekDate = addWeeks(calendarDate, 1);
 
-  const handleSlotClick = useCallback((hour: number) => {
-    const dateStr = new Date(
-      calendarDate.getFullYear(), calendarDate.getMonth(), calendarDate.getDate(), hour, 0
-    ).toISOString();
+  const handleSlotClick = useCallback((hour: number, day: Date) => {
+    const dateStr = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 0).toISOString();
     setPrefillBookingData({ date: dateStr });
     openBookingForm();
-  }, [calendarDate, setPrefillBookingData, openBookingForm]);
+  }, [setPrefillBookingData, openBookingForm]);
 
   const handleBookingClick = useCallback((id: string) => {
     setSelectedBookingId(id);
@@ -224,49 +242,14 @@ export default function DayView() {
         </div>
       </div>
 
-      {/* Timeline: fixed hour labels + sliding booking carousel */}
+      {/* Timeline carousel: full day panels slide together */}
       <div ref={containerRef} className="flex-1 overflow-y-auto overflow-x-hidden">
-        <div className="relative flex" style={{ minHeight: hours.length * HOUR_HEIGHT }}>
-          {/* Fixed hour labels column */}
-          <div className="w-16 shrink-0 relative z-10">
-            {hours.map((hour) => {
-              const isOffHours = hour < 8;
-              return (
-                <div
-                  key={hour}
-                  className={`absolute w-full py-2 text-right pr-4 ${isOffHours ? 'text-text-t/50' : 'text-text-t'}`}
-                  style={{ top: hour * HOUR_HEIGHT, height: HOUR_HEIGHT }}
-                >
-                  <span className="text-xs">{format(new Date(2026, 0, 1, hour), 'h a')}</span>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Grid lines + booking carousel area */}
-          <div className="flex-1 relative">
-            {/* Fixed horizontal grid lines (don't move) */}
-            {hours.map((hour) => {
-              const isOffHours = hour < 8;
-              return (
-                <div
-                  key={hour}
-                  className={`absolute w-full border-b border-border/15 border-l border-l-border/20 ${isOffHours ? 'bg-white/[0.015]' : ''}`}
-                  style={{ top: hour * HOUR_HEIGHT, height: HOUR_HEIGHT }}
-                  onClick={() => handleSlotClick(hour)}
-                />
-              );
-            })}
-
-            {/* Sliding booking panels */}
-            <div {...timelineBind()} className="absolute inset-0" style={{ touchAction: 'pan-y' }}>
-              <motion.div className="flex h-full" style={{ x: stripX, width: '300%', marginLeft: '-100%' }}>
-                <DayBookings day={prevDay} bookings={bookings} getClient={getClient} onBookingClick={handleBookingClick} />
-                <DayBookings day={calendarDate} bookings={bookings} getClient={getClient} onBookingClick={handleBookingClick} />
-                <DayBookings day={nextDay} bookings={bookings} getClient={getClient} onBookingClick={handleBookingClick} />
-              </motion.div>
-            </div>
-          </div>
+        <div {...timelineBind()} style={{ touchAction: 'pan-y' }}>
+          <motion.div className="flex" style={{ x: stripX, width: '300%', marginLeft: '-100%' }}>
+            <DayPanel day={prevDay} bookings={bookings} getClient={getClient} onSlotClick={handleSlotClick} onBookingClick={handleBookingClick} />
+            <DayPanel day={calendarDate} bookings={bookings} getClient={getClient} onSlotClick={handleSlotClick} onBookingClick={handleBookingClick} />
+            <DayPanel day={nextDay} bookings={bookings} getClient={getClient} onSlotClick={handleSlotClick} onBookingClick={handleBookingClick} />
+          </motion.div>
         </div>
       </div>
     </div>
