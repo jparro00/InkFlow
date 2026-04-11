@@ -14,7 +14,7 @@ import {
 } from 'date-fns';
 import { motion, useMotionValue, animate } from 'framer-motion';
 import { useDrag } from '@use-gesture/react';
-import { Plus, Search } from 'lucide-react';
+import { ChevronLeft, Plus, Search } from 'lucide-react';
 import { useUIStore } from '../../stores/uiStore';
 import { useBookingStore } from '../../stores/bookingStore';
 import { useClientStore } from '../../stores/clientStore';
@@ -372,12 +372,19 @@ export default function DayView() {
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="px-3 pt-4 pb-2 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-2">
-          <img src={`${import.meta.env.BASE_URL}inkflow_logo.png`} alt="InkFlow" className="w-6 h-6 shrink-0" />
-          <span className="text-[20px] text-text-p tracking-wide" style={{ fontFamily: "'DM Serif Display', serif" }}>Keeps Ink</span>
+      <div className="px-3 pt-4 pb-2 flex items-center shrink-0 relative">
+        <button
+          onClick={() => setCalendarView('month')}
+          className="flex items-center gap-1 text-text-p active:opacity-70 transition-opacity cursor-pointer press-scale min-h-[44px]"
+        >
+          <ChevronLeft size={20} />
+          <span className="text-[22px] font-medium">{format(calendarDate, 'MMMM')}</span>
+        </button>
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-1.5 pointer-events-none">
+          <img src={`${import.meta.env.BASE_URL}inkflow_logo.png`} alt="InkFlow" className="w-5 h-5 shrink-0" />
+          <span className="text-[17px] text-text-p tracking-wide" style={{ fontFamily: "'DM Serif Display', serif" }}>Keeps Ink</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 ml-auto">
           <button
             onClick={() => setCalendarSearchOpen(true)}
             className="w-12 h-12 bg-surface border border-border/40 text-text-s rounded-md flex items-center justify-center cursor-pointer press-scale transition-transform"
