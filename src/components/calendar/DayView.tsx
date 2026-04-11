@@ -8,6 +8,8 @@ import {
   eachDayOfInterval,
   addDays,
   subDays,
+  addWeeks,
+  subWeeks,
 } from 'date-fns';
 import { motion, useMotionValue, animate } from 'framer-motion';
 import { useDrag } from '@use-gesture/react';
@@ -149,26 +151,7 @@ export default function DayView() {
     setSelectedBookingId(id);
   }, [setSelectedBookingId]);
 
-  const changeDay = useCallback((dir: -1 | 1) => {
-    if (isAnimating.current) return;
-    isAnimating.current = true;
-    const w = getContainerWidth();
-    // Animate to show the adjacent panel
-    animate(stripX, -dir * w, {
-      type: 'spring',
-      stiffness: 350,
-      damping: 35,
-      mass: 0.8,
-      onComplete: () => {
-        // Update the date and reset strip position instantly
-        setCalendarDate(dir === 1 ? addDays(calendarDate, 1) : subDays(calendarDate, 1));
-        stripX.set(0);
-        isAnimating.current = false;
-      },
-    });
-  }, [calendarDate, setCalendarDate, stripX, getContainerWidth]);
-
-  // Timeline: horizontal swipe
+  // Timeline: horizontal swipe (carousel)
   const timelineBind = useDrag(
     ({ movement: [mx], velocity: [vx], direction: [dx], first, last }) => {
       if (isAnimating.current) return;
@@ -211,20 +194,23 @@ export default function DayView() {
     }
   );
 
-  // Week strip: swipe up for month, left/right for day
+  // Week strip: swipe up for month, left/right jumps a full week
   const weekBind = useDrag(
     ({ movement: [mx, my], velocity: [vx, vy], direction: [, dy], last, swipe: [sx, sy] }) => {
       if (!last) return;
 
       if (sy === -1) { setCalendarView('month'); return; }
-      if (sx !== 0) { changeDay(sx > 0 ? -1 : 1); return; }
+      if (sx !== 0) {
+        setCalendarDate(sx > 0 ? subWeeks(calendarDate, 1) : addWeeks(calendarDate, 1));
+        return;
+      }
 
       if (my < -30 && Math.abs(my) > Math.abs(mx) && (Math.abs(my) > 40 || vy > 0.3) && dy < 0) {
         setCalendarView('month');
         return;
       }
       if (Math.abs(mx) > Math.abs(my) && (Math.abs(mx) > SWIPE_THRESHOLD || vx > VELOCITY_THRESHOLD)) {
-        changeDay(mx < 0 ? 1 : -1);
+        setCalendarDate(mx < 0 ? addWeeks(calendarDate, 1) : subWeeks(calendarDate, 1));
       }
     },
     {
