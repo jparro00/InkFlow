@@ -1,20 +1,26 @@
 @import "tailwindcss";
 
 @theme {
-  --color-bg: #0F0E0D;
-  --color-surface: #1A1917;
-  --color-elevated: #242220;
-  --color-input: #2A2826;
-  --color-border: #302E2B;
-  --color-border-s: #4A4744;
-  --color-text-p: #F0EDE8;
-  --color-text-s: #9E9893;
-  --color-text-t: #5C5954;
+  /* Material Design 2 Dark Theme — elevation overlay system */
+  --color-bg: #121212;           /* 0dp surface */
+  --color-surface: #1E1E1E;     /* 1dp elevation */
+  --color-elevated: #272727;    /* 4dp elevation */
+  --color-input: #2C2C2C;      /* 6dp elevation */
+  --color-border: #333333;      /* 12dp — subtle dividers */
+  --color-border-s: #383838;    /* 24dp — stronger dividers */
+
+  /* Text — white at M2 opacity levels */
+  --color-text-p: rgba(255, 255, 255, 0.87);  /* high emphasis */
+  --color-text-s: rgba(255, 255, 255, 0.60);  /* medium emphasis */
+  --color-text-t: rgba(255, 255, 255, 0.38);  /* disabled / tertiary */
+
+  /* Accent — desaturated (200-tone) per M2 dark rules */
   --color-accent: #C8A882;
   --color-accent-dim: #8A6E52;
   --color-accent-glow: rgba(200, 168, 130, 0.08);
-  --color-danger: #C0392B;
-  --color-success: #27AE60;
+
+  --color-danger: #CF6679;      /* M2 dark error color */
+  --color-success: #81C784;     /* M2 desaturated green */
   --color-today: #E8453C;
 
   --font-display: 'Playfair Display', serif;
@@ -29,11 +35,11 @@
   --text-xl: 32px;
   --text-2xl: 40px;
 
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
-  --shadow-md: 0 4px 20px rgba(0,0,0,0.5);
-  --shadow-lg: 0 12px 40px rgba(0,0,0,0.6);
-  --shadow-glow: 0 0 24px rgba(200,168,130,0.12);
-  --shadow-glow-strong: 0 0 40px rgba(200,168,130,0.2);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.6);
+  --shadow-md: 0 4px 20px rgba(0,0,0,0.7);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,0.8);
+  --shadow-glow: 0 0 24px rgba(200,168,130,0.10);
+  --shadow-glow-strong: 0 0 40px rgba(200,168,130,0.16);
 
   --radius-sm: 6px;
   --radius-md: 12px;

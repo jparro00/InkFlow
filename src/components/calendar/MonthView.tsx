@@ -20,10 +20,10 @@ import type { BookingStatus } from '../../types';
 
 const statusColor: Record<BookingStatus, string> = {
   Confirmed: 'bg-accent/80',
-  Tentative: 'bg-[#6B6560]',
-  Completed: 'bg-[#3D8C5C]',
-  Cancelled: 'bg-[#7A3535]/60',
-  'No-show': 'bg-[#8A6A2A]',
+  Tentative: 'bg-[rgba(255,255,255,0.30)]',
+  Completed: 'bg-[#81C784]',
+  Cancelled: 'bg-[#CF6679]/60',
+  'No-show': 'bg-[#FFB74D]',
 };
 
 const MONTHS_BUFFER = 6;

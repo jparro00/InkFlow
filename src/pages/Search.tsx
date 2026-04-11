@@ -9,11 +9,11 @@ import { useUIStore } from '../stores/uiStore';
 import type { BookingStatus } from '../types';
 
 const statusDot: Record<BookingStatus, string> = {
-  Confirmed: 'bg-text-p',
-  Tentative: 'bg-[#6B6560]',
-  Completed: 'bg-[#3D8C5C]',
-  Cancelled: 'bg-[#7A3535]',
-  'No-show': 'bg-[#8A6A2A]',
+  Confirmed: 'bg-[rgba(255,255,255,0.87)]',
+  Tentative: 'bg-[rgba(255,255,255,0.38)]',
+  Completed: 'bg-[#81C784]',
+  Cancelled: 'bg-[#CF6679]',
+  'No-show': 'bg-[#FFB74D]',
 };
 
 export default function SearchOverlay() {

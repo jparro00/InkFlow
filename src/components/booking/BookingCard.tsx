@@ -4,11 +4,11 @@ import { useClientStore } from '../../stores/clientStore';
 import { useUIStore } from '../../stores/uiStore';
 
 const statusStyles: Record<BookingStatus, { dot: string; bg: string; border: string }> = {
-  Confirmed: { dot: 'bg-text-p', bg: 'bg-[rgba(240,237,232,0.06)]', border: 'border-[rgba(240,237,232,0.08)]' },
-  Tentative: { dot: 'bg-[#6B6560]', bg: 'bg-[rgba(107,101,96,0.10)]', border: 'border-[rgba(107,101,96,0.12)]' },
-  Completed: { dot: 'bg-[#3D8C5C]', bg: 'bg-[rgba(61,140,92,0.08)]', border: 'border-[rgba(61,140,92,0.12)]' },
-  Cancelled: { dot: 'bg-[#7A3535]', bg: 'bg-[rgba(122,53,53,0.10)]', border: 'border-[rgba(122,53,53,0.12)]' },
-  'No-show': { dot: 'bg-[#8A6A2A]', bg: 'bg-[rgba(138,106,42,0.10)]', border: 'border-[rgba(138,106,42,0.12)]' },
+  Confirmed: { dot: 'bg-[rgba(255,255,255,0.87)]', bg: 'bg-[rgba(255,255,255,0.05)]', border: 'border-[rgba(255,255,255,0.08)]' },
+  Tentative: { dot: 'bg-[rgba(255,255,255,0.38)]', bg: 'bg-[rgba(255,255,255,0.03)]', border: 'border-[rgba(255,255,255,0.06)]' },
+  Completed: { dot: 'bg-[#81C784]', bg: 'bg-[rgba(129,199,132,0.08)]', border: 'border-[rgba(129,199,132,0.12)]' },
+  Cancelled: { dot: 'bg-[#CF6679]', bg: 'bg-[rgba(207,102,121,0.08)]', border: 'border-[rgba(207,102,121,0.12)]' },
+  'No-show': { dot: 'bg-[#FFB74D]', bg: 'bg-[rgba(255,183,77,0.08)]', border: 'border-[rgba(255,183,77,0.12)]' },
 };
 
 interface BookingCardProps {

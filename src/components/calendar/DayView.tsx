@@ -20,19 +20,19 @@ import { useClientStore } from '../../stores/clientStore';
 import type { Booking, BookingStatus } from '../../types';
 
 const statusBg: Record<BookingStatus, string> = {
-  Confirmed: 'bg-[rgba(240,237,232,0.06)]',
-  Tentative: 'bg-[rgba(107,101,96,0.10)]',
-  Completed: 'bg-[rgba(61,140,92,0.08)]',
-  Cancelled: 'bg-[rgba(122,53,53,0.10)]',
-  'No-show': 'bg-[rgba(138,106,42,0.10)]',
+  Confirmed: 'bg-[rgba(255,255,255,0.05)]',
+  Tentative: 'bg-[rgba(255,255,255,0.03)]',
+  Completed: 'bg-[rgba(129,199,132,0.08)]',
+  Cancelled: 'bg-[rgba(207,102,121,0.08)]',
+  'No-show': 'bg-[rgba(255,183,77,0.08)]',
 };
 
 const statusDot: Record<BookingStatus, string> = {
-  Confirmed: 'bg-text-p',
-  Tentative: 'bg-[#6B6560]',
-  Completed: 'bg-[#3D8C5C]',
-  Cancelled: 'bg-[#7A3535]',
-  'No-show': 'bg-[#8A6A2A]',
+  Confirmed: 'bg-[rgba(255,255,255,0.87)]',
+  Tentative: 'bg-[rgba(255,255,255,0.38)]',
+  Completed: 'bg-[#81C784]',
+  Cancelled: 'bg-[#CF6679]',
+  'No-show': 'bg-[#FFB74D]',
 };
 
 const hours = Array.from({ length: 24 }, (_, i) => i);
