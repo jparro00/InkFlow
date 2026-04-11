@@ -2,7 +2,7 @@ import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, addMonths, subMonths, isSameDay, isToday, isSameMonth } from 'date-fns';
 import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import { useDrag } from '@use-gesture/react';
-import { useMotionValue, animate } from 'framer-motion';
+import { motion, useMotionValue, animate } from 'framer-motion';
 import { useBookingStore } from '../../stores/bookingStore';
 
 interface DatePickerProps {
@@ -28,27 +28,21 @@ function MonthPanel({ month, selectedDate, bookedDays, onSelect }: {
   const days = buildGrid(month);
 
   return (
-    <div className="shrink-0" style={{ width: 'calc(100% / 3)' }}>
-      {/* Month + year label */}
+    <div className="shrink-0" style={{ width: '33.333%' }}>
       <div className="text-center text-sm font-medium text-text-p py-1 mb-1">
         {format(month, 'MMMM yyyy')}
       </div>
-
-      {/* Day headers */}
       <div className="grid grid-cols-7">
         {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
           <div key={i} className="text-center text-xs text-text-t font-medium py-1">{d}</div>
         ))}
       </div>
-
-      {/* Day grid */}
       <div className="grid grid-cols-7">
         {days.map((day) => {
           const inMonth = isSameMonth(day, month);
           const selected = selectedDate && isSameDay(day, selectedDate);
           const today = isToday(day);
           const hasBooking = bookedDays.has(day.toDateString());
-
           return (
             <button
               type="button"
@@ -79,8 +73,9 @@ export default function DatePicker({ value, onChange, missing }: DatePickerProps
 
   const allBookings = useBookingStore((s) => s.bookings);
   const selectedDate = value ? new Date(value + 'T00:00:00') : null;
-  const offsetX = useMotionValue(0);
-  const trackRef = useRef<HTMLDivElement>(null);
+  const x = useMotionValue(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const swipeRef = useRef<HTMLDivElement>(null);
   const animRef = useRef<ReturnType<typeof animate> | null>(null);
   const pendingMonth = useRef<Date | null>(null);
 
@@ -99,43 +94,51 @@ export default function DatePicker({ value, onChange, missing }: DatePickerProps
   }, [onChange]);
 
   const changeMonth = useCallback((dir: 1 | -1) => {
-    setViewMonth((m) => dir === 1 ? addMonths(m, 1) : subMonths(m, 1));
-  }, []);
+    const w = swipeRef.current?.offsetWidth ?? 300;
+    const newMonth = dir === 1 ? addMonths(viewMonth, 1) : subMonths(viewMonth, 1);
+    animRef.current?.stop();
+    pendingMonth.current = newMonth;
+    animRef.current = animate(x, -dir * w, {
+      type: 'spring', stiffness: 300, damping: 30, mass: 0.8,
+      onComplete: () => {
+        x.jump(0);
+        setViewMonth(newMonth);
+        animRef.current = null;
+        pendingMonth.current = null;
+      },
+    });
+  }, [viewMonth, x]);
 
   const bindSwipe = useDrag(
     ({ movement: [mx], velocity: [vx], direction: [dx], first, last }) => {
       if (first) {
         if (animRef.current && pendingMonth.current) {
           animRef.current.stop();
+          x.jump(0);
           setViewMonth(pendingMonth.current);
           pendingMonth.current = null;
           animRef.current = null;
         }
-        offsetX.set(0);
+        x.jump(0);
       }
-      offsetX.set(mx);
+      x.set(mx);
       if (last) {
         if (Math.abs(mx) > 40 || vx > 0.3) {
           const dir = dx > 0 ? -1 : 1;
-          const w = trackRef.current?.parentElement?.offsetWidth ?? 300;
+          const w = swipeRef.current?.offsetWidth ?? 300;
           const newMonth = dir === 1 ? addMonths(viewMonth, 1) : subMonths(viewMonth, 1);
           pendingMonth.current = newMonth;
-          animRef.current = animate(offsetX, -dir * w, {
+          animRef.current = animate(x, -dir * w, {
             type: 'spring', stiffness: 300, damping: 30, mass: 0.8,
             onComplete: () => {
-              // Reset transform synchronously before React re-render to avoid flicker
-              if (trackRef.current) {
-                const panelW = trackRef.current.parentElement?.offsetWidth ?? 300;
-                trackRef.current.style.transform = `translateX(${-panelW}px)`;
-              }
-              offsetX.set(0);
+              x.jump(0);
               setViewMonth(newMonth);
               animRef.current = null;
               pendingMonth.current = null;
             },
           });
         } else {
-          animate(offsetX, 0, { type: 'spring', stiffness: 400, damping: 30 });
+          animate(x, 0, { type: 'spring', stiffness: 400, damping: 30 });
         }
       }
     },
@@ -147,7 +150,6 @@ export default function DatePicker({ value, onChange, missing }: DatePickerProps
     : 'Select date';
 
   // Close when clicking outside
-  const containerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent | TouchEvent) => {
@@ -162,23 +164,6 @@ export default function DatePicker({ value, onChange, missing }: DatePickerProps
       document.removeEventListener('touchstart', handler);
     };
   }, [open]);
-
-  // Sync the track transform with the motion value
-  useEffect(() => {
-    if (!open) return;
-    const container = trackRef.current?.parentElement;
-    const panelW = container?.offsetWidth ?? 300;
-    const unsubscribe = offsetX.on('change', (v) => {
-      if (trackRef.current) {
-        trackRef.current.style.transform = `translateX(${-panelW + v}px)`;
-      }
-    });
-    // Set initial position
-    if (trackRef.current) {
-      trackRef.current.style.transform = `translateX(${-panelW}px)`;
-    }
-    return unsubscribe;
-  }, [open, offsetX, viewMonth]);
 
   return (
     <div ref={containerRef}>
@@ -198,29 +183,24 @@ export default function DatePicker({ value, onChange, missing }: DatePickerProps
         <div className="mt-2 bg-elevated border border-accent/20 rounded-xl p-3 shadow-glow overflow-hidden">
           {/* Navigation arrows */}
           <div className="flex items-center justify-between mb-2">
-            <button
-              type="button"
-              onClick={() => changeMonth(-1)}
-              className="w-8 h-8 flex items-center justify-center rounded-full text-text-s active:bg-surface cursor-pointer"
-            >
+            <button type="button" onClick={() => changeMonth(-1)} className="w-8 h-8 flex items-center justify-center rounded-full text-text-s active:bg-surface cursor-pointer">
               <ChevronLeft size={16} />
             </button>
-            <button
-              type="button"
-              onClick={() => changeMonth(1)}
-              className="w-8 h-8 flex items-center justify-center rounded-full text-text-s active:bg-surface cursor-pointer"
-            >
+            <button type="button" onClick={() => changeMonth(1)} className="w-8 h-8 flex items-center justify-center rounded-full text-text-s active:bg-surface cursor-pointer">
               <ChevronRight size={16} />
             </button>
           </div>
 
-          {/* Carousel */}
-          <div {...bindSwipe()} className="overflow-hidden" style={{ touchAction: 'pan-y' }}>
-            <div ref={trackRef} className="flex" style={{ width: '300%' }}>
+          {/* Carousel — 3 panels, center one visible via negative margin */}
+          <div {...bindSwipe()} ref={swipeRef} className="overflow-hidden" style={{ touchAction: 'pan-y' }}>
+            <motion.div
+              className="flex"
+              style={{ x, width: '300%', marginLeft: '-100%' }}
+            >
               <MonthPanel month={prevMonth} selectedDate={selectedDate} bookedDays={bookedDays} onSelect={handleSelect} />
               <MonthPanel month={viewMonth} selectedDate={selectedDate} bookedDays={bookedDays} onSelect={handleSelect} />
               <MonthPanel month={nextMonth} selectedDate={selectedDate} bookedDays={bookedDays} onSelect={handleSelect} />
-            </div>
+            </motion.div>
           </div>
         </div>
       )}
