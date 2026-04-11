@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
 import Modal from './common/Modal';
 import { useUIStore } from '../stores/uiStore';
@@ -11,6 +11,7 @@ export default function QuickBooking() {
   const { setQuickBookingOpen, openBookingForm, setPrefillBookingData, addToast } = useUIStore();
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSubmit = async () => {
     if (!text.trim()) return;
@@ -50,12 +51,14 @@ export default function QuickBooking() {
       onClose={() => setQuickBookingOpen(false)}
       width="lg:max-w-[520px]"
       fullScreenMobile={true}
+      onReady={() => textareaRef.current?.focus()}
     >
       <div className="space-y-4">
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
           rows={5}
+          ref={textareaRef}
           placeholder="Describe the booking in your own words..."
           className="w-full bg-input border border-border/60 rounded-xl px-4 py-4 text-base text-text-p placeholder:text-text-t focus:outline-none focus:border-accent/40 resize-none transition-colors"
           disabled={loading}
