@@ -1,4 +1,5 @@
-import { motion, useMotionValue, animate } from 'framer-motion';
+import { useRef } from 'react';
+import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
 import { useDrag } from '@use-gesture/react';
 import { format } from 'date-fns';
 import { ArrowLeft, Edit, Trash2, User } from 'lucide-react';
@@ -27,24 +28,42 @@ export default function BookingDrawer() {
   const client = useClientStore((s) => s.getClient(booking?.client_id ?? ''));
 
   const dragY = useMotionValue(0);
+  const backdropOpacity = useTransform(dragY, [0, 400], [1, 0]);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const isDismissing = useRef(false);
+
+  const dismiss = () => {
+    if (isDismissing.current) return;
+    isDismissing.current = true;
+    const sheetHeight = sheetRef.current?.offsetHeight ?? 600;
+    animate(dragY, sheetHeight, {
+      type: 'spring', stiffness: 300, damping: 30, mass: 0.8,
+      onComplete: () => {
+        setSelectedBookingId(null);
+        isDismissing.current = false;
+      },
+    });
+  };
 
   const bindDrag = useDrag(
     ({ movement: [, my], velocity: [, vy], direction: [, dy], last }) => {
+      if (isDismissing.current) return;
       if (my < 0) {
-        dragY.set(0);
+        dragY.set(my * 0.1); // slight resistance when dragging up
+        if (last) animate(dragY, 0, { type: 'spring', stiffness: 400, damping: 30 });
         return;
       }
       dragY.set(my);
 
       if (last) {
-        if (my > 60 || (vy > 0.5 && dy > 0)) {
-          setSelectedBookingId(null);
+        if (my > 80 || (vy > 0.4 && dy > 0)) {
+          dismiss();
         } else {
           animate(dragY, 0, { type: 'spring', stiffness: 400, damping: 30 });
         }
       }
     },
-    { axis: 'y', filterTaps: true, threshold: 5 }
+    { axis: 'y', filterTaps: true, threshold: 5, pointer: { touch: true } }
   );
 
   if (!booking) return null;
@@ -73,12 +92,14 @@ export default function BookingDrawer() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
+        style={{ opacity: backdropOpacity }}
         className="fixed inset-0 bg-black/40 z-40"
-        onClick={() => setSelectedBookingId(null)}
+        onClick={dismiss}
       />
 
       {/* Mobile: bottom sheet. Desktop: right drawer */}
       <motion.div
+        ref={sheetRef}
         initial={{ y: '100%' }}
         animate={{ y: 0 }}
         exit={{ y: '100%' }}
@@ -86,36 +107,39 @@ export default function BookingDrawer() {
         style={{ y: dragY }}
         className="fixed bottom-0 left-0 right-0 lg:top-0 lg:left-auto lg:right-0 lg:bottom-0 max-h-[85vh] lg:max-h-full lg:w-[400px] bg-elevated rounded-t-2xl lg:rounded-none border-t lg:border-t-0 lg:border-l border-border/40 shadow-lg z-50 flex flex-col overflow-hidden"
       >
-        {/* Drag handle — mobile, touch target for drag-to-dismiss */}
-        <div {...bindDrag()} className="flex justify-center pt-3 pb-3 lg:hidden cursor-grab active:cursor-grabbing touch-none">
-          <div className="w-10 h-1 rounded-full bg-border-s/60" />
-        </div>
+        {/* Drag zone — handle + header, entire top area is grabbable */}
+        <div {...bindDrag()} className="touch-none cursor-grab active:cursor-grabbing">
+          {/* Drag handle — mobile */}
+          <div className="flex justify-center pt-3 pb-1 lg:hidden">
+            <div className="w-10 h-1 rounded-full bg-border-s/60" />
+          </div>
 
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border/40">
-          <button
-            onClick={() => setSelectedBookingId(null)}
-            className="flex items-center gap-2.5 text-text-s active:text-text-p transition-colors cursor-pointer press-scale min-h-[44px]"
-          >
-            <ArrowLeft size={20} />
-            <span className="text-base">Back</span>
-          </button>
-          <div className="flex items-center gap-2">
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 py-4 border-b border-border/40">
             <button
-              onClick={() => {
-                setSelectedBookingId(null);
-                openBookingForm(booking.id);
-              }}
-              className="w-12 h-12 rounded-xl flex items-center justify-center text-text-s active:bg-surface transition-colors cursor-pointer press-scale"
+              onClick={dismiss}
+              className="flex items-center gap-2.5 text-text-s active:text-text-p transition-colors cursor-pointer press-scale min-h-[44px]"
             >
-              <Edit size={20} />
+              <ArrowLeft size={20} />
+              <span className="text-base">Back</span>
             </button>
-            <button
-              onClick={handleDelete}
-              className="w-12 h-12 rounded-xl flex items-center justify-center text-text-s active:text-danger transition-colors cursor-pointer press-scale"
-            >
-              <Trash2 size={20} />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setSelectedBookingId(null);
+                  openBookingForm(booking.id);
+                }}
+                className="w-12 h-12 rounded-xl flex items-center justify-center text-text-s active:bg-surface transition-colors cursor-pointer press-scale"
+              >
+                <Edit size={20} />
+              </button>
+              <button
+                onClick={handleDelete}
+                className="w-12 h-12 rounded-xl flex items-center justify-center text-text-s active:text-danger transition-colors cursor-pointer press-scale"
+              >
+                <Trash2 size={20} />
+              </button>
+            </div>
           </div>
         </div>
 
