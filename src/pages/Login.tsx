@@ -37,10 +37,7 @@ export default function LoginPage() {
           animate={{ scale: [1, 1.02, 1] }}
           transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
         >
-          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" className="text-accent mx-auto">
-            <path d="M12 2C12 2 9.5 8 9 12c-.3 2.5.5 4.5 2 6.5L12 20l1-1.5c1.5-2 2.3-4 2-6.5C14.5 8 12 2 12 2z" fill="currentColor" opacity="0.7"/>
-            <path d="M12 18.5c-.3.8-.5 1.8-.4 2.8.05.4.15.7.4.7s.35-.3.4-.7c.1-1-.1-2-.4-2.8z" fill="currentColor"/>
-          </svg>
+          <img src={`${import.meta.env.BASE_URL}inkflow_logo.png`} alt="InkFlow" className="w-9 h-9 mx-auto" />
           <h1 className="font-display text-2xl text-text-p mt-3">InkFlow</h1>
           <p className="text-xs text-text-t mt-1.5 tracking-wider uppercase">Studio Management</p>
         </motion.div>
