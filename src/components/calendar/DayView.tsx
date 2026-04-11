@@ -2,6 +2,7 @@ import { useRef, useCallback, useEffect } from 'react';
 import {
   format,
   isSameDay,
+  isSameWeek,
   isToday,
   startOfWeek,
   endOfWeek,
@@ -355,7 +356,42 @@ export default function DayView() {
 
       {/* Today button */}
       <button
-        onClick={() => setCalendarDate(new Date())}
+        onClick={() => {
+          const today = new Date();
+          if (isSameDay(calendarDate, today)) return;
+
+          const dir = today > calendarDate ? 1 : -1;
+          const w = containerRef.current?.offsetWidth ?? 375;
+          const sameWeek = isSameWeek(calendarDate, today, { weekStartsOn: 0 });
+
+          // Animate day panel
+          stripAnim.current?.stop();
+          stripPendingDate.current = today;
+          stripAnim.current = animate(stripX, -dir * w, {
+            type: 'spring', stiffness: 300, damping: 30, mass: 0.8,
+            onComplete: () => {
+              stripX.jump(0);
+              setCalendarDate(today);
+              stripAnim.current = null;
+              stripPendingDate.current = null;
+            },
+          });
+
+          // Animate week strip if different week
+          if (!sameWeek) {
+            const weekW = weekStripRef.current?.offsetWidth ?? 375;
+            weekAnim.current?.stop();
+            weekPendingDate.current = today;
+            weekAnim.current = animate(weekX, -dir * weekW, {
+              type: 'spring', stiffness: 300, damping: 30, mass: 0.8,
+              onComplete: () => {
+                weekX.jump(0);
+                weekAnim.current = null;
+                weekPendingDate.current = null;
+              },
+            });
+          }
+        }}
         className="fixed bottom-[100px] left-5 lg:left-auto lg:bottom-8 px-4 py-2.5 bg-elevated border border-border/60 text-text-p text-sm font-medium rounded-xl shadow-md cursor-pointer press-scale transition-all z-30"
       >
         Today
