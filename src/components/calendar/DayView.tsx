@@ -360,14 +360,18 @@ export default function DayView() {
           const today = new Date();
           if (isSameDay(calendarDate, today)) return;
 
-          const isAdjacent = isSameDay(addDays(calendarDate, 1), today) || isSameDay(subDays(calendarDate, 1), today);
+          const dir = today > calendarDate ? 1 : -1;
+          const w = containerRef.current?.offsetWidth ?? 375;
           const sameWeek = isSameWeek(calendarDate, today, { weekStartsOn: 0 });
 
-          if (isAdjacent) {
-            // Adjacent day — animate the carousel
-            const dir = today > calendarDate ? 1 : -1;
-            const w = containerRef.current?.offsetWidth ?? 375;
+          // Position today in the adjacent panel slot
+          // by setting calendarDate to one day before/after today
+          const adjacentDate = dir === 1 ? subDays(today, 1) : addDays(today, 1);
+          setCalendarDate(adjacentDate);
+          stripX.jump(0);
 
+          // Now animate into today (which is in the next/prev slot)
+          requestAnimationFrame(() => {
             stripAnim.current?.stop();
             stripPendingDate.current = today;
             stripAnim.current = animate(stripX, -dir * w, {
@@ -382,6 +386,7 @@ export default function DayView() {
 
             if (!sameWeek) {
               const weekW = weekStripRef.current?.offsetWidth ?? 375;
+              weekX.jump(0);
               weekAnim.current?.stop();
               weekPendingDate.current = today;
               weekAnim.current = animate(weekX, -dir * weekW, {
@@ -393,10 +398,7 @@ export default function DayView() {
                 },
               });
             }
-          } else {
-            // More than 1 day away — just jump directly
-            setCalendarDate(today);
-          }
+          });
         }}
         className="fixed bottom-[100px] left-5 lg:left-auto lg:bottom-8 px-4 py-2.5 bg-elevated border border-border/60 text-text-p text-sm font-medium rounded-xl shadow-md cursor-pointer press-scale transition-all z-30"
       >
