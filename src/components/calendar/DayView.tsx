@@ -380,9 +380,11 @@ export default function DayView() {
           <ChevronLeft size={20} />
           <span className="text-[22px] font-medium">{format(calendarDate, 'MMMM')}</span>
         </button>
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2 pointer-events-none">
-          <img src={`${import.meta.env.BASE_URL}inkflow_logo.png`} alt="InkFlow" className="w-7 h-7 shrink-0" />
-          <span className="font-display text-lg font-bold text-text-p tracking-wide">Keeps Ink</span>
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="relative flex items-center">
+            <img src={`${import.meta.env.BASE_URL}inkflow_logo.png`} alt="InkFlow" className="w-7 h-7 absolute -left-9" />
+            <span className="font-display text-lg font-bold text-text-p tracking-wide">Keeps Ink</span>
+          </div>
         </div>
         <div className="flex items-center gap-2 ml-auto">
           <button
