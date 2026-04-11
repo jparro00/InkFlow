@@ -14,7 +14,7 @@ import {
 } from 'date-fns';
 import { motion, useMotionValue, animate } from 'framer-motion';
 import { useDrag } from '@use-gesture/react';
-import { ChevronLeft, Plus, Search } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import { useUIStore } from '../../stores/uiStore';
 import { useBookingStore } from '../../stores/bookingStore';
 import { useClientStore } from '../../stores/clientStore';
@@ -374,14 +374,8 @@ export default function DayView() {
       {/* Header */}
       <div className="px-3 pt-4 pb-2 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setCalendarView('month')}
-            className="flex items-center gap-1 text-text-p active:opacity-70 transition-opacity cursor-pointer press-scale min-h-[44px]"
-          >
-            <ChevronLeft size={20} />
-            <span className="text-[22px] font-medium">{format(calendarDate, 'MMMM')}</span>
-          </button>
-          <img src={`${import.meta.env.BASE_URL}inkflow_logo.png`} alt="InkFlow" className="w-5 h-5 shrink-0 lg:hidden" />
+          <img src={`${import.meta.env.BASE_URL}inkflow_logo.png`} alt="InkFlow" className="w-6 h-6 shrink-0" />
+          <span className="text-[20px] text-text-p tracking-wide" style={{ fontFamily: "'DM Serif Display', serif" }}>Keeps Ink</span>
         </div>
         <div className="flex items-center gap-2">
           <button

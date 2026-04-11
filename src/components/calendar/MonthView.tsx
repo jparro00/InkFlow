@@ -12,7 +12,7 @@ import {
   addMonths,
   subMonths,
 } from 'date-fns';
-import { ChevronLeft, Plus, Search } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import { useUIStore } from '../../stores/uiStore';
 import { useBookingStore } from '../../stores/bookingStore';
 import { useClientStore } from '../../stores/clientStore';
@@ -34,7 +34,6 @@ export default function MonthView() {
   const getClient = useClientStore((s) => s.getClient);
 
   const [months, setMonths] = useState(() => getMonthRange(calendarDate, MONTHS_BUFFER));
-  const [visibleYear, setVisibleYear] = useState(calendarDate.getFullYear());
   const scrollRef = useRef<HTMLDivElement>(null);
   const currentMonthRef = useRef<HTMLDivElement>(null);
   const hasScrolled = useRef(false);
@@ -89,30 +88,6 @@ export default function MonthView() {
     return () => observer.disconnect();
   }, [handleIntersect]);
 
-  // Track which year is visible at top of scroll area
-  useEffect(() => {
-    const yearObserver = new IntersectionObserver(
-      (entries) => {
-        // Find the topmost visible month section
-        let topEntry: IntersectionObserverEntry | null = null;
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            if (!topEntry || entry.boundingClientRect.top < topEntry.boundingClientRect.top) {
-              topEntry = entry;
-            }
-          }
-        }
-        if (topEntry) {
-          const key = (topEntry.target as HTMLElement).dataset.month;
-          if (key) setVisibleYear(parseInt(key.split('-')[0]));
-        }
-      },
-      { root: scrollRef.current, rootMargin: '0px 0px -90% 0px', threshold: 0 }
-    );
-    monthRefs.current.forEach((el) => yearObserver.observe(el));
-    return () => yearObserver.disconnect();
-  }, [months]);
-
   // Register Today handler: if current month visible → open day view on today, else scroll to current month
   useEffect(() => {
     const handler = () => {
@@ -162,14 +137,8 @@ export default function MonthView() {
       {/* Header */}
       <div className="px-3 pt-4 pb-2 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setCalendarView('year')}
-            className="flex items-center gap-1 text-text-p active:opacity-70 transition-opacity cursor-pointer press-scale min-h-[44px]"
-          >
-            <ChevronLeft size={20} />
-            <span className="text-[22px] font-medium">{visibleYear}</span>
-          </button>
-          <img src={`${import.meta.env.BASE_URL}inkflow_logo.png`} alt="InkFlow" className="w-5 h-5 shrink-0 lg:hidden" />
+          <img src={`${import.meta.env.BASE_URL}inkflow_logo.png`} alt="InkFlow" className="w-6 h-6 shrink-0" />
+          <span className="text-[20px] text-text-p tracking-wide" style={{ fontFamily: "'DM Serif Display', serif" }}>Keeps Ink</span>
         </div>
         <div className="flex items-center gap-2">
           <button
