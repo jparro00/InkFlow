@@ -167,7 +167,7 @@ export default function BookingDrawer() {
           </div>
 
           {/* Content */}
-          <div ref={contentRef} className="flex-1 overflow-y-auto p-5 space-y-6">
+          <div ref={contentRef} className="flex-1 overflow-y-auto overscroll-none p-5 space-y-6">
             {/* Client */}
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center text-accent text-base font-medium shrink-0">
