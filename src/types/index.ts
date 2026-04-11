@@ -36,6 +36,7 @@ export interface Booking {
   type: BookingType;
   estimate?: number;
   status: BookingStatus;
+  rescheduled?: boolean;
   notes?: string;
   quick_booking_raw?: string;
 }

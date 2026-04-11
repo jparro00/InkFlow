@@ -242,6 +242,18 @@ export default function BookingDrawer() {
               </>
             )}
 
+            {/* Rescheduled flag */}
+            <div className="h-px bg-border/40" />
+            <button
+              onClick={() => updateBooking(booking.id, { rescheduled: !booking.rescheduled })}
+              className={`flex items-center gap-3 w-full text-left py-3 cursor-pointer press-scale min-h-[44px] transition-colors ${booking.rescheduled ? 'text-danger' : 'text-text-s'}`}
+            >
+              <span className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${booking.rescheduled ? 'border-danger bg-danger/20' : 'border-border'}`}>
+                {booking.rescheduled && <span className="text-danger text-xs font-bold">✓</span>}
+              </span>
+              <span className="text-base">Needs Rescheduling</span>
+            </button>
+
             {/* Status */}
             <div className="h-px bg-border/40" />
             <div>
