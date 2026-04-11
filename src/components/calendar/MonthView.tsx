@@ -110,7 +110,7 @@ export default function MonthView() {
           className="flex items-center gap-1 text-today active:opacity-70 transition-opacity cursor-pointer press-scale min-h-[44px]"
         >
           <ChevronLeft size={20} />
-          <span className="text-lg font-medium">{format(calendarDate, 'yyyy')}</span>
+          <span className="text-[27px] font-medium">{format(calendarDate, 'yyyy')}</span>
         </button>
         <button
           onClick={() => openBookingForm()}
@@ -123,7 +123,7 @@ export default function MonthView() {
       {/* Fixed day headers */}
       <div className="grid grid-cols-7 px-6 shrink-0">
         {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
-          <div key={i} className="py-2 text-center text-sm text-text-t font-medium">
+          <div key={i} className="py-2 text-center text-xl text-text-t font-medium">
             {d}
           </div>
         ))}
@@ -148,7 +148,7 @@ export default function MonthView() {
               className="mb-2"
             >
               {/* Month name */}
-              <h2 className="font-display text-xl text-text-p pt-4 pb-3">
+              <h2 className="font-display text-3xl text-text-p pt-4 pb-3">
                 {format(month, 'MMMM')}
               </h2>
 
@@ -171,7 +171,7 @@ export default function MonthView() {
                       {/* Date number */}
                       <div className="w-full flex justify-center mb-1">
                         <span
-                          className={`w-8 h-8 flex items-center justify-center rounded-full text-sm ${
+                          className={`w-11 h-11 flex items-center justify-center rounded-full text-xl ${
                             today
                               ? 'bg-today text-white font-semibold'
                               : inMonth
@@ -191,7 +191,7 @@ export default function MonthView() {
                           return (
                             <div
                               key={b.id}
-                              className="rounded-sm px-1 py-[1px] text-[10px] leading-tight overflow-hidden whitespace-nowrap"
+                              className="rounded-sm px-1 py-[1px] text-[15px] leading-tight overflow-hidden whitespace-nowrap"
                               style={{ backgroundColor: `${typeColor[b.type]}18`, ...(b.rescheduled ? { outline: '1px solid #CF6679', outlineOffset: -1 } : {}) }}
                             >
                               <span style={{ color: typeColor[b.type], maskImage: 'linear-gradient(to right, black 70%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to right, black 70%, transparent 100%)', display: 'block' }}>
@@ -201,7 +201,7 @@ export default function MonthView() {
                           );
                         })}
                         {dayBookings.length > 3 && (
-                          <div className="text-[10px] text-text-t text-center">
+                          <div className="text-[15px] text-text-t text-center">
                             {dayBookings.length - 3} more
                           </div>
                         )}
