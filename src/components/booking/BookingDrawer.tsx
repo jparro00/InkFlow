@@ -1,4 +1,5 @@
-import { motion } from 'framer-motion';
+import { motion, useMotionValue, animate } from 'framer-motion';
+import { useDrag } from '@use-gesture/react';
 import { format } from 'date-fns';
 import { ArrowLeft, Edit, Trash2, User } from 'lucide-react';
 import { useUIStore } from '../../stores/uiStore';
@@ -24,6 +25,27 @@ export default function BookingDrawer() {
   const updateBooking = useBookingStore((s) => s.updateBooking);
   const deleteBooking = useBookingStore((s) => s.deleteBooking);
   const client = useClientStore((s) => s.getClient(booking?.client_id ?? ''));
+
+  const dragY = useMotionValue(0);
+
+  const bindDrag = useDrag(
+    ({ movement: [, my], velocity: [, vy], direction: [, dy], last }) => {
+      if (my < 0) {
+        dragY.set(0);
+        return;
+      }
+      dragY.set(my);
+
+      if (last) {
+        if (my > 60 || (vy > 0.5 && dy > 0)) {
+          setSelectedBookingId(null);
+        } else {
+          animate(dragY, 0, { type: 'spring', stiffness: 400, damping: 30 });
+        }
+      }
+    },
+    { axis: 'y', filterTaps: true, threshold: 5 }
+  );
 
   if (!booking) return null;
 
@@ -61,18 +83,11 @@ export default function BookingDrawer() {
         animate={{ y: 0 }}
         exit={{ y: '100%' }}
         transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-        drag="y"
-        dragConstraints={{ top: 0 }}
-        dragElastic={0.05}
-        onDragEnd={(_, info) => {
-          if (info.offset.y > 60 || info.velocity.y > 300) {
-            setSelectedBookingId(null);
-          }
-        }}
+        style={{ y: dragY }}
         className="fixed bottom-0 left-0 right-0 lg:top-0 lg:left-auto lg:right-0 lg:bottom-0 max-h-[85vh] lg:max-h-full lg:w-[400px] bg-elevated rounded-t-2xl lg:rounded-none border-t lg:border-t-0 lg:border-l border-border/40 shadow-lg z-50 flex flex-col overflow-hidden"
       >
-        {/* Drag handle — mobile */}
-        <div className="flex justify-center pt-3 pb-1 lg:hidden">
+        {/* Drag handle — mobile, touch target for drag-to-dismiss */}
+        <div {...bindDrag()} className="flex justify-center pt-3 pb-3 lg:hidden cursor-grab active:cursor-grabbing touch-none">
           <div className="w-10 h-1 rounded-full bg-border-s/60" />
         </div>
 
