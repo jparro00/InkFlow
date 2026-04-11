@@ -259,7 +259,7 @@ export default function DayView() {
             })}
 
             {/* Sliding booking panels */}
-            <div {...timelineBind()} className="absolute inset-0">
+            <div {...timelineBind()} className="absolute inset-0" style={{ touchAction: 'pan-y' }}>
               <motion.div className="flex h-full" style={{ x: stripX, width: '300%', marginLeft: '-100%' }}>
                 <DayBookings day={prevDay} bookings={bookings} getClient={getClient} onBookingClick={handleBookingClick} />
                 <DayBookings day={calendarDate} bookings={bookings} getClient={getClient} onBookingClick={handleBookingClick} />
