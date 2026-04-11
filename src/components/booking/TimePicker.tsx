@@ -21,7 +21,6 @@ export default function TimePicker({ value, onChange, date, duration, editingBoo
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const isScrolling = useRef(false);
 
   const allBookings = useBookingStore((s) => s.bookings);
   const getClient = useClientStore((s) => s.getClient);
