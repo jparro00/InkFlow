@@ -10,7 +10,7 @@ import {
   subDays,
 } from 'date-fns';
 import { AnimatePresence, motion, useMotionValue, useTransform, animate } from 'framer-motion';
-import { useGesture } from '@use-gesture/react';
+import { useDrag } from '@use-gesture/react';
 import { ChevronLeft, Plus } from 'lucide-react';
 import { useUIStore } from '../../stores/uiStore';
 import { useBookingStore } from '../../stores/bookingStore';
@@ -35,8 +35,8 @@ const statusDot: Record<BookingStatus, string> = {
 
 const hours = Array.from({ length: 24 }, (_, i) => i);
 
-const SWIPE_THRESHOLD = 40;
-const VELOCITY_THRESHOLD = 0.3;
+const SWIPE_THRESHOLD = 50;
+const VELOCITY_THRESHOLD = 0.4;
 
 export default function DayView() {
   const { calendarDate, setCalendarDate, setCalendarView, openBookingForm, setSelectedBookingId, setPrefillBookingData } = useUIStore();
@@ -76,69 +76,75 @@ export default function DayView() {
     setTimeout(() => setSlideDir(0), 300);
   };
 
-  // Timeline gesture — horizontal swipe with proper scroll pass-through
-  const timelineBind = useGesture(
-    {
-      onDrag: ({ movement: [mx], velocity: [vx], direction: [dx], cancel, first }) => {
-        if (first) {
-          swipeCommitted.current = false;
-        }
+  // Timeline: horizontal swipe to change day
+  // touch-action is set to 'pan-y pinch-zoom' so browser handles vertical scroll
+  // but we intercept horizontal movement manually
+  const timelineBind = useDrag(
+    ({ movement: [mx], velocity: [vx], direction: [dx], cancel, first, last, memo }) => {
+      if (first) {
+        swipeCommitted.current = false;
+        return memo;
+      }
 
-        if (swipeCommitted.current) return;
+      if (swipeCommitted.current) return memo;
 
-        // Real-time drag follow
-        dragX.set(mx);
+      dragX.set(mx);
 
-        // Check if swipe should trigger
-        if (Math.abs(mx) > SWIPE_THRESHOLD || Math.abs(vx) > VELOCITY_THRESHOLD) {
-          swipeCommitted.current = true;
-          cancel();
-          animate(dragX, 0, { duration: 0 });
-          changeDay(dx > 0 ? -1 : 1);
-        }
-      },
-      onDragEnd: () => {
-        if (!swipeCommitted.current) {
-          animate(dragX, 0, { type: 'spring', stiffness: 400, damping: 30 });
-        }
-      },
+      if (Math.abs(mx) > SWIPE_THRESHOLD || Math.abs(vx) > VELOCITY_THRESHOLD) {
+        swipeCommitted.current = true;
+        cancel();
+        animate(dragX, 0, { duration: 0 });
+        changeDay(dx > 0 ? -1 : 1);
+        return memo;
+      }
+
+      if (last && !swipeCommitted.current) {
+        animate(dragX, 0, { type: 'spring', stiffness: 400, damping: 30 });
+      }
+
+      return memo;
     },
     {
-      drag: {
-        axis: 'lock',
-        filterTaps: true,
-        threshold: 10,
-        preventScrollAxis: 'x',
-        from: [0, 0],
-      },
+      axis: 'x',
+      filterTaps: true,
+      threshold: 15,
+      pointer: { touch: true },
+      // Let browser handle vertical scroll, we only take horizontal
+      eventOptions: { passive: false },
     }
   );
 
-  // Week strip gesture — swipe up for month, left/right for day
-  const weekBind = useGesture(
-    {
-      onDrag: ({ movement: [mx, my], velocity: [vx, vy], direction: [, dy], cancel, axis }) => {
-        // Vertical swipe up → month view
-        if (axis === 'y' && my < -25 && (Math.abs(my) > 40 || vy > VELOCITY_THRESHOLD)) {
-          if (dy < 0) {
-            cancel();
-            setCalendarView('month');
-            return;
-          }
+  // Week strip: swipe up for month view, left/right for day change
+  const weekBind = useDrag(
+    ({ movement: [mx, my], velocity: [vx, vy], direction: [, dy], last, swipe: [sx, sy] }) => {
+      if (!last) return;
+
+      // Quick swipe detection (use-gesture built-in)
+      if (sy === -1) {
+        setCalendarView('month');
+        return;
+      }
+      if (sx !== 0) {
+        changeDay(sx > 0 ? -1 : 1);
+        return;
+      }
+
+      // Fallback: manual threshold check
+      if (my < -30 && Math.abs(my) > Math.abs(mx) && (Math.abs(my) > 40 || vy > 0.3)) {
+        if (dy < 0) {
+          setCalendarView('month');
+          return;
         }
-        // Horizontal swipe → change day
-        if (axis === 'x' && (Math.abs(mx) > SWIPE_THRESHOLD || Math.abs(vx) > VELOCITY_THRESHOLD)) {
-          cancel();
-          changeDay(mx < 0 ? 1 : -1);
-        }
-      },
+      }
+      if (Math.abs(mx) > Math.abs(my) && (Math.abs(mx) > SWIPE_THRESHOLD || vx > VELOCITY_THRESHOLD)) {
+        changeDay(mx < 0 ? 1 : -1);
+      }
     },
     {
-      drag: {
-        axis: 'lock',
-        filterTaps: true,
-        threshold: 8,
-      },
+      filterTaps: true,
+      threshold: 8,
+      pointer: { touch: true },
+      swipe: { distance: 30, velocity: 0.3 },
     }
   );
 
@@ -204,8 +210,8 @@ export default function DayView() {
       </div>
 
       {/* Timeline — swipe left/right to change day, vertical scroll preserved */}
-      <div className="flex-1 overflow-y-auto" style={{ touchAction: 'pan-y' }}>
-        <div {...timelineBind()} style={{ touchAction: 'pan-y' }}>
+      <div className="flex-1 overflow-y-auto">
+        <div {...timelineBind()}>
           <AnimatePresence mode="popLayout" initial={false}>
             <motion.div
               key={dateKey}
