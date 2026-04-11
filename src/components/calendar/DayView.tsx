@@ -194,8 +194,9 @@ export default function DayView() {
   }, [setSelectedBookingId]);
 
   // Pinch-to-zoom: scale hour height
-  const pinchBind = usePinch(
-    ({ first, movement: [scale], origin: [, oy] }) => {
+  usePinch(
+    ({ first, event, movement: [scale], origin: [, oy] }) => {
+      event?.preventDefault();
       if (first) {
         pinchStartHeight.current = hourHeight;
       }
@@ -203,18 +204,15 @@ export default function DayView() {
       const container = containerRef.current;
       if (!container) return;
 
-      // Calculate which hour is at the pinch center
       const containerRect = container.getBoundingClientRect();
       const pinchY = oy - containerRect.top + container.scrollTop;
       const hourAtCenter = pinchY / hourHeight;
 
-      // Apply new height
       const newHeight = Math.round(
         Math.min(MAX_HOUR_HEIGHT, Math.max(MIN_HOUR_HEIGHT, pinchStartHeight.current * scale))
       );
       setHourHeight(newHeight);
 
-      // Adjust scroll to keep the same hour at the pinch point
       const newPinchY = hourAtCenter * newHeight;
       container.scrollTop = newPinchY - (oy - containerRect.top);
     },
@@ -222,6 +220,7 @@ export default function DayView() {
       pointer: { touch: true },
       scaleBounds: { min: MIN_HOUR_HEIGHT / DEFAULT_HOUR_HEIGHT, max: MAX_HOUR_HEIGHT / DEFAULT_HOUR_HEIGHT },
       eventOptions: { passive: false },
+      target: containerRef,
     }
   );
 
@@ -320,8 +319,8 @@ export default function DayView() {
       </div>
 
       {/* Timeline carousel: full day panels slide together */}
-      <div ref={containerRef} className="flex-1 overflow-y-auto overflow-x-hidden" style={{ touchAction: 'pan-y' }}>
-        <div {...timelineBind()} {...pinchBind()} style={{ touchAction: 'pan-y' }}>
+      <div ref={containerRef} className="flex-1 overflow-y-auto overflow-x-hidden">
+        <div {...timelineBind()} style={{ touchAction: 'pan-y' }}>
           <motion.div className="flex" style={{ x: stripX, width: '300%', marginLeft: '-100%' }}>
             <DayPanel day={prevDay} bookings={bookings} getClient={getClient} onSlotClick={handleSlotClick} onBookingClick={handleBookingClick} hourHeight={hourHeight} />
             <DayPanel day={calendarDate} bookings={bookings} getClient={getClient} onSlotClick={handleSlotClick} onBookingClick={handleBookingClick} hourHeight={hourHeight} />
