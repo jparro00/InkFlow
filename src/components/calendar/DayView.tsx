@@ -40,13 +40,9 @@ const HOUR_HEIGHT = 64;
 const SWIPE_THRESHOLD = 50;
 const VELOCITY_THRESHOLD = 0.4;
 
-// Renders a single day's timeline content
+// Single day timeline panel
 function DayPanel({
-  day,
-  bookings,
-  getClient,
-  onSlotClick,
-  onBookingClick,
+  day, bookings, getClient, onSlotClick, onBookingClick,
 }: {
   day: Date;
   bookings: Booking[];
@@ -59,18 +55,13 @@ function DayPanel({
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   return (
-    <div
-      className="shrink-0 relative"
-      style={{ minHeight: hours.length * HOUR_HEIGHT, width: 'calc(100% / 3)' }}
-    >
+    <div className="shrink-0 relative" style={{ minHeight: hours.length * HOUR_HEIGHT, width: 'calc(100% / 3)' }}>
       {hours.map((hour) => {
         const isOffHours = hour < 8;
         return (
           <div
             key={hour}
-            className={`absolute w-full border-b border-border/15 flex active:bg-elevated/20 cursor-pointer transition-colors ${
-              isOffHours ? 'bg-white/[0.015]' : ''
-            }`}
+            className={`absolute w-full border-b border-border/15 flex active:bg-elevated/20 cursor-pointer transition-colors ${isOffHours ? 'bg-white/[0.015]' : ''}`}
             style={{ top: hour * HOUR_HEIGHT, height: HOUR_HEIGHT }}
             onClick={() => onSlotClick(hour, day)}
           >
@@ -81,23 +72,18 @@ function DayPanel({
           </div>
         );
       })}
-
       {dayBookings.map((booking) => {
         const d = new Date(booking.date);
         const startHour = d.getHours() + d.getMinutes() / 60;
         const top = startHour * HOUR_HEIGHT;
         const height = booking.duration * HOUR_HEIGHT;
         const client = getClient(booking.client_id ?? '');
-
         return (
           <button
             key={booking.id}
             className={`absolute left-16 right-6 rounded-xl p-4 ${statusBg[booking.status]} border border-border/30 cursor-pointer press-scale transition-all active:shadow-glow text-left`}
             style={{ top, height: Math.max(height, 48) }}
-            onClick={(e) => {
-              e.stopPropagation();
-              onBookingClick(booking.id);
-            }}
+            onClick={(e) => { e.stopPropagation(); onBookingClick(booking.id); }}
           >
             <div className="flex items-center gap-2">
               <span className={`w-2.5 h-2.5 rounded-full ${statusDot[booking.status]} shrink-0`} />
@@ -115,34 +101,72 @@ function DayPanel({
   );
 }
 
+// Single week strip row
+function WeekRow({ baseDate, selectedDate, onDayClick }: {
+  baseDate: Date;
+  selectedDate: Date;
+  onDayClick: (day: Date) => void;
+}) {
+  const ws = startOfWeek(baseDate, { weekStartsOn: 0 });
+  const we = endOfWeek(baseDate, { weekStartsOn: 0 });
+  const days = eachDayOfInterval({ start: ws, end: we });
+
+  return (
+    <div className="shrink-0 grid grid-cols-7 px-6 py-2" style={{ width: 'calc(100% / 3)' }}>
+      {days.map((day) => {
+        const today = isToday(day);
+        const selected = isSameDay(day, selectedDate);
+        return (
+          <button
+            key={day.toISOString()}
+            onClick={() => onDayClick(day)}
+            className="flex flex-col items-center gap-1 py-1 cursor-pointer transition-colors"
+          >
+            <span className={`text-xs font-medium ${today && !selected ? 'text-today' : 'text-text-t'}`}>
+              {format(day, 'EEEEE')}
+            </span>
+            <span
+              className={`w-9 h-9 flex items-center justify-center rounded-full text-sm font-medium transition-colors ${
+                selected && today
+                  ? 'bg-today text-white'
+                  : selected
+                  ? 'bg-text-p text-bg'
+                  : today
+                  ? 'text-today'
+                  : 'text-text-p'
+              }`}
+            >
+              {format(day, 'd')}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function DayView() {
   const { calendarDate, setCalendarDate, setCalendarView, openBookingForm, setSelectedBookingId, setPrefillBookingData } = useUIStore();
   const bookings = useBookingStore((s) => s.bookings);
   const getClient = useClientStore((s) => s.getClient);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const weekStripRef = useRef<HTMLDivElement>(null);
   const stripX = useMotionValue(0);
+  const weekX = useMotionValue(0);
   const isAnimating = useRef(false);
+  const isWeekAnimating = useRef(false);
 
   const prevDay = subDays(calendarDate, 1);
   const nextDay = addDays(calendarDate, 1);
+  const prevWeekDate = subWeeks(calendarDate, 1);
+  const nextWeekDate = addWeeks(calendarDate, 1);
 
-  const weekStart = startOfWeek(calendarDate, { weekStartsOn: 0 });
-  const weekEnd = endOfWeek(calendarDate, { weekStartsOn: 0 });
-  const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd });
-
-  const getContainerWidth = useCallback(() => {
-    return containerRef.current?.offsetWidth ?? 375;
-  }, []);
+  const getContainerWidth = useCallback(() => containerRef.current?.offsetWidth ?? 375, []);
+  const getWeekStripWidth = useCallback(() => weekStripRef.current?.offsetWidth ?? 375, []);
 
   const handleSlotClick = useCallback((hour: number, day: Date) => {
-    const dateStr = new Date(
-      day.getFullYear(),
-      day.getMonth(),
-      day.getDate(),
-      hour,
-      0
-    ).toISOString();
+    const dateStr = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 0).toISOString();
     setPrefillBookingData({ date: dateStr });
     openBookingForm();
   }, [setPrefillBookingData, openBookingForm]);
@@ -151,29 +175,18 @@ export default function DayView() {
     setSelectedBookingId(id);
   }, [setSelectedBookingId]);
 
-  // Timeline: horizontal swipe (carousel)
+  // Timeline carousel: horizontal swipe changes day
   const timelineBind = useDrag(
-    ({ movement: [mx], velocity: [vx], direction: [dx], first, last }) => {
+    ({ movement: [mx], velocity: [vx], direction: [dx], last }) => {
       if (isAnimating.current) return;
-
-      if (first) {
-        // nothing
-      }
-
-      // Follow finger — offset by panel width so center panel is at 0
       stripX.set(mx);
-
       if (last) {
         const w = getContainerWidth();
         if (Math.abs(mx) > SWIPE_THRESHOLD || Math.abs(vx) > VELOCITY_THRESHOLD) {
-          // Commit: animate to adjacent panel then update date
           const dir = dx > 0 ? -1 : 1;
           isAnimating.current = true;
           animate(stripX, -dir * w, {
-            type: 'spring',
-            stiffness: 350,
-            damping: 35,
-            mass: 0.8,
+            type: 'spring', stiffness: 350, damping: 35, mass: 0.8,
             onComplete: () => {
               setCalendarDate(dir === 1 ? addDays(calendarDate, 1) : subDays(calendarDate, 1));
               stripX.set(0);
@@ -181,44 +194,50 @@ export default function DayView() {
             },
           });
         } else {
-          // Snap back
           animate(stripX, 0, { type: 'spring', stiffness: 400, damping: 30 });
         }
       }
     },
-    {
-      axis: 'x',
-      filterTaps: true,
-      threshold: 10,
-      pointer: { touch: true },
-    }
+    { axis: 'x', filterTaps: true, threshold: 10, pointer: { touch: true } }
   );
 
-  // Week strip: swipe up for month, left/right jumps a full week
+  // Week strip carousel: horizontal swipe changes week, vertical swipe up goes to month
   const weekBind = useDrag(
-    ({ movement: [mx, my], velocity: [vx, vy], direction: [, dy], last, swipe: [sx, sy] }) => {
-      if (!last) return;
+    ({ movement: [mx, my], velocity: [vx, vy], direction: [, dy], last, swipe: [, sy], axis }) => {
+      if (isWeekAnimating.current) return;
 
-      if (sy === -1) { setCalendarView('month'); return; }
-      if (sx !== 0) {
-        setCalendarDate(sx > 0 ? subWeeks(calendarDate, 1) : addWeeks(calendarDate, 1));
+      // Vertical: swipe up → month view
+      if (axis === 'y') {
+        if (last) {
+          if (sy === -1 || (my < -30 && Math.abs(my) > Math.abs(mx) && (Math.abs(my) > 40 || vy > 0.3) && dy < 0)) {
+            setCalendarView('month');
+          }
+        }
         return;
       }
 
-      if (my < -30 && Math.abs(my) > Math.abs(mx) && (Math.abs(my) > 40 || vy > 0.3) && dy < 0) {
-        setCalendarView('month');
-        return;
-      }
-      if (Math.abs(mx) > Math.abs(my) && (Math.abs(mx) > SWIPE_THRESHOLD || vx > VELOCITY_THRESHOLD)) {
-        setCalendarDate(mx < 0 ? addWeeks(calendarDate, 1) : subWeeks(calendarDate, 1));
+      // Horizontal: follow finger
+      weekX.set(mx);
+
+      if (last) {
+        const w = getWeekStripWidth();
+        if (Math.abs(mx) > SWIPE_THRESHOLD || Math.abs(vx) > VELOCITY_THRESHOLD) {
+          const dir = mx < 0 ? 1 : -1; // swipe left = next week
+          isWeekAnimating.current = true;
+          animate(weekX, -dir * w, {
+            type: 'spring', stiffness: 350, damping: 35, mass: 0.8,
+            onComplete: () => {
+              setCalendarDate(dir === 1 ? addWeeks(calendarDate, 1) : subWeeks(calendarDate, 1));
+              weekX.set(0);
+              isWeekAnimating.current = false;
+            },
+          });
+        } else {
+          animate(weekX, 0, { type: 'spring', stiffness: 400, damping: 30 });
+        }
       }
     },
-    {
-      filterTaps: true,
-      threshold: 8,
-      pointer: { touch: true },
-      swipe: { distance: 30, velocity: 0.3 },
-    }
+    { filterTaps: true, threshold: 8, pointer: { touch: true }, axis: 'lock' }
   );
 
   return (
@@ -240,74 +259,24 @@ export default function DayView() {
         </button>
       </div>
 
-      {/* Week strip */}
-      <div
-        {...weekBind()}
-        className="grid grid-cols-7 px-6 py-2 border-b border-border/30 shrink-0 touch-none"
-      >
-        {weekDays.map((day) => {
-          const today = isToday(day);
-          const selected = isSameDay(day, calendarDate);
-
-          return (
-            <button
-              key={day.toISOString()}
-              onClick={() => setCalendarDate(day)}
-              className="flex flex-col items-center gap-1 py-1 cursor-pointer transition-colors"
-            >
-              <span
-                className={`text-xs font-medium ${
-                  today && !selected ? 'text-today' : 'text-text-t'
-                }`}
-              >
-                {format(day, 'EEEEE')}
-              </span>
-              <span
-                className={`w-9 h-9 flex items-center justify-center rounded-full text-sm font-medium transition-colors ${
-                  selected && today
-                    ? 'bg-today text-white'
-                    : selected
-                    ? 'bg-text-p text-bg'
-                    : today
-                    ? 'text-today'
-                    : 'text-text-p'
-                }`}
-              >
-                {format(day, 'd')}
-              </span>
-            </button>
-          );
-        })}
+      {/* Week strip carousel: prev week | current week | next week */}
+      <div ref={weekStripRef} className="shrink-0 border-b border-border/30 overflow-hidden touch-none">
+        <div {...weekBind()}>
+          <motion.div className="flex" style={{ x: weekX, width: '300%', marginLeft: '-100%' }}>
+            <WeekRow baseDate={prevWeekDate} selectedDate={calendarDate} onDayClick={setCalendarDate} />
+            <WeekRow baseDate={calendarDate} selectedDate={calendarDate} onDayClick={setCalendarDate} />
+            <WeekRow baseDate={nextWeekDate} selectedDate={calendarDate} onDayClick={setCalendarDate} />
+          </motion.div>
+        </div>
       </div>
 
-      {/* Timeline carousel: prev | current | next */}
+      {/* Timeline carousel: prev day | current day | next day */}
       <div ref={containerRef} className="flex-1 overflow-y-auto overflow-x-hidden">
         <div {...timelineBind()}>
-          <motion.div
-            className="flex"
-            style={{ x: stripX, width: '300%', marginLeft: '-100%' }}
-          >
-            <DayPanel
-              day={prevDay}
-              bookings={bookings}
-              getClient={getClient}
-              onSlotClick={handleSlotClick}
-              onBookingClick={handleBookingClick}
-            />
-            <DayPanel
-              day={calendarDate}
-              bookings={bookings}
-              getClient={getClient}
-              onSlotClick={handleSlotClick}
-              onBookingClick={handleBookingClick}
-            />
-            <DayPanel
-              day={nextDay}
-              bookings={bookings}
-              getClient={getClient}
-              onSlotClick={handleSlotClick}
-              onBookingClick={handleBookingClick}
-            />
+          <motion.div className="flex" style={{ x: stripX, width: '300%', marginLeft: '-100%' }}>
+            <DayPanel day={prevDay} bookings={bookings} getClient={getClient} onSlotClick={handleSlotClick} onBookingClick={handleBookingClick} />
+            <DayPanel day={calendarDate} bookings={bookings} getClient={getClient} onSlotClick={handleSlotClick} onBookingClick={handleBookingClick} />
+            <DayPanel day={nextDay} bookings={bookings} getClient={getClient} onSlotClick={handleSlotClick} onBookingClick={handleBookingClick} />
           </motion.div>
         </div>
       </div>
