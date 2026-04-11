@@ -169,6 +169,7 @@ export default function BookingForm() {
               if (!e.target.value) setForm((f) => ({ ...f, client_id: '' }));
             }}
             onFocus={() => { setShowClientDropdown(true); setMissingFields((s) => { const n = new Set(s); n.delete('client'); return n; }); }}
+            onBlur={() => setTimeout(() => setShowClientDropdown(false), 200)}
             placeholder="Search client..."
             className={inputFor('client')}
           />
