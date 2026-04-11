@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
 import { useDrag } from '@use-gesture/react';
 import { format } from 'date-fns';
@@ -33,6 +33,25 @@ export default function BookingDrawer() {
   const contentRef = useRef<HTMLDivElement>(null);
   const isDismissing = useRef(false);
   const isDragging = useRef(false);
+
+  // Prevent overscroll bounce at top only — keep bounce at bottom
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    let startY = 0;
+    const onTouchStart = (e: TouchEvent) => { startY = e.touches[0].clientY; };
+    const onTouchMove = (e: TouchEvent) => {
+      if (el.scrollTop <= 0 && e.touches[0].clientY > startY) {
+        e.preventDefault();
+      }
+    };
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+    };
+  }, []);
 
   const dismiss = () => {
     if (isDismissing.current) return;
@@ -167,7 +186,7 @@ export default function BookingDrawer() {
           </div>
 
           {/* Content */}
-          <div ref={contentRef} className="flex-1 overflow-y-auto overscroll-none p-5 space-y-6">
+          <div ref={contentRef} className="flex-1 overflow-y-auto p-5 space-y-6">
             {/* Client */}
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center text-accent text-base font-medium shrink-0">
