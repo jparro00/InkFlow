@@ -91,6 +91,26 @@ function DayPanel({
         );
       })}
 
+      {/* Current time indicator — red line */}
+      {isToday(day) && (() => {
+        const now = new Date();
+        const currentHour = now.getHours() + now.getMinutes() / 60;
+        const top = currentHour * HOUR_HEIGHT;
+        return (
+          <div className="absolute left-0 right-0 z-20 pointer-events-none" style={{ top }}>
+            <div className="flex items-center">
+              <div className="w-16 text-right pr-2">
+                <span className="text-[10px] text-today font-medium">
+                  {format(now, 'h:mm')}
+                </span>
+              </div>
+              <div className="flex-1 h-[2px] bg-today" />
+            </div>
+            <div className="absolute left-[60px] top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-today" />
+          </div>
+        );
+      })()}
+
       {layoutBookings.map(({ booking, column, totalColumns }) => {
         const d = new Date(booking.date);
         const startHour = d.getHours() + d.getMinutes() / 60;
@@ -326,7 +346,7 @@ export default function DayView() {
       </div>
 
       {/* Timeline carousel: full day panels slide together */}
-      <div ref={containerRef} className="flex-1 overflow-y-auto overflow-x-hidden">
+      <div ref={containerRef} className="flex-1 overflow-y-auto overflow-x-hidden relative">
         <div {...timelineBind()} style={{ touchAction: 'pan-y' }}>
           <motion.div className="flex" style={{ x: stripX, width: '300%', marginLeft: '-100%' }}>
             <DayPanel day={prevDay} bookings={bookings} getClient={getClient} onSlotClick={handleSlotClick} onBookingClick={handleBookingClick} />
@@ -335,6 +355,16 @@ export default function DayView() {
           </motion.div>
         </div>
       </div>
+
+      {/* Today button */}
+      {!isToday(calendarDate) && (
+        <button
+          onClick={() => setCalendarDate(new Date())}
+          className="fixed bottom-[100px] left-5 lg:left-auto lg:bottom-8 px-4 py-2.5 bg-today text-white text-sm font-medium rounded-xl shadow-md cursor-pointer press-scale transition-all z-30"
+        >
+          Today
+        </button>
+      )}
     </div>
   );
 }
