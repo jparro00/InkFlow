@@ -168,7 +168,7 @@ function WeekRow({ baseDate, selectedDate, onDayClick, bookings }: {
             onClick={() => onDayClick(day)}
             className="flex flex-col items-center gap-0.5 py-1 cursor-pointer transition-colors"
           >
-            <span className={`text-[15px] font-medium ${today && !selected ? 'text-today' : 'text-text-t'}`}>
+            <span className={`text-[17px] font-medium ${today && !selected ? 'text-today' : 'text-text-t'}`}>
               {format(day, 'EEEEE')}
             </span>
             <span
