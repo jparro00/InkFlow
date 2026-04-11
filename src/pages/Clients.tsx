@@ -34,11 +34,12 @@ export default function ClientsPage() {
     <div className="h-full flex flex-col">
       {/* Fixed header + search */}
       <div className="px-3 pt-4 pb-3 lg:px-6 lg:pt-6 shrink-0">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <img src={`${import.meta.env.BASE_URL}inkflow_logo.png`} alt="InkFlow" className="w-6 h-6 shrink-0" />
-            <span className="text-[20px] text-text-p tracking-wide" style={{ fontFamily: "'DM Serif Display', serif" }}>Keeps Ink</span>
+        <div className="flex items-center justify-between mb-4 relative">
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2 pointer-events-none">
+            <img src={`${import.meta.env.BASE_URL}inkflow_logo.png`} alt="InkFlow" className="w-7 h-7 shrink-0" />
+            <span className="font-display text-lg font-bold text-text-p tracking-wide">Keeps Ink</span>
           </div>
+          <div />
           <button
             onClick={() => setShowForm(true)}
             className="w-12 h-12 lg:w-auto lg:h-auto lg:px-4 lg:py-2.5 bg-accent text-bg rounded-md flex items-center justify-center gap-2 text-sm cursor-pointer press-scale transition-transform shadow-glow active:shadow-glow-strong"
