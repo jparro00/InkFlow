@@ -112,7 +112,7 @@ export default function YearView() {
               </h1>
 
               {/* 3-column month grid */}
-              <div className="grid grid-cols-3 gap-x-3 gap-y-2">
+              <div className="grid grid-cols-3 gap-x-[6px] gap-y-[4px]">
                 {months.map((month) => {
                   const monthIdx = month.getMonth();
                   const isThisMonth = isCurrentYear && monthIdx === currentMonth;
