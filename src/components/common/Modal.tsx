@@ -109,10 +109,10 @@ export default function Modal({ title, onClose, children, width = 'lg:max-w-[620
         exit={{ y: '100%' }}
         transition={{ type: 'spring', damping: 30, stiffness: 300 }}
         style={{ y: dragY }}
-        className={`fixed bottom-0 left-0 right-0 lg:top-1/2 lg:left-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2 lg:bottom-auto ${width} bg-elevated shadow-lg z-50 flex flex-col overflow-hidden ${
+        className={`fixed inset-0 lg:inset-auto lg:top-1/2 lg:left-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2 ${width} bg-elevated shadow-lg z-50 flex flex-col overflow-hidden ${
           fullScreenMobile
-            ? 'h-[92vh] rounded-t-2xl lg:rounded-2xl lg:h-auto lg:max-h-[85vh]'
-            : 'max-h-[85vh] rounded-t-2xl lg:rounded-2xl'
+            ? 'lg:rounded-2xl lg:h-auto lg:max-h-[85vh]'
+            : 'rounded-t-2xl lg:rounded-2xl max-h-[85vh]'
         }`}
         onClick={(e) => e.stopPropagation()}
       >
