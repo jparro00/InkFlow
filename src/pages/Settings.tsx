@@ -9,6 +9,9 @@ export default function SettingsPage() {
   const [exported, setExported] = useState(false);
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('inkflow-anthropic-key') ?? '');
   const [keySaved, setKeySaved] = useState(false);
+  const [morningTime, setMorningTime] = useState(() => localStorage.getItem('inkflow-morning-time') ?? '10:00');
+  const [eveningTime, setEveningTime] = useState(() => localStorage.getItem('inkflow-evening-time') ?? '14:00');
+  const [timesSaved, setTimesSaved] = useState(false);
 
   const handleExport = () => {
     const client = clients.find(
@@ -84,6 +87,46 @@ export default function SettingsPage() {
               <option>24 hours</option>
             </select>
           </div>
+        </div>
+      </section>
+
+      <section className={sectionClass}>
+        <h2 className="text-md text-text-p font-display mb-3">Appointment Times</h2>
+        <div className={cardClass}>
+          <div className="text-base text-text-s mb-2">Default morning and evening start times</div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-sm text-text-t uppercase tracking-wider mb-2 block font-medium">Morning</label>
+              <input
+                type="time"
+                value={morningTime}
+                onChange={(e) => setMorningTime(e.target.value)}
+                className={`${inputClass} [color-scheme:dark] appearance-none`}
+                style={{ height: 48 }}
+              />
+            </div>
+            <div>
+              <label className="text-sm text-text-t uppercase tracking-wider mb-2 block font-medium">Evening</label>
+              <input
+                type="time"
+                value={eveningTime}
+                onChange={(e) => setEveningTime(e.target.value)}
+                className={`${inputClass} [color-scheme:dark] appearance-none`}
+                style={{ height: 48 }}
+              />
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              localStorage.setItem('inkflow-morning-time', morningTime);
+              localStorage.setItem('inkflow-evening-time', eveningTime);
+              setTimesSaved(true);
+              setTimeout(() => setTimesSaved(false), 2000);
+            }}
+            className="w-full py-3.5 text-base bg-accent text-bg rounded-xl cursor-pointer press-scale transition-all min-h-[48px]"
+          >
+            {timesSaved ? 'Saved!' : 'Save Times'}
+          </button>
         </div>
       </section>
 

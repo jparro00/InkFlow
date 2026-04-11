@@ -89,6 +89,12 @@ export default function BookingForm() {
       if (prefillBookingData.duration) updates.duration = prefillBookingData.duration;
       if (prefillBookingData.estimate) updates.estimate = prefillBookingData.estimate.toString();
       if (prefillBookingData.rescheduled) updates.rescheduled = true;
+      if (prefillBookingData.timeSlot) {
+        const slotTime = prefillBookingData.timeSlot === 'morning'
+          ? (localStorage.getItem('inkflow-morning-time') ?? '10:00')
+          : (localStorage.getItem('inkflow-evening-time') ?? '14:00');
+        updates.time = slotTime;
+      }
       if (prefillBookingData.notes) updates.notes = prefillBookingData.notes;
       // If type was set but duration wasn't explicitly provided, use type default
       const typeKey = updates.type ?? defaultForm.type;
@@ -203,6 +209,32 @@ export default function BookingForm() {
             onChange={(date) => { setForm((f) => ({ ...f, date })); setMissingFields((s) => { const n = new Set(s); n.delete('date'); return n; }); }}
             missing={missingFields.has('date')}
           />
+        </div>
+
+        {/* Morning / Evening */}
+        <div className="flex gap-3">
+          {['Morning', 'Evening'].map((slot) => {
+            const time = slot === 'Morning'
+              ? (localStorage.getItem('inkflow-morning-time') ?? '10:00')
+              : (localStorage.getItem('inkflow-evening-time') ?? '14:00');
+            const isActive = form.time === time;
+            const [h, m] = time.split(':').map(Number);
+            const label = format(new Date(2026, 0, 1, h, m), 'h:mm a');
+            return (
+              <button
+                key={slot}
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, time }))}
+                className={`flex-1 px-4 py-3 text-sm rounded-xl border transition-all cursor-pointer press-scale min-h-[44px] ${
+                  isActive
+                    ? 'border-accent/60 text-accent bg-accent/8'
+                    : 'border-border/60 text-text-s active:text-text-p active:bg-elevated'
+                }`}
+              >
+                {slot} · {label}
+              </button>
+            );
+          })}
         </div>
 
         {/* Duration */}

@@ -7,6 +7,7 @@ export interface ParsedBooking {
   type?: string;
   estimate?: number;
   rescheduled?: boolean;
+  timeSlot?: 'morning' | 'evening';
   notes?: string;
 }
 
@@ -32,6 +33,7 @@ JSON fields (omit any you can't determine, NEVER add error messages):
 - type: one of the types above
 - estimate: number (dollars)
 - rescheduled: boolean (true ONLY if the user explicitly says this is a reschedule, rescheduled, or being moved from another date)
+- timeSlot: "morning" or "evening" — if the user says "morning", "AM", "morning appointment", use "morning". If they say "evening", "afternoon", "PM", "evening appointment", use "evening". This overrides the time in the date field. If they give a specific time like "2pm", do NOT use timeSlot — put the time in the date field instead.
 - notes: string (ONLY verbatim details the user provided about the tattoo — placement, style, design, special requests. NEVER use this field to communicate with the user, store client names, or add any information the user did not explicitly say.)
 
 CRITICAL: Always extract every field you can. A missing client match must NOT prevent you from extracting date, time, type, duration, estimate, or notes. Never put error messages or explanations in any field. Return ONLY valid JSON.`;
@@ -78,6 +80,7 @@ CRITICAL: Always extract every field you can. A missing client match must NOT pr
     }
     if (typeof parsed.estimate === 'number') result.estimate = parsed.estimate;
     if (parsed.rescheduled === true) result.rescheduled = true;
+    if (parsed.timeSlot === 'morning' || parsed.timeSlot === 'evening') result.timeSlot = parsed.timeSlot;
     if (parsed.notes) result.notes = parsed.notes;
 
     return result;
