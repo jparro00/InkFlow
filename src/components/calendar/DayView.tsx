@@ -259,7 +259,10 @@ export default function DayView() {
           <span className="text-lg font-medium">{format(calendarDate, 'MMMM')}</span>
         </button>
         <button
-          onClick={() => openBookingForm()}
+          onClick={() => {
+            setPrefillBookingData({ date: new Date(calendarDate.getFullYear(), calendarDate.getMonth(), calendarDate.getDate(), 10, 0).toISOString() });
+            openBookingForm();
+          }}
           className="w-12 h-12 bg-accent text-bg rounded-xl flex items-center justify-center cursor-pointer press-scale transition-transform"
         >
           <Plus size={20} />
