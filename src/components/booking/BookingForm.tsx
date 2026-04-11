@@ -169,7 +169,7 @@ export default function BookingForm() {
         </div>
 
         {/* Date / Time / Duration */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-3">
           <div>
             <label className={labelClass}>Date *</label>
             <div className="relative">
@@ -182,6 +182,7 @@ export default function BookingForm() {
               />
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-3">
           <div>
             <label className={labelClass}>Time</label>
             <input
@@ -191,7 +192,7 @@ export default function BookingForm() {
               className={`${inputClass} [color-scheme:dark]`}
             />
           </div>
-          <div className="col-span-2">
+          <div>
             <label className={labelClass}>Duration</label>
             <select
               value={form.duration}
@@ -202,6 +203,7 @@ export default function BookingForm() {
                 <option key={d} value={d}>{d}h</option>
               ))}
             </select>
+          </div>
           </div>
         </div>
 
