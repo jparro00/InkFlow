@@ -13,6 +13,7 @@ import {
   subMonths,
 } from 'date-fns';
 import { ChevronLeft, Plus, Search } from 'lucide-react';
+import AppHeader from '../layout/AppHeader';
 import { useUIStore } from '../../stores/uiStore';
 import { useBookingStore } from '../../stores/bookingStore';
 import { useClientStore } from '../../stores/clientStore';
@@ -158,36 +159,33 @@ export default function MonthView() {
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden">
-      {/* Header */}
-      <div className="px-3 pt-4 pb-2 flex items-center shrink-0 relative">
-        <button
-          onClick={() => setCalendarView('year')}
-          className="flex items-center gap-1 text-text-p active:opacity-70 transition-opacity cursor-pointer press-scale min-h-[44px]"
-        >
-          <ChevronLeft size={20} />
-          <span className="text-[22px] font-medium">{visibleYear}</span>
-        </button>
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="relative flex items-center">
-            <img src={`${import.meta.env.BASE_URL}inkflow_logo.png`} alt="InkFlow" className="w-7 h-7 absolute -left-9" />
-            <span className="font-display text-lg font-bold text-text-p tracking-wide">Keeps Ink</span>
+      <AppHeader
+        left={
+          <button
+            onClick={() => setCalendarView('year')}
+            className="flex items-center gap-1 text-text-p active:opacity-70 transition-opacity cursor-pointer press-scale min-h-[44px]"
+          >
+            <ChevronLeft size={20} />
+            <span className="text-[22px] font-medium">{visibleYear}</span>
+          </button>
+        }
+        right={
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCalendarSearchOpen(true)}
+              className="w-12 h-12 bg-surface border border-border/40 text-text-s rounded-md flex items-center justify-center cursor-pointer press-scale transition-transform"
+            >
+              <Search size={20} />
+            </button>
+            <button
+              onClick={() => openBookingForm()}
+              className="w-12 h-12 bg-accent text-bg rounded-md flex items-center justify-center cursor-pointer press-scale transition-transform shadow-glow active:shadow-glow-strong"
+            >
+              <Plus size={20} />
+            </button>
           </div>
-        </div>
-        <div className="flex items-center gap-2 ml-auto">
-          <button
-            onClick={() => setCalendarSearchOpen(true)}
-            className="w-12 h-12 bg-surface border border-border/40 text-text-s rounded-md flex items-center justify-center cursor-pointer press-scale transition-transform"
-          >
-            <Search size={20} />
-          </button>
-          <button
-            onClick={() => openBookingForm()}
-            className="w-12 h-12 bg-accent text-bg rounded-md flex items-center justify-center cursor-pointer press-scale transition-transform shadow-glow active:shadow-glow-strong"
-          >
-            <Plus size={20} />
-          </button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Fixed day headers */}
       <div className="grid grid-cols-7 px-3 shrink-0">

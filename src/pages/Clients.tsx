@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { useClientStore } from '../stores/clientStore';
 import { useBookingStore } from '../stores/bookingStore';
 import ClientForm from '../components/client/ClientForm';
+import AppHeader from '../components/layout/AppHeader';
 
 export default function ClientsPage() {
   const navigate = useNavigate();
@@ -33,15 +34,9 @@ export default function ClientsPage() {
   return (
     <div className="h-full flex flex-col">
       {/* Fixed header + search */}
-      <div className="px-3 pt-4 lg:px-6 lg:pt-6 shrink-0">
-        <div className="flex items-center shrink-0 relative pb-2 min-h-[44px]">
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="relative flex items-center">
-              <img src={`${import.meta.env.BASE_URL}inkflow_logo.png`} alt="InkFlow" className="w-7 h-7 absolute -left-9" />
-              <span className="font-display text-lg font-bold text-text-p tracking-wide">Keeps Ink</span>
-            </div>
-          </div>
-          <div className="ml-auto">
+      <div className="shrink-0">
+        <AppHeader
+          right={
             <button
               onClick={() => setShowForm(true)}
               className="w-12 h-12 lg:w-auto lg:h-auto lg:px-4 lg:py-2.5 bg-accent text-bg rounded-md flex items-center justify-center gap-2 text-sm cursor-pointer press-scale transition-transform shadow-glow active:shadow-glow-strong"
@@ -49,11 +44,11 @@ export default function ClientsPage() {
               <Plus size={20} />
               <span className="hidden lg:inline">New Client</span>
             </button>
-          </div>
-        </div>
+          }
+        />
 
-        <div className="relative">
-          <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-t" />
+        <div className="relative px-3 pb-2">
+          <Search size={20} className="absolute left-7 top-1/2 -translate-y-1/2 text-text-t" />
           <input
             type="text"
             value={search}
