@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
-import { Calendar, UserPlus } from 'lucide-react';
+import { UserPlus } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import Modal from '../common/Modal';
 import ClientForm from '../client/ClientForm';
