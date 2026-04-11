@@ -28,8 +28,8 @@
   --color-success: #22D3EE;     /* Cyan — avoids conflict with green primary */
   --color-today: #E8453C;
 
-  --font-display: 'Bebas Neue', sans-serif;
-  --font-ui: 'DM Sans', sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
   --text-2xs: 10px;
   --text-xs: 11px;
