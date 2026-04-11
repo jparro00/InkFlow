@@ -31,12 +31,12 @@ export function parseQuickBooking(text: string): ParsedBooking {
   // Type
   if (lower.includes('consultation') || lower.includes('consult')) {
     result.type = 'Consultation';
-  } else if (lower.includes('touch-up') || lower.includes('touchup') || lower.includes('touch up')) {
-    result.type = 'Touch-up';
-  } else if (lower.includes('cover-up') || lower.includes('coverup') || lower.includes('cover up')) {
-    result.type = 'Cover-up';
+  } else if (lower.includes('touch up') || lower.includes('touchup') || lower.includes('touch-up')) {
+    result.type = 'Touch Up';
+  } else if (lower.includes('full day') || lower.includes('fullday')) {
+    result.type = 'Full Day';
   } else {
-    result.type = 'New Tattoo';
+    result.type = 'Regular';
   }
 
   // Date/time

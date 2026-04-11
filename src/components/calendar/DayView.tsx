@@ -18,6 +18,7 @@ import { useUIStore } from '../../stores/uiStore';
 import { useBookingStore } from '../../stores/bookingStore';
 import { useClientStore } from '../../stores/clientStore';
 import type { Booking, BookingStatus } from '../../types';
+import { typeColor } from '../../types';
 
 const statusBg: Record<BookingStatus, string> = {
   Confirmed: 'bg-[rgba(255,255,255,0.05)]',
@@ -83,7 +84,7 @@ function DayPanel({
           <button
             key={booking.id}
             className={`absolute left-16 right-1 rounded-[4px] p-3 ${statusBg[booking.status]} border border-border/30 cursor-pointer press-scale transition-all active:shadow-glow text-left`}
-            style={{ top, height: Math.max(height, 48) }}
+            style={{ top, height: Math.max(height, 48), borderLeftWidth: 3, borderLeftColor: typeColor[booking.type] }}
             onClick={(e) => { e.stopPropagation(); onBookingClick(booking.id); }}
           >
             <div className="flex items-center gap-2">

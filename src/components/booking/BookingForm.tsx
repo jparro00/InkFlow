@@ -7,15 +7,23 @@ import { useUIStore } from '../../stores/uiStore';
 import { useBookingStore } from '../../stores/bookingStore';
 import { useClientStore } from '../../stores/clientStore';
 import type { Booking, BookingType, BookingStatus } from '../../types';
+import { typeColor } from '../../types';
 
-const bookingTypes: BookingType[] = ['Consultation', 'New Tattoo', 'Touch-up', 'Cover-up'];
+const bookingTypes: BookingType[] = ['Regular', 'Touch Up', 'Consultation', 'Full Day'];
+
+const typeDuration: Record<BookingType, number> = {
+  Regular: 3,
+  'Touch Up': 1,
+  Consultation: 1,
+  'Full Day': 3,
+};
 
 const defaultForm = {
   client_id: '',
   date: '',
   time: '10:00',
-  duration: 2,
-  type: 'New Tattoo' as BookingType,
+  duration: 3,
+  type: 'Regular' as BookingType,
   estimate: '',
   status: 'Confirmed' as BookingStatus,
   notes: '',
@@ -186,19 +194,24 @@ export default function BookingForm() {
         <div>
           <label className={labelClass}>Type</label>
           <div className="grid grid-cols-2 gap-3">
-            {bookingTypes.map((t) => (
-              <button
-                key={t}
-                onClick={() => setForm((f) => ({ ...f, type: t }))}
-                className={`px-4 py-3.5 text-base rounded-xl border transition-all cursor-pointer press-scale min-h-[48px] ${
-                  form.type === t
-                    ? 'border-accent/60 text-accent bg-accent/8 shadow-glow'
-                    : 'border-border/60 text-text-s active:text-text-p active:bg-elevated'
-                }`}
-              >
-                {t}
-              </button>
-            ))}
+            {bookingTypes.map((t) => {
+              const color = typeColor[t];
+              const selected = form.type === t;
+              return (
+                <button
+                  key={t}
+                  onClick={() => setForm((f) => ({ ...f, type: t, duration: typeDuration[t] }))}
+                  className={`px-4 py-3.5 text-base rounded-xl border transition-all cursor-pointer press-scale min-h-[48px] flex items-center gap-2.5 ${
+                    selected
+                      ? 'border-border/60 text-text-p bg-white/[0.06]'
+                      : 'border-border/60 text-text-s active:text-text-p active:bg-elevated'
+                  }`}
+                >
+                  <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                  {t}
+                </button>
+              );
+            })}
           </div>
         </div>
 

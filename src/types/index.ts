@@ -17,8 +17,15 @@ export interface ClientNote {
   text: string;
 }
 
-export type BookingType = 'Consultation' | 'New Tattoo' | 'Touch-up' | 'Cover-up';
+export type BookingType = 'Regular' | 'Touch Up' | 'Consultation' | 'Full Day';
 export type BookingStatus = 'Confirmed' | 'Tentative' | 'Completed' | 'Cancelled' | 'No-show';
+
+export const typeColor: Record<BookingType, string> = {
+  Regular: '#4ADE80',
+  'Touch Up': '#22D3EE',
+  Consultation: '#FBBF24',
+  'Full Day': '#A78BFA',
+};
 
 export interface Booking {
   id: string;

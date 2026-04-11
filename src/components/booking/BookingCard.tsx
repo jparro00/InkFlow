@@ -1,5 +1,6 @@
 import { format } from 'date-fns';
 import type { Booking, BookingStatus } from '../../types';
+import { typeColor } from '../../types';
 import { useClientStore } from '../../stores/clientStore';
 import { useUIStore } from '../../stores/uiStore';
 
@@ -30,6 +31,7 @@ export default function BookingCard({ booking, compact }: BookingCardProps) {
           setSelectedBookingId(booking.id);
         }}
         className={`w-full text-left px-3 py-2.5 rounded-lg text-sm ${style.bg} border ${style.border} cursor-pointer press-scale transition-all active:shadow-glow min-h-[44px]`}
+        style={{ borderLeftWidth: 3, borderLeftColor: typeColor[booking.type] }}
       >
         <span className="text-text-s">{format(new Date(booking.date), 'h:mma')}</span>{' '}
         <span className="text-text-p font-medium">{client?.name.split(' ')[0]}</span>
@@ -42,6 +44,7 @@ export default function BookingCard({ booking, compact }: BookingCardProps) {
     <button
       onClick={() => setSelectedBookingId(booking.id)}
       className={`w-full text-left p-4 rounded-xl ${style.bg} border ${style.border} cursor-pointer press-scale transition-all duration-200 active:shadow-glow hover:shadow-glow hover:border-accent/20 min-h-[56px]`}
+      style={{ borderLeftWidth: 3, borderLeftColor: typeColor[booking.type] }}
     >
       <div className="flex items-center gap-3 mb-2">
         <span className={`w-2.5 h-2.5 rounded-full ${style.dot} shrink-0`} />
