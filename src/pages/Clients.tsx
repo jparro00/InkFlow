@@ -31,10 +31,10 @@ export default function ClientsPage() {
   };
 
   return (
-    <div className="px-5 pt-6 pb-4 lg:px-6 lg:pt-6">
+    <div className="px-3 pt-4 pb-4 lg:px-6 lg:pt-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="font-display text-2xl lg:text-2xl text-text-p">Clients</h1>
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="font-display text-[22px] lg:text-2xl text-text-p">Clients</h1>
         <button
           onClick={() => setShowForm(true)}
           className="w-12 h-12 lg:w-auto lg:h-auto lg:px-4 lg:py-2.5 bg-accent text-bg rounded-xl flex items-center justify-center gap-2 text-sm cursor-pointer press-scale transition-transform"
@@ -45,7 +45,7 @@ export default function ClientsPage() {
       </div>
 
       {/* Search — sticky on mobile */}
-      <div className="sticky top-0 z-10 pb-4 -mx-5 px-5 lg:mx-0 lg:px-0 bg-bg/80 backdrop-blur-xl">
+      <div className="sticky top-0 z-10 pb-4 -mx-3 px-3 lg:mx-0 lg:px-0 bg-bg/80 backdrop-blur-xl">
         <div className="relative">
           <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-t" />
           <input
