@@ -16,6 +16,14 @@ export default function ClientForm({ client, onClose }: ClientFormProps) {
   const addClient = useClientStore((s) => s.addClient);
   const updateClient = useClientStore((s) => s.updateClient);
 
+  // Parse existing dob into parts
+  const parseDob = (dob: string) => {
+    if (!dob) return { dobMonth: '', dobDay: '', dobYear: '' };
+    const [y, m, d] = dob.split('-');
+    return { dobMonth: String(parseInt(m)), dobDay: String(parseInt(d)), dobYear: y };
+  };
+  const initDob = parseDob(client?.dob ?? '');
+
   const [form, setForm] = useState({
     name: client?.name ?? '',
     display_name: client?.display_name ?? '',
@@ -23,9 +31,16 @@ export default function ClientForm({ client, onClose }: ClientFormProps) {
     email: client?.email ?? '',
     instagram: client?.instagram ?? '',
     facebook_id: client?.facebook_id ?? '',
-    dob: client?.dob ?? '',
+    dobMonth: initDob.dobMonth,
+    dobDay: initDob.dobDay,
+    dobYear: initDob.dobYear,
     tags: client?.tags.join(', ') ?? '',
   });
+
+  // Compose dob string from parts
+  const dobValue = form.dobMonth && form.dobDay && form.dobYear
+    ? `${form.dobYear}-${form.dobMonth.padStart(2, '0')}-${form.dobDay.padStart(2, '0')}`
+    : '';
 
   const emailValid = !form.email || emailRegex.test(form.email);
   const instagramValid = !form.instagram || instagramRegex.test(form.instagram);
@@ -41,7 +56,7 @@ export default function ClientForm({ client, onClose }: ClientFormProps) {
       email: form.email || undefined,
       instagram: form.instagram || undefined,
       facebook_id: form.facebook_id || undefined,
-      dob: form.dob || undefined,
+      dob: dobValue || undefined,
       tags: form.tags
         .split(',')
         .map((t) => t.trim())
@@ -141,12 +156,39 @@ export default function ClientForm({ client, onClose }: ClientFormProps) {
 
         <div>
           <label className={labelClass}>Date of Birth</label>
-          <input
-            type="date"
-            value={form.dob}
-            onChange={(e) => setForm((f) => ({ ...f, dob: e.target.value }))}
-            className={`${inputClass} [color-scheme:dark]`}
-          />
+          <div className="grid grid-cols-3 gap-2">
+            <select
+              value={form.dobMonth}
+              onChange={(e) => setForm((f) => ({ ...f, dobMonth: e.target.value }))}
+              className={`${inputClass} cursor-pointer`}
+            >
+              <option value="">Month</option>
+              {['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map((m, i) => (
+                <option key={i} value={String(i + 1)}>{m}</option>
+              ))}
+            </select>
+            <select
+              value={form.dobDay}
+              onChange={(e) => setForm((f) => ({ ...f, dobDay: e.target.value }))}
+              className={`${inputClass} cursor-pointer`}
+            >
+              <option value="">Day</option>
+              {Array.from({ length: 31 }, (_, i) => (
+                <option key={i} value={String(i + 1)}>{i + 1}</option>
+              ))}
+            </select>
+            <select
+              value={form.dobYear}
+              onChange={(e) => setForm((f) => ({ ...f, dobYear: e.target.value }))}
+              className={`${inputClass} cursor-pointer`}
+            >
+              <option value="">Year</option>
+              {Array.from({ length: 80 }, (_, i) => {
+                const y = new Date().getFullYear() - 16 - i;
+                return <option key={y} value={String(y)}>{y}</option>;
+              })}
+            </select>
+          </div>
         </div>
 
         <div>
