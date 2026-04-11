@@ -40,29 +40,25 @@ export default function TimePicker({ value, onChange, date, duration, editingBoo
   const [selHour, selMin] = value ? value.split(':').map(Number) : [10, 0];
   const selStart = selHour + selMin / 60;
 
-  // The preview block is fixed in the center of the visible area.
-  // Scroll position determines the time. We add padding so any hour
-  // (0-23) can be centered.
-  const topPadding = VISIBLE_HEIGHT / 2;
-  const bottomPadding = VISIBLE_HEIGHT / 2;
+  // The preview block's TOP EDGE is fixed at a point in the visible area.
+  // We place it 1/3 down so there's context above.
+  const previewOffset = Math.round(VISIBLE_HEIGHT / 3);
+  const topPadding = previewOffset;
+  const bottomPadding = VISIBLE_HEIGHT - previewOffset;
   const totalScrollHeight = TOTAL_HOURS * HOUR_H + topPadding + bottomPadding;
 
-  // Convert time to scroll position (time at center of view)
+  // Convert time to scroll position (top edge of preview = selected time)
   const timeToScroll = useCallback((hour: number) => {
-    return hour * HOUR_H + topPadding - VISIBLE_HEIGHT / 2;
-  }, [topPadding]);
+    return hour * HOUR_H;
+  }, []);
 
   // Convert scroll position to time
   const scrollToTime = useCallback((scrollTop: number) => {
-    const centerY = scrollTop + VISIBLE_HEIGHT / 2 - topPadding;
-    const hourFloat = centerY / HOUR_H;
-    // Snap to 15 minutes
-    const snappedHour = Math.floor(hourFloat);
-    const snappedMin = Math.round((hourFloat - snappedHour) * 4) * 15;
-    const finalMin = snappedMin >= 60 ? 0 : snappedMin;
-    const finalHour = Math.max(0, Math.min(23, snappedMin >= 60 ? snappedHour + 1 : snappedHour));
-    return { hour: finalHour, min: finalMin };
-  }, [topPadding]);
+    const hourFloat = scrollTop / HOUR_H;
+    // Snap to 15 minutes, clamp to 0:00 - 23:45
+    const totalMins = Math.max(0, Math.min(23 * 60 + 45, Math.round(hourFloat * 4) * 15));
+    return { hour: Math.floor(totalMins / 60), min: totalMins % 60 };
+  }, []);
 
   // Set initial scroll position when opening
   useEffect(() => {
@@ -121,11 +117,11 @@ export default function TimePicker({ value, onChange, date, duration, editingBoo
             </div>
           )}
 
-          {/* Fixed center preview block */}
+          {/* Fixed preview block — top edge aligns with selected time */}
           <div
             className="absolute left-12 right-3 z-10 pointer-events-none rounded border-2 border-accent/60"
             style={{
-              top: (selectedDate ? 37 : 0) + VISIBLE_HEIGHT / 2 - (duration * HOUR_H) / 2,
+              top: (selectedDate ? 37 : 0) + previewOffset,
               height: Math.max(duration * HOUR_H, 20),
               backgroundColor: 'rgba(74, 222, 128, 0.10)',
             }}
