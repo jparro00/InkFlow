@@ -85,7 +85,7 @@ function DayPanel({
         return (
           <button
             key={booking.id}
-            className={`absolute left-16 right-6 rounded-xl p-4 ${statusBg[booking.status]} border border-border/30 cursor-pointer press-scale transition-all active:shadow-glow text-left`}
+            className={`absolute left-[65px] right-1 rounded-[4px] p-3 ${statusBg[booking.status]} border border-border/30 cursor-pointer press-scale transition-all active:shadow-glow text-left`}
             style={{ top, height: Math.max(height, 48) }}
             onClick={(e) => { e.stopPropagation(); onBookingClick(booking.id); }}
           >
