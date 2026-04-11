@@ -1,4 +1,4 @@
-import { useRef, useCallback, useEffect } from 'react';
+import { useRef, useCallback, useEffect, useState } from 'react';
 import {
   format,
   isSameDay,
@@ -208,10 +208,13 @@ export default function DayView() {
   const weekAnim = useRef<ReturnType<typeof animate> | null>(null);
   const weekPendingDate = useRef<Date | null>(null);
 
-  const prevDay = subDays(calendarDate, 1);
-  const nextDay = addDays(calendarDate, 1);
-  const prevWeekDate = subWeeks(calendarDate, 1);
-  const nextWeekDate = addWeeks(calendarDate, 1);
+  // Override allows Today button to put today in an adjacent panel slot
+  const [panelOverride, setPanelOverride] = useState<{ day: Date; dir: 1 | -1 } | null>(null);
+
+  const prevDay = panelOverride?.dir === -1 ? panelOverride.day : subDays(calendarDate, 1);
+  const nextDay = panelOverride?.dir === 1 ? panelOverride.day : addDays(calendarDate, 1);
+  const prevWeekDate = panelOverride?.dir === -1 ? panelOverride.day : subWeeks(calendarDate, 1);
+  const nextWeekDate = panelOverride?.dir === 1 ? panelOverride.day : addWeeks(calendarDate, 1);
 
   // Scroll to 8am on first render
   useEffect(() => {
@@ -360,32 +363,38 @@ export default function DayView() {
           const today = new Date();
           if (isSameDay(calendarDate, today)) return;
 
-          const dir = today > calendarDate ? 1 : -1;
+          const dir: 1 | -1 = today > calendarDate ? 1 : -1;
           const w = containerRef.current?.offsetWidth ?? 375;
           const sameWeek = isSameWeek(calendarDate, today, { weekStartsOn: 0 });
 
-          // Animate the current day off-screen, then swap to today
-          stripAnim.current?.stop();
-          stripAnim.current = animate(stripX, -dir * w, {
-            type: 'spring', stiffness: 300, damping: 30, mass: 0.8,
-            onComplete: () => {
-              stripX.jump(0);
-              setCalendarDate(today);
-              stripAnim.current = null;
-            },
-          });
+          // Put today in the adjacent panel slot
+          setPanelOverride({ day: today, dir });
 
-          if (!sameWeek) {
-            const weekW = weekStripRef.current?.offsetWidth ?? 375;
-            weekAnim.current?.stop();
-            weekAnim.current = animate(weekX, -dir * weekW, {
+          // Animate into it on next frame (after React renders today in the slot)
+          requestAnimationFrame(() => {
+            stripAnim.current?.stop();
+            stripAnim.current = animate(stripX, -dir * w, {
               type: 'spring', stiffness: 300, damping: 30, mass: 0.8,
               onComplete: () => {
-                weekX.jump(0);
-                weekAnim.current = null;
+                stripX.jump(0);
+                setPanelOverride(null);
+                setCalendarDate(today);
+                stripAnim.current = null;
               },
             });
-          }
+
+            if (!sameWeek) {
+              const weekW = weekStripRef.current?.offsetWidth ?? 375;
+              weekAnim.current?.stop();
+              weekAnim.current = animate(weekX, -dir * weekW, {
+                type: 'spring', stiffness: 300, damping: 30, mass: 0.8,
+                onComplete: () => {
+                  weekX.jump(0);
+                  weekAnim.current = null;
+                },
+              });
+            }
+          });
         }}
         className="fixed bottom-[100px] left-5 lg:left-auto lg:bottom-8 px-4 py-2.5 bg-elevated border border-border/60 text-text-p text-sm font-medium rounded-xl shadow-md cursor-pointer press-scale transition-all z-30"
       >
