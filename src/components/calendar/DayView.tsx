@@ -193,7 +193,7 @@ function WeekRow({ baseDate, selectedDate, onDayClick, bookings }: {
 }
 
 export default function DayView() {
-  const { calendarDate, setCalendarDate, setCalendarView, openBookingForm, setSelectedBookingId, setPrefillBookingData } = useUIStore();
+  const { calendarDate, setCalendarDate, setCalendarView, openBookingForm, setSelectedBookingId, setPrefillBookingData, setTodayHandler } = useUIStore();
   const bookings = useBookingStore((s) => s.bookings);
   const getClient = useClientStore((s) => s.getClient);
 
@@ -247,6 +247,51 @@ export default function DayView() {
   const handleBookingClick = useCallback((id: string) => {
     setSelectedBookingId(id);
   }, [setSelectedBookingId]);
+
+  // Register Today handler for shared button
+  useEffect(() => {
+    const handler = () => {
+      const today = new Date();
+      if (isSameDay(calendarDate, today)) {
+        scrollToNow();
+        return;
+      }
+
+      const dir: 1 | -1 = today > calendarDate ? 1 : -1;
+      const w = containerRef.current?.offsetWidth ?? 375;
+      const sameWeek = isSameWeek(calendarDate, today, { weekStartsOn: 0 });
+
+      setPanelOverride({ day: today, dir });
+
+      requestAnimationFrame(() => {
+        stripAnim.current?.stop();
+        stripAnim.current = animate(stripX, -dir * w, {
+          type: 'spring', stiffness: 300, damping: 30, mass: 0.8,
+          onComplete: () => {
+            stripX.jump(0);
+            setPanelOverride(null);
+            setCalendarDate(today);
+            stripAnim.current = null;
+            requestAnimationFrame(() => scrollToNow());
+          },
+        });
+
+        if (!sameWeek) {
+          const weekW = weekStripRef.current?.offsetWidth ?? 375;
+          weekAnim.current?.stop();
+          weekAnim.current = animate(weekX, -dir * weekW, {
+            type: 'spring', stiffness: 300, damping: 30, mass: 0.8,
+            onComplete: () => {
+              weekX.jump(0);
+              weekAnim.current = null;
+            },
+          });
+        }
+      });
+    };
+    setTodayHandler(handler);
+    return () => setTodayHandler(null);
+  }, [calendarDate, scrollToNow, setCalendarDate, setTodayHandler, stripX, weekX]);
 
   // Timeline carousel: horizontal swipe changes day
   const timelineBind = useDrag(
@@ -333,7 +378,7 @@ export default function DayView() {
       <div className="px-6 pt-5 pb-2 flex items-center justify-between shrink-0">
         <button
           onClick={() => setCalendarView('month')}
-          className="flex items-center gap-1 text-today active:opacity-70 transition-opacity cursor-pointer press-scale min-h-[44px]"
+          className="flex items-center gap-1 text-text-p active:opacity-70 transition-opacity cursor-pointer press-scale min-h-[44px]"
         >
           <ChevronLeft size={20} />
           <span className="text-[22px] font-medium">{format(calendarDate, 'MMMM')}</span>
@@ -371,54 +416,6 @@ export default function DayView() {
         </div>
       </div>
 
-      {/* Today button */}
-      <button
-        onClick={() => {
-          const today = new Date();
-          if (isSameDay(calendarDate, today)) {
-            scrollToNow();
-            return;
-          }
-
-          const dir: 1 | -1 = today > calendarDate ? 1 : -1;
-          const w = containerRef.current?.offsetWidth ?? 375;
-          const sameWeek = isSameWeek(calendarDate, today, { weekStartsOn: 0 });
-
-          // Put today in the adjacent panel slot
-          setPanelOverride({ day: today, dir });
-
-          // Animate into it on next frame (after React renders today in the slot)
-          requestAnimationFrame(() => {
-            stripAnim.current?.stop();
-            stripAnim.current = animate(stripX, -dir * w, {
-              type: 'spring', stiffness: 300, damping: 30, mass: 0.8,
-              onComplete: () => {
-                stripX.jump(0);
-                setPanelOverride(null);
-                setCalendarDate(today);
-                stripAnim.current = null;
-                // Scroll to current time after today renders
-                requestAnimationFrame(() => scrollToNow());
-              },
-            });
-
-            if (!sameWeek) {
-              const weekW = weekStripRef.current?.offsetWidth ?? 375;
-              weekAnim.current?.stop();
-              weekAnim.current = animate(weekX, -dir * weekW, {
-                type: 'spring', stiffness: 300, damping: 30, mass: 0.8,
-                onComplete: () => {
-                  weekX.jump(0);
-                  weekAnim.current = null;
-                },
-              });
-            }
-          });
-        }}
-        className="fixed bottom-[100px] left-5 lg:left-auto lg:bottom-8 px-4 py-2.5 bg-elevated border border-border/60 text-text-p text-[17px] font-medium rounded-xl shadow-md cursor-pointer press-scale transition-all z-30"
-      >
-        Today
-      </button>
     </div>
   );
 }

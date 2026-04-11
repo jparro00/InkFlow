@@ -29,6 +29,8 @@ interface UIStore {
   removeToast: (id: string) => void;
   prefillBookingData: Partial<{ client_id: string; date: string; duration: number; type: string; estimate: number; rescheduled: boolean; timeSlot: 'morning' | 'evening'; notes: string }> | null;
   setPrefillBookingData: (data: UIStore['prefillBookingData']) => void;
+  todayHandler: (() => void) | null;
+  setTodayHandler: (handler: (() => void) | null) => void;
 }
 
 export const useUIStore = create<UIStore>((set) => ({
@@ -61,4 +63,6 @@ export const useUIStore = create<UIStore>((set) => ({
   removeToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
   prefillBookingData: null,
   setPrefillBookingData: (data) => set({ prefillBookingData: data }),
+  todayHandler: null,
+  setTodayHandler: (handler) => set({ todayHandler: handler }),
 }));

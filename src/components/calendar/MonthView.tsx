@@ -29,16 +29,18 @@ function getMonthRange(center: Date, buffer: number) {
 }
 
 export default function MonthView() {
-  const { calendarDate, setCalendarDate, setCalendarView, openBookingForm } = useUIStore();
+  const { calendarDate, setCalendarDate, setCalendarView, openBookingForm, setTodayHandler } = useUIStore();
   const bookings = useBookingStore((s) => s.bookings);
   const getClient = useClientStore((s) => s.getClient);
 
   const [months, setMonths] = useState(() => getMonthRange(calendarDate, MONTHS_BUFFER));
+  const [visibleYear, setVisibleYear] = useState(calendarDate.getFullYear());
   const scrollRef = useRef<HTMLDivElement>(null);
   const currentMonthRef = useRef<HTMLDivElement>(null);
   const hasScrolled = useRef(false);
   const topSentinelRef = useRef<HTMLDivElement>(null);
   const bottomSentinelRef = useRef<HTMLDivElement>(null);
+  const monthRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   // Scroll to current month on mount
   useEffect(() => {
@@ -87,6 +89,60 @@ export default function MonthView() {
     return () => observer.disconnect();
   }, [handleIntersect]);
 
+  // Track which year is visible at top of scroll area
+  useEffect(() => {
+    const yearObserver = new IntersectionObserver(
+      (entries) => {
+        // Find the topmost visible month section
+        let topEntry: IntersectionObserverEntry | null = null;
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            if (!topEntry || entry.boundingClientRect.top < topEntry.boundingClientRect.top) {
+              topEntry = entry;
+            }
+          }
+        }
+        if (topEntry) {
+          const key = (topEntry.target as HTMLElement).dataset.month;
+          if (key) setVisibleYear(parseInt(key.split('-')[0]));
+        }
+      },
+      { root: scrollRef.current, rootMargin: '0px 0px -90% 0px', threshold: 0 }
+    );
+    monthRefs.current.forEach((el) => yearObserver.observe(el));
+    return () => yearObserver.disconnect();
+  }, [months]);
+
+  // Register Today handler: if current month visible → open day view on today, else scroll to current month
+  useEffect(() => {
+    const handler = () => {
+      const today = new Date();
+      const todayKey = format(today, 'yyyy-MM');
+      const todayEl = monthRefs.current.get(todayKey);
+
+      if (todayEl && scrollRef.current) {
+        const container = scrollRef.current;
+        const elRect = todayEl.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        const isVisible = elRect.top < containerRect.bottom && elRect.bottom > containerRect.top;
+
+        if (isVisible) {
+          // Current month is visible — go to day view on today
+          setCalendarDate(today);
+          setCalendarView('day');
+        } else {
+          // Scroll to current month
+          todayEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      } else {
+        // Current month not in DOM yet — set date and let it load
+        setCalendarDate(today);
+      }
+    };
+    setTodayHandler(handler);
+    return () => setTodayHandler(null);
+  }, [setCalendarDate, setCalendarView, setTodayHandler]);
+
   const getBookingsForDay = (day: Date) =>
     bookings
       .filter((b) => isSameDay(new Date(b.date), day))
@@ -107,10 +163,10 @@ export default function MonthView() {
       <div className="px-3 pt-4 pb-2 flex items-center justify-between shrink-0">
         <button
           onClick={() => setCalendarView('year')}
-          className="flex items-center gap-1 text-today active:opacity-70 transition-opacity cursor-pointer press-scale min-h-[44px]"
+          className="flex items-center gap-1 text-text-p active:opacity-70 transition-opacity cursor-pointer press-scale min-h-[44px]"
         >
           <ChevronLeft size={20} />
-          <span className="text-[22px] font-medium">{format(calendarDate, 'yyyy')}</span>
+          <span className="text-[22px] font-medium">{visibleYear}</span>
         </button>
         <button
           onClick={() => openBookingForm()}
@@ -144,7 +200,13 @@ export default function MonthView() {
           return (
             <div
               key={format(month, 'yyyy-MM')}
-              ref={isCurrent ? currentMonthRef : undefined}
+              ref={(el) => {
+                const key = format(month, 'yyyy-MM');
+                if (el) monthRefs.current.set(key, el);
+                else monthRefs.current.delete(key);
+                if (isCurrent && el) (currentMonthRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+              }}
+              data-month={format(month, 'yyyy-MM')}
               className="mb-1"
             >
               {/* Month name */}

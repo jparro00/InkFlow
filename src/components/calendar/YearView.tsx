@@ -26,7 +26,7 @@ function getMonthsOfYear(year: number) {
 }
 
 export default function YearView() {
-  const { calendarDate, setCalendarDate, setCalendarView } = useUIStore();
+  const { calendarDate, setCalendarDate, setCalendarView, setTodayHandler } = useUIStore();
 
   const [years, setYears] = useState(() =>
     getYearRange(calendarDate.getFullYear(), YEARS_BUFFER)
@@ -36,6 +36,8 @@ export default function YearView() {
   const hasScrolled = useRef(false);
   const topSentinelRef = useRef<HTMLDivElement>(null);
   const bottomSentinelRef = useRef<HTMLDivElement>(null);
+
+  const currentMonthRef = useRef<HTMLButtonElement>(null);
 
   const now = new Date();
   const currentMonth = now.getMonth();
@@ -85,6 +87,29 @@ export default function YearView() {
     return () => observer.disconnect();
   }, [handleIntersect]);
 
+  // Register Today handler: if current month visible → open month view, else scroll to current year
+  useEffect(() => {
+    const handler = () => {
+      const today = new Date();
+      if (currentMonthRef.current && scrollRef.current) {
+        const elRect = currentMonthRef.current.getBoundingClientRect();
+        const containerRect = scrollRef.current.getBoundingClientRect();
+        const isVisible = elRect.top < containerRect.bottom && elRect.bottom > containerRect.top;
+
+        if (isVisible) {
+          setCalendarDate(today);
+          setCalendarView('month');
+        } else if (currentYearRef.current) {
+          currentYearRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      } else {
+        setCalendarDate(today);
+      }
+    };
+    setTodayHandler(handler);
+    return () => setTodayHandler(null);
+  }, [setCalendarDate, setCalendarView, setTodayHandler]);
+
   const handleMonthClick = (month: Date) => {
     setCalendarDate(month);
     setCalendarView('month');
@@ -125,6 +150,7 @@ export default function YearView() {
                   return (
                     <button
                       key={monthIdx}
+                      ref={isThisMonth ? currentMonthRef : undefined}
                       onClick={() => handleMonthClick(month)}
                       className="text-left cursor-pointer active:bg-elevated/30 rounded-lg px-1 py-0.5 transition-colors"
                     >
