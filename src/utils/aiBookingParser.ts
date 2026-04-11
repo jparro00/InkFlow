@@ -1,11 +1,12 @@
 import { useClientStore } from '../stores/clientStore';
 
-interface ParsedBooking {
+export interface ParsedBooking {
   client_id?: string;
   date?: string;
   duration?: number;
   type?: string;
   estimate?: number;
+  rescheduled?: boolean;
   notes?: string;
 }
 
@@ -30,6 +31,7 @@ JSON fields (omit any you can't determine, NEVER add error messages):
 - duration: number (hours). ONLY include if the user explicitly mentions a duration. Do NOT guess or infer a duration.
 - type: one of the types above
 - estimate: number (dollars)
+- rescheduled: boolean (true ONLY if the user explicitly says this is a reschedule, rescheduled, or being moved from another date)
 - notes: string (ONLY verbatim details the user provided about the tattoo — placement, style, design, special requests. NEVER use this field to communicate with the user, store client names, or add any information the user did not explicitly say.)
 
 CRITICAL: Always extract every field you can. A missing client match must NOT prevent you from extracting date, time, type, duration, estimate, or notes. Never put error messages or explanations in any field. Return ONLY valid JSON.`;
@@ -75,6 +77,7 @@ CRITICAL: Always extract every field you can. A missing client match must NOT pr
       result.type = parsed.type;
     }
     if (typeof parsed.estimate === 'number') result.estimate = parsed.estimate;
+    if (parsed.rescheduled === true) result.rescheduled = true;
     if (parsed.notes) result.notes = parsed.notes;
 
     return result;

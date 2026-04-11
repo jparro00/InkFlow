@@ -47,6 +47,8 @@ export default function BookingForm() {
   const [showNewClient, setShowNewClient] = useState(false);
   const [viewingImageId, setViewingImageId] = useState<string | null>(null);
   const [form, setForm] = useState(defaultForm);
+  // Track fields NOT populated by AI — shown with red outlines
+  const [missingFields, setMissingFields] = useState<Set<string>>(new Set());
 
   const tempBookingId = useRef(crypto.randomUUID());
   const imageBookingId = editingBookingId ?? tempBookingId.current;
@@ -84,6 +86,7 @@ export default function BookingForm() {
       if (prefillBookingData.type) updates.type = prefillBookingData.type as BookingType;
       if (prefillBookingData.duration) updates.duration = prefillBookingData.duration;
       if (prefillBookingData.estimate) updates.estimate = prefillBookingData.estimate.toString();
+      if (prefillBookingData.rescheduled) updates.rescheduled = true;
       if (prefillBookingData.notes) updates.notes = prefillBookingData.notes;
       // If type was set but duration wasn't explicitly provided, use type default
       const typeKey = updates.type ?? defaultForm.type;
@@ -91,6 +94,17 @@ export default function BookingForm() {
         updates.duration = typeDuration[typeKey];
       }
       setForm((f) => ({ ...f, ...updates }));
+
+      // Track which fields the AI didn't populate (only for AI-sourced prefills with multiple fields)
+      const hasMultipleFields = Object.keys(prefillBookingData).length > 1;
+      if (hasMultipleFields) {
+        const missing = new Set<string>();
+        if (!prefillBookingData.client_id) missing.add('client');
+        if (!prefillBookingData.date) missing.add('date');
+        if (!prefillBookingData.type) missing.add('type');
+        if (!prefillBookingData.estimate) missing.add('estimate');
+        setMissingFields(missing);
+      }
     }
   }, [booking, prefillBookingData, clients]);
 
@@ -123,7 +137,9 @@ export default function BookingForm() {
   const isValid = form.date && form.client_id;
 
   const inputClass = "w-full bg-input border border-border/60 rounded-xl px-4 py-3.5 text-base text-text-p placeholder:text-text-t focus:outline-none focus:border-accent/40 transition-colors min-h-[48px]";
+  const missingInputClass = "w-full bg-input border-2 border-danger/60 rounded-xl px-4 py-3.5 text-base text-text-p placeholder:text-text-t focus:outline-none focus:border-danger/40 transition-colors min-h-[48px]";
   const labelClass = "text-sm text-text-t uppercase tracking-wider mb-2 block font-medium";
+  const inputFor = (field: string) => missingFields.has(field) ? missingInputClass : inputClass;
 
   return (
     <>
@@ -152,9 +168,9 @@ export default function BookingForm() {
               setShowClientDropdown(true);
               if (!e.target.value) setForm((f) => ({ ...f, client_id: '' }));
             }}
-            onFocus={() => setShowClientDropdown(true)}
+            onFocus={() => { setShowClientDropdown(true); setMissingFields((s) => { const n = new Set(s); n.delete('client'); return n; }); }}
             placeholder="Search client..."
-            className={inputClass}
+            className={inputFor('client')}
           />
           {showClientDropdown && filteredClients.length > 0 && (
             <div className="absolute top-full left-0 right-0 mt-1 bg-elevated border border-border/60 rounded-xl shadow-lg max-h-48 overflow-y-auto z-10">
@@ -182,8 +198,8 @@ export default function BookingForm() {
           <input
             type="date"
             value={form.date}
-            onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
-            className="w-full bg-input border border-border/60 rounded-xl px-4 text-base text-text-p focus:outline-none focus:border-accent/40 transition-colors [color-scheme:dark] appearance-none"
+            onChange={(e) => { setForm((f) => ({ ...f, date: e.target.value })); setMissingFields((s) => { const n = new Set(s); n.delete('date'); return n; }); }}
+            className={`w-full bg-input rounded-xl px-4 text-base text-text-p focus:outline-none transition-colors [color-scheme:dark] appearance-none ${missingFields.has('date') ? 'border-2 border-danger/60 focus:border-danger/40' : 'border border-border/60 focus:border-accent/40'}`}
             style={{ height: 48, maxWidth: '100%', boxSizing: 'border-box' }}
           />
         </div>
@@ -225,11 +241,13 @@ export default function BookingForm() {
               return (
                 <button
                   key={t}
-                  onClick={() => setForm((f) => ({ ...f, type: t, duration: typeDuration[t] }))}
-                  className={`px-4 py-3.5 text-base rounded-xl border transition-all cursor-pointer press-scale min-h-[48px] flex items-center gap-2.5 ${
+                  onClick={() => { setForm((f) => ({ ...f, type: t, duration: typeDuration[t] })); setMissingFields((s) => { const n = new Set(s); n.delete('type'); return n; }); }}
+                  className={`px-4 py-3.5 text-base rounded-xl transition-all cursor-pointer press-scale min-h-[48px] flex items-center gap-2.5 ${
                     selected
-                      ? 'border-border/60 text-text-p bg-white/[0.06]'
-                      : 'border-border/60 text-text-s active:text-text-p active:bg-elevated'
+                      ? 'border border-border/60 text-text-p bg-white/[0.06]'
+                      : missingFields.has('type')
+                        ? 'border-2 border-danger/60 text-text-s'
+                        : 'border border-border/60 text-text-s active:text-text-p active:bg-elevated'
                   }`}
                 >
                   <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: color }} />
@@ -249,9 +267,9 @@ export default function BookingForm() {
             type="text"
             inputMode="decimal"
             value={form.estimate}
-            onChange={(e) => setForm((f) => ({ ...f, estimate: e.target.value.replace(/[^0-9.]/g, '') }))}
+            onChange={(e) => { setForm((f) => ({ ...f, estimate: e.target.value.replace(/[^0-9.]/g, '') })); setMissingFields((s) => { const n = new Set(s); n.delete('estimate'); return n; }); }}
             placeholder="0"
-            className={inputClass}
+            className={inputFor('estimate')}
           />
         </div>
 
