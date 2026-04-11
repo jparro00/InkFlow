@@ -63,9 +63,9 @@ export default function BookingDrawer() {
         transition={{ type: 'spring', damping: 30, stiffness: 300 }}
         drag="y"
         dragConstraints={{ top: 0 }}
-        dragElastic={0.1}
+        dragElastic={0.05}
         onDragEnd={(_, info) => {
-          if (info.offset.y > 100 || info.velocity.y > 500) {
+          if (info.offset.y > 60 || info.velocity.y > 300) {
             setSelectedBookingId(null);
           }
         }}
