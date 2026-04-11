@@ -66,10 +66,12 @@ export default function BookingDrawer() {
       if (!isDragging.current) return;
 
       if (my < 0) {
-        dragY.set(my * 0.1);
-      } else {
-        dragY.set(my);
+        dragY.set(0);
+        cancel();
+        isDragging.current = false;
+        return;
       }
+      dragY.set(my);
 
       if (last) {
         isDragging.current = false;
