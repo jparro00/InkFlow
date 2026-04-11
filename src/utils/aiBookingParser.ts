@@ -28,7 +28,7 @@ JSON fields (omit any you can't determine, NEVER add error messages):
 - duration: number (hours)
 - type: one of the types above
 - estimate: number (dollars)
-- notes: string (tattoo details, placement, style — NOT error messages)
+- notes: string (ONLY verbatim details the user provided about the tattoo — placement, style, design, special requests. NEVER use this field to communicate with the user, store client names, or add any information the user did not explicitly say.)
 
 CRITICAL: Always extract every field you can. A missing client match must NOT prevent you from extracting date, time, type, duration, estimate, or notes. Never put error messages or explanations in any field. Return ONLY valid JSON.`;
 
