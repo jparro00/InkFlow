@@ -25,7 +25,7 @@ Types: "Regular", "Touch Up", "Consultation", "Full Day"
 JSON fields (omit any you can't determine, NEVER add error messages):
 - client_id: match to an ID above (fuzzy first-name match OK). If no match, omit this field entirely.
 - date: ISO 8601 datetime (e.g. "2026-04-15T14:00:00")
-- duration: number (hours)
+- duration: number (hours). ONLY include if the user explicitly mentions a duration. Do NOT guess or infer a duration.
 - type: one of the types above
 - estimate: number (dollars)
 - notes: string (ONLY verbatim details the user provided about the tattoo — placement, style, design, special requests. NEVER use this field to communicate with the user, store client names, or add any information the user did not explicitly say.)
