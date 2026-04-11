@@ -221,9 +221,10 @@ export default function BookingForm() {
         <div>
           <label className={labelClass}>Estimate ($)</label>
           <input
-            type="number"
+            type="text"
+            inputMode="decimal"
             value={form.estimate}
-            onChange={(e) => setForm((f) => ({ ...f, estimate: e.target.value }))}
+            onChange={(e) => setForm((f) => ({ ...f, estimate: e.target.value.replace(/[^0-9.]/g, '') }))}
             placeholder="0"
             className={inputClass}
           />
