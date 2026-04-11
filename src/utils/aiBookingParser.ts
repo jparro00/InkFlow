@@ -54,7 +54,9 @@ Return ONLY valid JSON, no markdown, no explanation.`;
   }
 
   const data = await response.json();
-  const content = data.content?.[0]?.text ?? '{}';
+  const rawContent = data.content?.[0]?.text ?? '{}';
+  // Strip markdown code fences if present
+  const content = rawContent.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
 
   try {
     const parsed = JSON.parse(content);
