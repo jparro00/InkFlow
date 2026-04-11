@@ -24,7 +24,6 @@ export default function Modal({ title, onClose, children, width = 'lg:max-w-[620
   const [vpHeight, setVpHeight] = useState(() =>
     typeof window !== 'undefined' ? (window.visualViewport?.height ?? window.innerHeight) : 800
   );
-  const [vpOffsetTop, setVpOffsetTop] = useState(0);
   const fullHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
   const keyboardOpen = fullHeight - vpHeight > 100;
 
@@ -33,13 +32,32 @@ export default function Modal({ title, onClose, children, width = 'lg:max-w-[620
     if (!vp) return;
     const handler = () => {
       setVpHeight(vp.height);
-      setVpOffsetTop(vp.offsetTop);
+      // Counteract iOS viewport scroll so modal doesn't jump
+      if (sheetRef.current) {
+        sheetRef.current.style.transform = `translateY(${-vp.offsetTop}px)`;
+      }
     };
     vp.addEventListener('resize', handler);
     vp.addEventListener('scroll', handler);
     return () => {
       vp.removeEventListener('resize', handler);
       vp.removeEventListener('scroll', handler);
+    };
+  }, []);
+
+  // Lock body scroll while modal is open
+  useEffect(() => {
+    const scrollY = window.scrollY;
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.left = '0';
+    document.body.style.right = '0';
+    return () => {
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.right = '';
+      window.scrollTo(0, scrollY);
     };
   }, []);
 
@@ -140,9 +158,9 @@ export default function Modal({ title, onClose, children, width = 'lg:max-w-[620
         transition={{ type: 'spring', damping: 30, stiffness: 300 }}
         style={{
           y: dragY,
-          bottom: keyboardOpen ? `${fullHeight - vpHeight - vpOffsetTop}px` : '0px',
+          bottom: 0,
           height: `${sheetHeight}px`,
-          transition: 'bottom 0.15s ease-out, height 0.15s ease-out',
+          transition: 'height 0.15s ease-out',
         }}
         className={`fixed left-0 right-0 lg:top-1/2 lg:left-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2 lg:bottom-auto ${width} bg-elevated shadow-lg z-50 flex flex-col overflow-hidden rounded-t-2xl lg:rounded-2xl lg:h-auto lg:max-h-[85vh]`}
         onClick={(e) => e.stopPropagation()}
