@@ -140,6 +140,8 @@ export default function DayView() {
   const weekStripRef = useRef<HTMLDivElement>(null);
   const stripX = useMotionValue(0);
   const weekX = useMotionValue(0);
+  const stripAnim = useRef<ReturnType<typeof animate> | null>(null);
+  const weekAnim = useRef<ReturnType<typeof animate> | null>(null);
 
   const prevDay = subDays(calendarDate, 1);
   const nextDay = addDays(calendarDate, 1);
@@ -166,15 +168,26 @@ export default function DayView() {
 
   // Timeline carousel: horizontal swipe changes day
   const timelineBind = useDrag(
-    ({ movement: [mx], velocity: [vx], direction: [dx], last }) => {
+    ({ movement: [mx], velocity: [vx], direction: [dx], first, last }) => {
+      if (first) {
+        // Cancel any running animation so a new swipe can start immediately
+        stripAnim.current?.stop();
+        stripAnim.current = null;
+      }
       stripX.set(mx);
       if (last) {
         if (Math.abs(mx) > SWIPE_THRESHOLD || Math.abs(vx) > VELOCITY_THRESHOLD) {
           const dir = dx > 0 ? -1 : 1;
+          const w = containerRef.current?.offsetWidth ?? 375;
           const newDate = dir === 1 ? addDays(calendarDate, 1) : subDays(calendarDate, 1);
-          // Commit immediately so the next swipe is ready
-          setCalendarDate(newDate);
-          stripX.set(0);
+          stripAnim.current = animate(stripX, -dir * w, {
+            type: 'spring', stiffness: 300, damping: 30, mass: 0.8,
+            onComplete: () => {
+              setCalendarDate(newDate);
+              stripX.set(0);
+              stripAnim.current = null;
+            },
+          });
         } else {
           animate(stripX, 0, { type: 'spring', stiffness: 400, damping: 30 });
         }
@@ -185,20 +198,31 @@ export default function DayView() {
 
   // Week strip carousel
   const weekBind = useDrag(
-    ({ movement: [mx, my], velocity: [vx, vy], direction: [, dy], last, swipe: [, sy], axis }) => {
+    ({ movement: [mx, my], velocity: [vx, vy], direction: [, dy], first, last, swipe: [, sy], axis }) => {
       if (axis === 'y') {
         if (last && (sy === -1 || (my < -30 && Math.abs(my) > Math.abs(mx) && (Math.abs(my) > 40 || vy > 0.3) && dy < 0))) {
           setCalendarView('month');
         }
         return;
       }
+      if (first) {
+        weekAnim.current?.stop();
+        weekAnim.current = null;
+      }
       weekX.set(mx);
       if (last) {
         if (Math.abs(mx) > SWIPE_THRESHOLD || Math.abs(vx) > VELOCITY_THRESHOLD) {
           const dir = mx < 0 ? 1 : -1;
+          const w = weekStripRef.current?.offsetWidth ?? 375;
           const newDate = dir === 1 ? addWeeks(calendarDate, 1) : subWeeks(calendarDate, 1);
-          setCalendarDate(newDate);
-          weekX.set(0);
+          weekAnim.current = animate(weekX, -dir * w, {
+            type: 'spring', stiffness: 300, damping: 30, mass: 0.8,
+            onComplete: () => {
+              setCalendarDate(newDate);
+              weekX.set(0);
+              weekAnim.current = null;
+            },
+          });
         } else {
           animate(weekX, 0, { type: 'spring', stiffness: 400, damping: 30 });
         }
