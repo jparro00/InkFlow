@@ -49,7 +49,7 @@ export default function QuickBooking() {
       title="Quick Booking"
       onClose={() => setQuickBookingOpen(false)}
       width="lg:max-w-[520px]"
-      fullScreenMobile={false}
+      fullScreenMobile={true}
     >
       <div className="space-y-4">
         <textarea
@@ -58,7 +58,6 @@ export default function QuickBooking() {
           rows={5}
           placeholder="Describe the booking in your own words..."
           className="w-full bg-input border border-border/60 rounded-xl px-4 py-4 text-base text-text-p placeholder:text-text-t focus:outline-none focus:border-accent/40 resize-none transition-colors"
-          autoFocus
           disabled={loading}
         />
 
