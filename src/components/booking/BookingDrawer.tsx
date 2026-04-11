@@ -8,7 +8,6 @@ import { useBookingStore } from '../../stores/bookingStore';
 import { useClientStore } from '../../stores/clientStore';
 import { useNavigate } from 'react-router-dom';
 import type { BookingStatus } from '../../types';
-import { typeColor } from '../../types';
 
 const allStatuses: BookingStatus[] = ['Confirmed', 'Tentative', 'Completed', 'Cancelled', 'No-show'];
 
