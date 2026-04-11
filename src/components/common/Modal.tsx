@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
 import { useDrag } from '@use-gesture/react';
 import { X } from 'lucide-react';
@@ -19,6 +19,21 @@ export default function Modal({ title, onClose, children, width = 'lg:max-w-[620
   const contentRef = useRef<HTMLDivElement>(null);
   const isDismissing = useRef(false);
   const isDragging = useRef(false);
+
+  // Track keyboard via visualViewport
+  const [viewportHeight, setViewportHeight] = useState(() =>
+    typeof window !== 'undefined' ? (window.visualViewport?.height ?? window.innerHeight) : 800
+  );
+  const fullHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
+  const keyboardOpen = fullHeight - viewportHeight > 100;
+
+  useEffect(() => {
+    const vp = window.visualViewport;
+    if (!vp) return;
+    const handler = () => setViewportHeight(vp.height);
+    vp.addEventListener('resize', handler);
+    return () => vp.removeEventListener('resize', handler);
+  }, []);
 
   // Prevent overscroll bounce at top only
   useEffect(() => {
@@ -56,6 +71,12 @@ export default function Modal({ title, onClose, children, width = 'lg:max-w-[620
     ({ movement: [, my], velocity: [, vy], direction: [, dy], first, last, cancel }) => {
       if (isDismissing.current) return;
 
+      // Don't allow drag-to-dismiss when keyboard is open
+      if (keyboardOpen) {
+        cancel();
+        return;
+      }
+
       if (first) {
         const scrollTop = contentRef.current?.scrollTop ?? 0;
         if (scrollTop > 0 && dy > 0) {
@@ -87,6 +108,12 @@ export default function Modal({ title, onClose, children, width = 'lg:max-w-[620
     { axis: 'y', filterTaps: true, threshold: 5, pointer: { touch: true } }
   );
 
+  // On mobile: pin to top, height = visual viewport (shrinks with keyboard)
+  // On desktop: centered modal
+  const mobileHeight = fullScreenMobile
+    ? `${viewportHeight}px`
+    : `${Math.min(viewportHeight * 0.85, viewportHeight)}px`;
+
   return (
     <>
       {/* Backdrop */}
@@ -99,7 +126,7 @@ export default function Modal({ title, onClose, children, width = 'lg:max-w-[620
         onClick={dismiss}
       />
 
-      {/* Mobile: bottom sheet. Desktop: centered modal */}
+      {/* Mobile: top-pinned sheet. Desktop: centered modal */}
       <motion.div
         ref={sheetRef}
         initial={{ y: '100%' }}
@@ -107,14 +134,19 @@ export default function Modal({ title, onClose, children, width = 'lg:max-w-[620
         exit={{ y: '100%' }}
         transition={{ type: 'spring', damping: 30, stiffness: 300 }}
         style={{ y: dragY }}
-        className={`fixed bottom-0 left-0 right-0 lg:top-1/2 lg:left-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2 lg:bottom-auto ${width} bg-elevated shadow-lg z-50 flex flex-col overflow-hidden ${
-          fullScreenMobile
-            ? 'h-[92vh] rounded-t-2xl lg:rounded-2xl lg:h-auto lg:max-h-[85vh]'
-            : 'max-h-[85vh] rounded-t-2xl lg:rounded-2xl'
-        }`}
+        className={`fixed top-0 left-0 right-0 lg:top-1/2 lg:left-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2 ${width} bg-elevated shadow-lg z-50 flex flex-col overflow-hidden rounded-b-2xl lg:rounded-2xl lg:h-auto lg:max-h-[85vh]`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div {...bindDrag()} className="flex flex-col flex-1 overflow-hidden" style={{ touchAction: 'pan-y', overscrollBehavior: 'none' }}>
+        <div
+          {...bindDrag()}
+          className="flex flex-col flex-1 overflow-hidden"
+          style={{
+            touchAction: 'pan-y',
+            overscrollBehavior: 'none',
+            height: mobileHeight,
+            transition: 'height 0.2s ease-out',
+          }}
+        >
           {/* Drag handle — mobile */}
           <div className="flex justify-center pt-3 pb-1 lg:hidden">
             <div className="w-10 h-1 rounded-full bg-border-s/60" />
