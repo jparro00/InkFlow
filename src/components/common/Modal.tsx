@@ -12,11 +12,9 @@ interface ModalProps {
   fullScreenMobile?: boolean;
   onReady?: () => void;
   instant?: boolean;
-  /** Ref that receives the animated dismiss function so callers can trigger close with animation. */
-  dismissRef?: React.MutableRefObject<(() => void) | null>;
 }
 
-export default function Modal({ title, header, onClose, children, width = 'lg:max-w-[620px]', fullScreenMobile = true, onReady, instant, dismissRef }: ModalProps) {
+export default function Modal({ title, header, onClose, children, width = 'lg:max-w-[620px]', fullScreenMobile = true, onReady, instant }: ModalProps) {
   const dragY = useMotionValue(0);
   const backdropOpacity = useTransform(dragY, [0, 400], [1, 0]);
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -106,12 +104,6 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
       },
     });
   }, [onClose, dragY]);
-
-  // Expose dismiss to parent via ref
-  useEffect(() => {
-    if (dismissRef) dismissRef.current = dismiss;
-    return () => { if (dismissRef) dismissRef.current = null; };
-  }, [dismiss, dismissRef]);
 
   const handleBackdropClick = useCallback(() => {
     // Check if we're on mobile (lg breakpoint = 1024px)

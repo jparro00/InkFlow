@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import Modal from '../common/Modal';
 import { useClientStore } from '../../stores/clientStore';
 import type { ClientChannel } from '../../types';
@@ -11,7 +11,6 @@ const channels: ClientChannel[] = ['Phone', 'Instagram', 'Facebook'];
 
 export default function CreateClientForm({ onClose }: CreateClientFormProps) {
   const addClient = useClientStore((s) => s.addClient);
-  const dismissRef = useRef<(() => void) | null>(null);
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -27,19 +26,14 @@ export default function CreateClientForm({ onClose }: CreateClientFormProps) {
       channel: channel || undefined,
       tags: [],
     });
-    // Animate closed instead of instant removal
-    if (dismissRef.current) {
-      dismissRef.current();
-    } else {
-      onClose();
-    }
+    onClose();
   };
 
   const inputClass = "w-full bg-input border border-border/60 rounded-md px-4 py-3.5 text-base text-text-p placeholder:text-text-t focus:outline-none focus:border-accent/40 transition-colors min-h-[48px]";
   const labelClass = "text-sm text-text-t uppercase tracking-wider mb-2 block font-medium";
 
   return (
-    <Modal title="New Client" onClose={onClose} width="lg:max-w-[520px]" dismissRef={dismissRef}>
+    <Modal title="New Client" onClose={onClose} width="lg:max-w-[520px]">
       <div className="space-y-5">
         <div>
           <label className={labelClass}>Name *</label>
