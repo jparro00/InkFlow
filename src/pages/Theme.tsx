@@ -163,6 +163,36 @@ export default function ThemePage() {
             </div>
           </div>
 
+          {/* Mini calendar */}
+          <div className="mb-5">
+            <div className="text-xs text-text-t mb-2">Calendar</div>
+            <div className="bg-surface/60 border border-border/30 rounded-lg p-3">
+              <div className="font-display text-lg text-text-p mb-2">April</div>
+              <div className="grid grid-cols-7 gap-y-1 text-center">
+                {['S','M','T','W','T','F','S'].map((d, i) => (
+                  <div key={i} className="text-xs text-text-t font-medium py-1">{d}</div>
+                ))}
+                {/* Empty cells for April 2026 starting on Wednesday */}
+                {[null, null, null].map((_, i) => <div key={`e${i}`} />)}
+                {Array.from({ length: 30 }, (_, i) => i + 1).map((day) => {
+                  const isToday = day === 12;
+                  const hasBooking = [2, 3, 4, 7, 8, 9, 10, 14, 16, 21, 23, 28].includes(day);
+                  return (
+                    <div key={day} className="flex flex-col items-center py-0.5">
+                      <span
+                        className="w-7 h-7 flex items-center justify-center rounded-full text-xs"
+                        style={isToday ? { backgroundColor: colors.today, color: '#fff', fontWeight: 600 } : undefined}
+                      >
+                        <span className={isToday ? '' : 'text-text-p'}>{day}</span>
+                      </span>
+                      {hasBooking && !isToday && <span className="w-1 h-1 rounded-full bg-text-t mt-0.5" />}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
           {/* Inputs */}
           <div className="mb-5">
             <div className="text-xs text-text-t mb-2">Inputs</div>
