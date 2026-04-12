@@ -128,6 +128,8 @@ const defaults = {
   surface: '#1E1E1E',
   elevated: '#272727',
   input: '#2C2C2C',
+  border: '#333333',
+  'border-s': '#383838',
   Regular: '#5BA2FF',
   'Touch Up': '#E8A87C',
   Consultation: '#6BB89E',
@@ -136,29 +138,8 @@ const defaults = {
 
 type ColorKey = keyof typeof defaults;
 
-const STORAGE_KEY = 'inkflow-theme-overrides';
-
-function loadOverrides(): Partial<Record<ColorKey, string>> {
-  try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch { return {}; }
-}
-
-function saveOverrides(colors: Record<ColorKey, string>) {
-  const overrides: Partial<Record<ColorKey, string>> = {};
-  for (const key of Object.keys(defaults) as ColorKey[]) {
-    if (colors[key] !== defaults[key]) overrides[key] = colors[key];
-  }
-  if (Object.keys(overrides).length) {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(overrides));
-  } else {
-    sessionStorage.removeItem(STORAGE_KEY);
-  }
-}
-
 export default function ThemePage() {
-  const [colors, setColors] = useState(() => ({ ...defaults, ...loadOverrides() }));
+  const [colors, setColors] = useState(() => ({ ...defaults }));
   const [selected, setSelected] = useState<ColorKey | null>(null);
 
   const cssMap: Partial<Record<ColorKey, string>> = {
@@ -171,6 +152,8 @@ export default function ThemePage() {
     surface: '--color-surface',
     elevated: '--color-elevated',
     input: '--color-input',
+    border: '--color-border',
+    'border-s': '--color-border-s',
     Regular: '--color-type-regular',
     'Touch Up': '--color-type-touchup',
     Consultation: '--color-type-consult',
@@ -178,11 +161,7 @@ export default function ThemePage() {
   };
 
   const update = useCallback((key: ColorKey, value: string) => {
-    setColors((prev) => {
-      const next = { ...prev, [key]: value };
-      saveOverrides(next);
-      return next;
-    });
+    setColors((prev) => ({ ...prev, [key]: value }));
 
     const prop = cssMap[key];
     if (prop) document.documentElement.style.setProperty(prop, value);
@@ -199,9 +178,13 @@ export default function ThemePage() {
   const reset = useCallback(() => {
     setColors(defaults);
     setSelected(null);
-    sessionStorage.removeItem(STORAGE_KEY);
-    const props = ['--color-accent', '--color-accent-dim', '--color-accent-glow', '--accent-rgb', '--color-danger', '--color-success', '--color-today', '--color-bg', '--color-surface', '--color-elevated', '--color-input', '--shadow-glow', '--shadow-glow-strong', '--color-type-regular', '--color-type-touchup', '--color-type-consult', '--color-type-fullday'];
-    props.forEach((p) => document.documentElement.style.removeProperty(p));
+    // Remove all inline CSS overrides so @theme defaults take over
+    Object.values(cssMap).forEach((p) => {
+      if (p) document.documentElement.style.removeProperty(p);
+    });
+    ['--color-accent-glow', '--accent-rgb', '--shadow-glow', '--shadow-glow-strong'].forEach((p) =>
+      document.documentElement.style.removeProperty(p),
+    );
   }, []);
 
   const accentRgb = hexToRgb(colors.accent);
@@ -272,9 +255,14 @@ export default function ThemePage() {
         <section className="mb-10">
           <div className="text-xs text-accent uppercase tracking-wider font-medium mb-4">Colors</div>
 
-          <div className="text-xs text-text-t mb-2">UI colors</div>
+          <div className="text-xs text-text-t mb-2">Accent &amp; status</div>
           <div className="mb-5">
-            {renderSwatchGroup(['accent', 'accent-dim', 'danger', 'success', 'today', 'bg', 'surface', 'elevated', 'input'])}
+            {renderSwatchGroup(['accent', 'accent-dim', 'danger', 'success', 'today'])}
+          </div>
+
+          <div className="text-xs text-text-t mb-2">Surfaces &amp; borders</div>
+          <div className="mb-5">
+            {renderSwatchGroup(['bg', 'surface', 'elevated', 'input', 'border', 'border-s'])}
           </div>
 
           <div className="text-xs text-text-t mb-2">Booking types</div>
