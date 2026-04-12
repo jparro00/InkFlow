@@ -26,7 +26,13 @@ interface ModalProps {
 }
 
 export default function Modal({ title, header, onClose, children, width = 'lg:max-w-[620px]', fullScreenMobile = true, onReady, instant }: ModalProps) {
-  const dragY = useMotionValue(0);
+  /*
+   * dragY is the SINGLE source of truth for the sheet's y position.
+   * Enter, drag, collapse, and dismiss all animate dragY.
+   * We do NOT use framer-motion's declarative animate/initial/exit for y
+   * because style={{ y: dragY }} always overrides them.
+   */
+  const dragY = useMotionValue(instant ? 0 : window.innerHeight);
   const backdropOpacity = useTransform(dragY, [0, 400], [1, 0]);
   const sheetRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
@@ -35,10 +41,24 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
   const isDragging = useRef(false);
   const dismissTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [collapsed, setCollapsed] = useState(false);
-  const collapsedRef = useRef(false); // ref mirror for use in gesture handler
+  const collapsedRef = useRef(false);
 
   // Keep ref in sync with state
   useEffect(() => { collapsedRef.current = collapsed; }, [collapsed]);
+
+  // Enter animation — slide up from bottom
+  useEffect(() => {
+    if (!instant) {
+      animate(dragY, 0, {
+        type: 'spring', damping: 30, stiffness: 300,
+        onComplete: () => onReady?.(),
+      });
+    } else {
+      onReady?.();
+    }
+    // Only run on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Prevent autoFocus from opening keyboard during modal animation.
   useEffect(() => {
@@ -96,23 +116,14 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
     animate(dragY, 0, { type: 'spring', stiffness: 300, damping: 30 });
   }, [dragY]);
 
-  /*
-   * dismiss() is the ONLY way to close a modal. It animates dragY to push
-   * the sheet offscreen, then calls onClose() to unmount.
-   *
-   * We can't use framer-motion's exit={{ y }} because style={{ y: dragY }}
-   * always overrides exit animations on the same element. So all close
-   * paths — swipe, backdrop tap, and programmatic (via useModalDismiss) —
-   * must go through this function.
-   */
   const dismiss = useCallback(() => {
     if (isDismissing.current) return;
     isDismissing.current = true;
     isDragging.current = false;
 
-    const sheetHeight = sheetRef.current?.offsetHeight ?? 600;
+    const sheetHeight = sheetRef.current?.offsetHeight ?? window.innerHeight;
 
-    // Safety net — if animation callback doesn't fire, still close
+    // Safety net
     dismissTimer.current = setTimeout(() => {
       onClose();
     }, 500);
@@ -127,7 +138,6 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
   }, [onClose, dragY]);
 
   const handleBackdropClick = useCallback(() => {
-    // Check if we're on mobile (lg breakpoint = 1024px)
     const isMobile = window.innerWidth < 1024;
     if (isMobile) {
       if (collapsedRef.current) {
@@ -149,7 +159,6 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
 
       if (first) {
         if (!isCollapsed) {
-          // Full state: only allow drag down when at scroll top
           const scrollTop = contentRef.current?.scrollTop ?? 0;
           if (scrollTop > 0 && dy > 0) {
             cancel();
@@ -162,12 +171,9 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
       if (!isDragging.current) return;
 
       if (isCollapsed) {
-        // Collapsed state: drag relative to collapsed position
         const newY = collapsedY + my;
-        // Don't allow dragging above full-open position
         dragY.set(Math.max(0, newY));
       } else {
-        // Full state: standard drag behavior
         if (my < 0) {
           dragY.set(0);
           cancel();
@@ -182,21 +188,16 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
 
         if (isCollapsed) {
           if (my < -40 || (vy > 0.3 && dy < 0)) {
-            // Swiped up from collapsed → expand to full
             expandToFull();
           } else if (my > 60 || (vy > 0.4 && dy > 0)) {
-            // Swiped down from collapsed → dismiss
             dismiss();
           } else {
-            // Return to collapsed position
             animate(dragY, collapsedY, { type: 'spring', stiffness: 400, damping: 30 });
           }
         } else {
           if (my > 80 || (vy > 0.4 && dy > 0)) {
-            // Swiped down from full → collapse to header
             collapseToHeader();
           } else {
-            // Snap back to full
             animate(dragY, 0, { type: 'spring', stiffness: 400, damping: 30 });
           }
         }
@@ -217,13 +218,9 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
         onClick={handleBackdropClick}
       />
 
-      {/* Sheet — single element owns both drag and position */}
+      {/* Sheet — dragY is the sole controller of y position */}
       <motion.div
         ref={sheetRef}
-        initial={instant ? false : { y: '100%' }}
-        animate={{ y: 0 }}
-        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-        onAnimationComplete={() => onReady?.()}
         style={{ y: dragY }}
         className={`fixed top-4 left-0 right-0 bottom-0 lg:inset-auto lg:top-1/2 lg:left-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2 ${width} bg-elevated shadow-lg z-50 flex flex-col overflow-hidden ${
           fullScreenMobile
@@ -233,14 +230,12 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
         onClick={(e) => e.stopPropagation()}
       >
         <div {...bindDrag()} className="flex flex-col flex-1 overflow-hidden" style={{ touchAction: 'pan-y', overscrollBehavior: 'none' }}>
-          {/* Drag handle + header — measured together for collapse target */}
+          {/* Drag handle + header */}
           <div ref={headerRef} onClick={() => { if (collapsedRef.current) expandToFull(); }}>
-            {/* Drag handle — mobile */}
             <div className="flex justify-center pt-3 pb-1 lg:hidden">
               <div className="w-10 h-1 rounded-full bg-border-s/60" />
             </div>
 
-            {/* Header — custom or default title */}
             {header ? (
               <div className="shrink-0">{header}</div>
             ) : title ? (
