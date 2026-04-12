@@ -14,6 +14,63 @@ export function useModalDismiss() {
   return useContext(ModalDismissContext);
 }
 
+const R = 28; // must match rounded-t-[28px]
+const TRACE_HEIGHT = 60; // how far down the sides the trace extends
+
+/** SVG trace that follows the rounded top edge of the modal. */
+function AccentTrace({ sheetRef }: { sheetRef: React.RefObject<HTMLDivElement | null> }) {
+  const pathRef = useRef<SVGPathElement>(null);
+  const [w, setW] = useState(0);
+
+  useEffect(() => {
+    if (sheetRef.current) {
+      setW(sheetRef.current.offsetWidth);
+    }
+  }, [sheetRef]);
+
+  // Animate stroke-dashoffset once we have width
+  useEffect(() => {
+    const path = pathRef.current;
+    if (!path || !w) return;
+
+    const len = path.getTotalLength();
+    path.style.strokeDasharray = `${len}`;
+    path.style.strokeDashoffset = `${len}`;
+
+    // Small delay to sync with sheet slide-up
+    const timer = setTimeout(() => {
+      path.style.transition = 'stroke-dashoffset 0.9s cubic-bezier(0.4, 0, 0.2, 1)';
+      path.style.strokeDashoffset = '0';
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [w]);
+
+  if (!w) return null;
+
+  // Path: up the left side → around top-left corner → across top → around top-right corner → down right side
+  const d = `M 0,${TRACE_HEIGHT} L 0,${R} A ${R},${R} 0 0,1 ${R},0 L ${w - R},0 A ${R},${R} 0 0,1 ${w},${R} L ${w},${TRACE_HEIGHT}`;
+
+  return (
+    <svg
+      className="absolute top-0 left-0 z-10 pointer-events-none"
+      width={w}
+      height={TRACE_HEIGHT}
+      fill="none"
+      style={{ overflow: 'visible' }}
+    >
+      <path
+        ref={pathRef}
+        d={d}
+        stroke="var(--color-accent)"
+        strokeWidth="2"
+        strokeLinecap="round"
+        style={{ opacity: 0.8 }}
+      />
+    </svg>
+  );
+}
+
 interface ModalProps {
   title?: string;
   header?: ReactNode;
@@ -229,18 +286,8 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
         }`}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Accent trace — sweeps across top edge on enter */}
-        <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden rounded-t-[28px] z-10 pointer-events-none">
-          <motion.div
-            initial={{ x: '-100%' }}
-            animate={{ x: '100%' }}
-            transition={{ duration: 0.8, delay: 0.15, ease: [0.4, 0, 0.2, 1] }}
-            className="absolute inset-0"
-            style={{
-              background: 'linear-gradient(90deg, transparent 0%, var(--color-accent) 30%, var(--color-accent) 70%, transparent 100%)',
-            }}
-          />
-        </div>
+        {/* Accent trace — traces the rounded top outline on enter */}
+        <AccentTrace sheetRef={sheetRef} />
 
         <div {...bindDrag()} className="flex flex-col flex-1 overflow-hidden" style={{ touchAction: 'pan-y', overscrollBehavior: 'none' }}>
           {/* Drag handle + header */}
