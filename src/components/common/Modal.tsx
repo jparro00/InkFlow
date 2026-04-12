@@ -28,25 +28,38 @@ function AccentTrace({ sheetRef }: { sheetRef: React.RefObject<HTMLDivElement | 
     }
   }, [sheetRef]);
 
-  // Animate stroke-dashoffset once we have width
+  const [visible, setVisible] = useState(true);
+
+  // Animate a short "laser" segment along the path, then fade out
   useEffect(() => {
     const path = pathRef.current;
     if (!path || !w) return;
 
     const len = path.getTotalLength();
-    path.style.strokeDasharray = `${len}`;
-    path.style.strokeDashoffset = `${len}`;
+    const segment = len * 0.15; // visible segment length (~15% of path)
 
-    // Small delay to sync with sheet slide-up
-    const timer = setTimeout(() => {
-      path.style.transition = 'stroke-dashoffset 0.9s cubic-bezier(0.4, 0, 0.2, 1)';
-      path.style.strokeDashoffset = '0';
+    // Start: segment off-screen before the path start
+    path.style.strokeDasharray = `${segment} ${len}`;
+    path.style.strokeDashoffset = `${segment}`;
+
+    // Delay to sync with sheet slide-up, then animate segment across
+    const startTimer = setTimeout(() => {
+      path.style.transition = 'stroke-dashoffset 0.7s cubic-bezier(0.4, 0, 0.2, 1)';
+      path.style.strokeDashoffset = `${-len}`;
     }, 200);
 
-    return () => clearTimeout(timer);
+    // Remove after animation completes
+    const hideTimer = setTimeout(() => {
+      setVisible(false);
+    }, 1000);
+
+    return () => {
+      clearTimeout(startTimer);
+      clearTimeout(hideTimer);
+    };
   }, [w]);
 
-  if (!w) return null;
+  if (!w || !visible) return null;
 
   // Path: up the left side → around top-left corner → across top → around top-right corner → down right side
   const d = `M 0,${TRACE_HEIGHT} L 0,${R} A ${R},${R} 0 0,1 ${R},0 L ${w - R},0 A ${R},${R} 0 0,1 ${w},${R} L ${w},${TRACE_HEIGHT}`;
