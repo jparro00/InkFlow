@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
 import { useDrag } from '@use-gesture/react';
 import type { ReactNode } from 'react';
@@ -18,10 +18,16 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
   const dragY = useMotionValue(0);
   const backdropOpacity = useTransform(dragY, [0, 400], [1, 0]);
   const sheetRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const isDismissing = useRef(false);
   const isDragging = useRef(false);
   const dismissTimer = useRef<ReturnType<typeof setTimeout>>();
+  const [collapsed, setCollapsed] = useState(false);
+  const collapsedRef = useRef(false); // ref mirror for use in gesture handler
+
+  // Keep ref in sync with state
+  useEffect(() => { collapsedRef.current = collapsed; }, [collapsed]);
 
   // Prevent autoFocus from opening keyboard during modal animation.
   useEffect(() => {
@@ -55,12 +61,29 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
     };
   }, []);
 
-  // Clean up on unmount — clear any pending dismiss timer
+  // Clean up on unmount
   useEffect(() => {
     return () => {
       if (dismissTimer.current) clearTimeout(dismissTimer.current);
     };
   }, []);
+
+  const getCollapsedY = useCallback(() => {
+    const sheetH = sheetRef.current?.offsetHeight ?? 600;
+    const headerH = headerRef.current?.offsetHeight ?? 85;
+    return sheetH - headerH;
+  }, []);
+
+  const collapseToHeader = useCallback(() => {
+    const target = getCollapsedY();
+    setCollapsed(true);
+    animate(dragY, target, { type: 'spring', stiffness: 300, damping: 30 });
+  }, [dragY, getCollapsedY]);
+
+  const expandToFull = useCallback(() => {
+    setCollapsed(false);
+    animate(dragY, 0, { type: 'spring', stiffness: 300, damping: 30 });
+  }, [dragY]);
 
   const dismiss = useCallback(() => {
     if (isDismissing.current) return;
@@ -69,7 +92,6 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
 
     const sheetHeight = sheetRef.current?.offsetHeight ?? 600;
 
-    // Safety net: if onComplete never fires, force close after 500ms
     dismissTimer.current = setTimeout(() => {
       onClose();
     }, 500);
@@ -83,35 +105,80 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
     });
   }, [onClose, dragY]);
 
+  const handleBackdropClick = useCallback(() => {
+    // Check if we're on mobile (lg breakpoint = 1024px)
+    const isMobile = window.innerWidth < 1024;
+    if (isMobile) {
+      if (collapsedRef.current) {
+        dismiss();
+      } else {
+        collapseToHeader();
+      }
+    } else {
+      dismiss();
+    }
+  }, [dismiss, collapseToHeader]);
+
   const bindDrag = useDrag(
     ({ movement: [, my], velocity: [, vy], direction: [, dy], first, last, cancel }) => {
       if (isDismissing.current) return;
 
+      const isCollapsed = collapsedRef.current;
+      const collapsedY = getCollapsedY();
+
       if (first) {
-        const scrollTop = contentRef.current?.scrollTop ?? 0;
-        if (scrollTop > 0 && dy > 0) {
-          cancel();
-          return;
+        if (!isCollapsed) {
+          // Full state: only allow drag down when at scroll top
+          const scrollTop = contentRef.current?.scrollTop ?? 0;
+          if (scrollTop > 0 && dy > 0) {
+            cancel();
+            return;
+          }
         }
         isDragging.current = true;
       }
 
       if (!isDragging.current) return;
 
-      if (my < 0) {
-        dragY.set(0);
-        cancel();
-        isDragging.current = false;
-        return;
+      if (isCollapsed) {
+        // Collapsed state: drag relative to collapsed position
+        const newY = collapsedY + my;
+        // Don't allow dragging above full-open position
+        dragY.set(Math.max(0, newY));
+      } else {
+        // Full state: standard drag behavior
+        if (my < 0) {
+          dragY.set(0);
+          cancel();
+          isDragging.current = false;
+          return;
+        }
+        dragY.set(my);
       }
-      dragY.set(my);
 
       if (last) {
         isDragging.current = false;
-        if (my > 80 || (vy > 0.4 && dy > 0)) {
-          dismiss();
+
+        if (isCollapsed) {
+          const currentY = collapsedY + my;
+          if (my < -40 || (vy > 0.3 && dy < 0)) {
+            // Swiped up from collapsed → expand to full
+            expandToFull();
+          } else if (my > 60 || (vy > 0.4 && dy > 0)) {
+            // Swiped down from collapsed → dismiss
+            dismiss();
+          } else {
+            // Return to collapsed position
+            animate(dragY, collapsedY, { type: 'spring', stiffness: 400, damping: 30 });
+          }
         } else {
-          animate(dragY, 0, { type: 'spring', stiffness: 400, damping: 30 });
+          if (my > 80 || (vy > 0.4 && dy > 0)) {
+            // Swiped down from full → collapse to header
+            collapseToHeader();
+          } else {
+            // Snap back to full
+            animate(dragY, 0, { type: 'spring', stiffness: 400, damping: 30 });
+          }
         }
       }
     },
@@ -128,7 +195,7 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
         transition={{ duration: 0.2 }}
         style={{ opacity: backdropOpacity }}
         className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
-        onClick={dismiss}
+        onClick={handleBackdropClick}
       />
 
       {/* Mobile: bottom sheet. Desktop: centered modal */}
@@ -148,19 +215,22 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
         onClick={(e) => e.stopPropagation()}
       >
         <div {...bindDrag()} className="flex flex-col flex-1 overflow-hidden" style={{ touchAction: 'pan-y', overscrollBehavior: 'none' }}>
-          {/* Drag handle — mobile */}
-          <div className="flex justify-center pt-3 pb-1 lg:hidden">
-            <div className="w-10 h-1 rounded-full bg-border-s/60" />
-          </div>
-
-          {/* Header — custom or default title */}
-          {header ? (
-            <div className="shrink-0">{header}</div>
-          ) : title ? (
-            <div className="px-5 py-4 lg:px-6 lg:py-4 border-b border-border shrink-0">
-              <h2 className="font-display text-xl text-text-p">{title}</h2>
+          {/* Drag handle + header — measured together for collapse target */}
+          <div ref={headerRef}>
+            {/* Drag handle — mobile */}
+            <div className="flex justify-center pt-3 pb-1 lg:hidden">
+              <div className="w-10 h-1 rounded-full bg-border-s/60" />
             </div>
-          ) : null}
+
+            {/* Header — custom or default title */}
+            {header ? (
+              <div className="shrink-0">{header}</div>
+            ) : title ? (
+              <div className="px-5 py-4 lg:px-6 lg:py-4 border-b border-border shrink-0">
+                <h2 className="font-display text-xl text-text-p">{title}</h2>
+              </div>
+            ) : null}
+          </div>
 
           <div ref={contentRef} className="px-5 py-5 lg:px-6 lg:py-5 overflow-y-auto overflow-x-hidden flex-1"
             style={{ overscrollBehavior: 'contain', touchAction: 'pan-y' }}
