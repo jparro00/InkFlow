@@ -138,27 +138,48 @@ const defaults = {
 
 type ColorKey = keyof typeof defaults;
 
-export default function ThemePage() {
-  const [colors, setColors] = useState(() => ({ ...defaults }));
-  const [selected, setSelected] = useState<ColorKey | null>(null);
+const cssMap: Record<ColorKey, string> = {
+  accent: '--color-accent',
+  'accent-dim': '--color-accent-dim',
+  danger: '--color-danger',
+  success: '--color-success',
+  today: '--color-today',
+  bg: '--color-bg',
+  surface: '--color-surface',
+  elevated: '--color-elevated',
+  input: '--color-input',
+  border: '--color-border',
+  'border-s': '--color-border-s',
+  Regular: '--color-type-regular',
+  'Touch Up': '--color-type-touchup',
+  Consultation: '--color-type-consult',
+  'Full Day': '--color-type-fullday',
+};
 
-  const cssMap: Partial<Record<ColorKey, string>> = {
-    accent: '--color-accent',
-    'accent-dim': '--color-accent-dim',
-    danger: '--color-danger',
-    success: '--color-success',
-    today: '--color-today',
-    bg: '--color-bg',
-    surface: '--color-surface',
-    elevated: '--color-elevated',
-    input: '--color-input',
-    border: '--color-border',
-    'border-s': '--color-border-s',
-    Regular: '--color-type-regular',
-    'Touch Up': '--color-type-touchup',
-    Consultation: '--color-type-consult',
-    'Full Day': '--color-type-fullday',
-  };
+/** Read the live CSS variable value for each color, falling back to defaults. */
+function readLiveColors(): Record<ColorKey, string> {
+  const style = getComputedStyle(document.documentElement);
+  const live = { ...defaults };
+  for (const key of Object.keys(cssMap) as ColorKey[]) {
+    const raw = style.getPropertyValue(cssMap[key]).trim();
+    // Only use it if it looks like a hex color (skip rgba values like text-p)
+    if (raw && raw.startsWith('#')) {
+      live[key] = raw;
+    } else if (raw) {
+      // Convert rgb(r, g, b) to hex
+      const match = raw.match(/^rgb\(\s*(\d+),\s*(\d+),\s*(\d+)\s*\)$/);
+      if (match) {
+        const [, r, g, b] = match;
+        live[key] = `#${Number(r).toString(16).padStart(2, '0')}${Number(g).toString(16).padStart(2, '0')}${Number(b).toString(16).padStart(2, '0')}`;
+      }
+    }
+  }
+  return live;
+}
+
+export default function ThemePage() {
+  const [colors, setColors] = useState(readLiveColors);
+  const [selected, setSelected] = useState<ColorKey | null>(null);
 
   const update = useCallback((key: ColorKey, value: string) => {
     setColors((prev) => ({ ...prev, [key]: value }));
