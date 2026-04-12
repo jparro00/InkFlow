@@ -1,3 +1,5 @@
+export type ClientChannel = 'Facebook' | 'Instagram' | 'Phone';
+
 export interface Client {
   id: string;
   created_at: string;
@@ -8,6 +10,7 @@ export interface Client {
   facebook_id?: string;
   email?: string;
   dob?: string;
+  channel?: ClientChannel;
   tags: string[];
   notes: ClientNote[];
 }

@@ -1,16 +1,20 @@
 import { useState } from 'react';
 import Modal from '../common/Modal';
 import { useClientStore } from '../../stores/clientStore';
+import type { ClientChannel } from '../../types';
 
 interface CreateClientFormProps {
   onClose: () => void;
 }
+
+const channels: ClientChannel[] = ['Phone', 'Instagram', 'Facebook'];
 
 export default function CreateClientForm({ onClose }: CreateClientFormProps) {
   const addClient = useClientStore((s) => s.addClient);
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [channel, setChannel] = useState<ClientChannel | ''>('');
 
   const isValid = name.trim().length > 0;
 
@@ -19,6 +23,7 @@ export default function CreateClientForm({ onClose }: CreateClientFormProps) {
     addClient({
       name: name.trim(),
       phone: phone || undefined,
+      channel: channel || undefined,
       tags: [],
     });
     onClose();
@@ -50,6 +55,26 @@ export default function CreateClientForm({ onClose }: CreateClientFormProps) {
             placeholder="Phone number"
             className={inputClass}
           />
+        </div>
+
+        <div>
+          <label className={labelClass}>Preferred Channel</label>
+          <div className="flex gap-2">
+            {channels.map((ch) => (
+              <button
+                key={ch}
+                type="button"
+                onClick={() => setChannel(channel === ch ? '' : ch)}
+                className={`flex-1 py-3 text-base rounded-md border transition-colors cursor-pointer press-scale min-h-[48px] ${
+                  channel === ch
+                    ? 'bg-accent/15 border-accent/40 text-accent'
+                    : 'bg-input border-border/60 text-text-s'
+                }`}
+              >
+                {ch}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="flex flex-col lg:flex-row lg:justify-end gap-3 pt-4 border-t border-border/40">
