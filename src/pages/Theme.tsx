@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 
-// Helper: convert hex to rgba string for glow effects
+// --- Color helpers ---
 function hexToRgb(hex: string) {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
@@ -8,26 +8,106 @@ function hexToRgb(hex: string) {
   return `${r},${g},${b}`;
 }
 
-function Swatch({ name, value, onChange }: { name: string; value: string; onChange: (v: string) => void }) {
+function hexToHsl(hex: string): [number, number, number] {
+  let r = parseInt(hex.slice(1, 3), 16) / 255;
+  let g = parseInt(hex.slice(3, 5), 16) / 255;
+  let b = parseInt(hex.slice(5, 7), 16) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  if (max === min) return [0, 0, l];
+  const d = max - min;
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  let h = 0;
+  if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+  else if (max === g) h = ((b - r) / d + 2) / 6;
+  else h = ((r - g) / d + 4) / 6;
+  return [h * 360, s, l];
+}
+
+function hslToHex(h: number, s: number, l: number): string {
+  const hue2rgb = (p: number, q: number, t: number) => {
+    if (t < 0) t += 1; if (t > 1) t -= 1;
+    if (t < 1/6) return p + (q - p) * 6 * t;
+    if (t < 1/2) return q;
+    if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+    return p;
+  };
+  h /= 360;
+  if (s === 0) {
+    const v = Math.round(l * 255);
+    return `#${v.toString(16).padStart(2,'0')}${v.toString(16).padStart(2,'0')}${v.toString(16).padStart(2,'0')}`;
+  }
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+  const p = 2 * l - q;
+  const r = Math.round(hue2rgb(p, q, h + 1/3) * 255);
+  const g = Math.round(hue2rgb(p, q, h) * 255);
+  const b = Math.round(hue2rgb(p, q, h - 1/3) * 255);
+  return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
+}
+
+// --- Swatch ---
+function Swatch({ name, value, selected, onTap, onChange }: {
+  name: string; value: string; selected: boolean;
+  onTap: () => void; onChange: (v: string) => void;
+}) {
   return (
-    <label className="flex items-center gap-2 cursor-pointer group">
-      <div className="relative w-8 h-8 rounded-md border border-border/30 shrink-0 overflow-hidden">
-        <div className="absolute inset-0" style={{ background: value }} />
-        <input
-          type="color"
-          value={value.startsWith('#') ? value : '#888888'}
-          onChange={(e) => onChange(e.target.value)}
-          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-        />
-      </div>
-      <div>
-        <div className="text-xs text-text-s group-hover:text-text-p transition-colors">{name}</div>
+    <div className="flex items-center gap-2">
+      <button
+        onClick={onTap}
+        className={`relative w-9 h-9 rounded-md shrink-0 overflow-hidden cursor-pointer transition-all ${
+          selected ? 'ring-2 ring-accent ring-offset-2 ring-offset-bg' : 'border border-border/30'
+        }`}
+        style={{ background: value }}
+      />
+      <label className="cursor-pointer" onClick={onTap}>
+        <div className="text-xs text-text-s">{name}</div>
         <div className="text-xs text-text-t font-mono">{value}</div>
-      </div>
-    </label>
+      </label>
+    </div>
   );
 }
 
+// --- Hue slider ---
+function HueSlider({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [h, s, l] = hexToHsl(value);
+  return (
+    <div className="pt-2 pb-1">
+      <input
+        type="range"
+        min={0}
+        max={360}
+        value={Math.round(h)}
+        onChange={(e) => onChange(hslToHex(parseInt(e.target.value), s, l))}
+        className="w-full h-8 rounded-md appearance-none cursor-pointer"
+        style={{
+          background: `linear-gradient(to right, ${Array.from({ length: 13 }, (_, i) => hslToHex(i * 30, s, l)).join(', ')})`,
+          WebkitAppearance: 'none',
+        }}
+      />
+      <style>{`
+        input[type=range]::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          width: 20px; height: 28px;
+          border-radius: 6px;
+          background: ${value};
+          border: 3px solid rgba(255,255,255,0.9);
+          box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+          cursor: pointer;
+        }
+        input[type=range]::-moz-range-thumb {
+          width: 20px; height: 28px;
+          border-radius: 6px;
+          background: ${value};
+          border: 3px solid rgba(255,255,255,0.9);
+          box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+          cursor: pointer;
+        }
+      `}</style>
+    </div>
+  );
+}
+
+// --- Defaults ---
 const defaults = {
   accent: '#B08CE8',
   'accent-dim': '#8466B8',
@@ -48,11 +128,11 @@ type ColorKey = keyof typeof defaults;
 
 export default function ThemePage() {
   const [colors, setColors] = useState(defaults);
+  const [selected, setSelected] = useState<ColorKey | null>(null);
 
   const update = useCallback((key: ColorKey, value: string) => {
     setColors((prev) => ({ ...prev, [key]: value }));
 
-    // Live-update CSS custom properties so Tailwind classes respond
     const cssMap: Partial<Record<ColorKey, string>> = {
       accent: '--color-accent',
       'accent-dim': '--color-accent-dim',
@@ -65,11 +145,8 @@ export default function ThemePage() {
       input: '--color-input',
     };
     const prop = cssMap[key];
-    if (prop) {
-      document.documentElement.style.setProperty(prop, value);
-    }
+    if (prop) document.documentElement.style.setProperty(prop, value);
 
-    // Update glow shadows when accent changes
     if (key === 'accent') {
       const rgb = hexToRgb(value);
       document.documentElement.style.setProperty('--color-accent-glow', `rgba(${rgb},0.12)`);
@@ -80,12 +157,32 @@ export default function ThemePage() {
 
   const reset = useCallback(() => {
     setColors(defaults);
-    // Clear all inline overrides
+    setSelected(null);
     const props = ['--color-accent', '--color-accent-dim', '--color-accent-glow', '--color-danger', '--color-success', '--color-today', '--color-bg', '--color-surface', '--color-elevated', '--color-input', '--shadow-glow', '--shadow-glow-strong'];
     props.forEach((p) => document.documentElement.style.removeProperty(p));
   }, []);
 
   const accentRgb = hexToRgb(colors.accent);
+
+  const renderSwatchGroup = (keys: ColorKey[]) => (
+    <>
+      <div className="flex flex-wrap gap-x-5 gap-y-3">
+        {keys.map((key) => (
+          <Swatch
+            key={key}
+            name={key}
+            value={colors[key]}
+            selected={selected === key}
+            onTap={() => setSelected(selected === key ? null : key)}
+            onChange={(v) => update(key, v)}
+          />
+        ))}
+      </div>
+      {selected && keys.includes(selected) && (
+        <HueSlider value={colors[selected]} onChange={(v) => update(selected, v)} />
+      )}
+    </>
+  );
 
   return (
     <div className="h-full overflow-y-auto overflow-x-hidden">
@@ -104,7 +201,7 @@ export default function ThemePage() {
           </div>
           <button
             onClick={reset}
-            className="px-3 py-1.5 text-xs rounded-md border border-border/60 text-text-t active:text-text-s press-scale cursor-pointer"
+            className="px-4 py-2.5 text-sm bg-accent text-bg rounded-md font-medium shadow-glow active:shadow-glow-strong press-scale cursor-pointer"
           >
             Reset
           </button>
@@ -134,18 +231,12 @@ export default function ThemePage() {
           <div className="text-xs text-accent uppercase tracking-wider font-medium mb-4">Colors</div>
 
           <div className="text-xs text-text-t mb-2">UI colors</div>
-          <div className="flex flex-wrap gap-x-5 gap-y-3 mb-5">
-            {(['accent', 'accent-dim', 'danger', 'success', 'today', 'bg', 'surface', 'elevated', 'input'] as ColorKey[]).map((key) => (
-              <Swatch key={key} name={key} value={colors[key]} onChange={(v) => update(key, v)} />
-            ))}
+          <div className="mb-5">
+            {renderSwatchGroup(['accent', 'accent-dim', 'danger', 'success', 'today', 'bg', 'surface', 'elevated', 'input'])}
           </div>
 
           <div className="text-xs text-text-t mb-2">Booking types</div>
-          <div className="flex flex-wrap gap-x-5 gap-y-3">
-            {(['Regular', 'Touch Up', 'Consultation', 'Full Day'] as ColorKey[]).map((key) => (
-              <Swatch key={key} name={key} value={colors[key]} onChange={(v) => update(key, v)} />
-            ))}
-          </div>
+          {renderSwatchGroup(['Regular', 'Touch Up', 'Consultation', 'Full Day'])}
         </section>
 
         {/* Components */}
@@ -172,7 +263,6 @@ export default function ThemePage() {
                 {['S','M','T','W','T','F','S'].map((d, i) => (
                   <div key={i} className="text-xs text-text-t font-medium py-1">{d}</div>
                 ))}
-                {/* Empty cells for April 2026 starting on Wednesday */}
                 {[null, null, null].map((_, i) => <div key={`e${i}`} />)}
                 {Array.from({ length: 30 }, (_, i) => i + 1).map((day) => {
                   const isToday = day === 12;
