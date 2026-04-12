@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import { UserPlus } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import Modal from '../common/Modal';
-import ClientForm from '../client/ClientForm';
+import CreateClientForm from '../client/CreateClientForm';
 import DatePicker from './DatePicker';
 import TimePicker from './TimePicker';
 import ImagePicker from './ImagePicker';
@@ -374,7 +374,7 @@ export default function BookingForm() {
     </AnimatePresence>
 
     {showNewClient && (
-      <ClientForm
+      <CreateClientForm
         onClose={() => {
           const currentClients = useClientStore.getState().clients;
           // Only auto-select if a new client was actually added

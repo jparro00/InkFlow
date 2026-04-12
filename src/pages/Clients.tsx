@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { useClientStore } from '../stores/clientStore';
 import { useBookingStore } from '../stores/bookingStore';
 import { useUIStore } from '../stores/uiStore';
-import ClientForm from '../components/client/ClientForm';
+import CreateClientForm from '../components/client/CreateClientForm';
 
 export default function ClientsPage() {
   const navigate = useNavigate();
@@ -115,7 +115,7 @@ export default function ClientsPage() {
         </div>
       </div>
 
-      {showForm && <ClientForm onClose={() => setShowForm(false)} />}
+      {showForm && <CreateClientForm onClose={() => setShowForm(false)} />}
     </div>
   );
 }
