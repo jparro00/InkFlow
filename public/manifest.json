@@ -1,0 +1,16 @@
+{
+  "name": "Keeps Ink",
+  "short_name": "Keeps Ink",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#121212",
+  "theme_color": "#0F0E0D",
+  "icons": [
+    {
+      "src": "inkflow_logo.png",
+      "sizes": "531x531",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
