@@ -1,13 +1,13 @@
 @import "tailwindcss";
 
 @theme {
-  /* Material Design 2 Dark Theme — elevation overlay system */
-  --color-bg: #121212;           /* 0dp surface */
-  --color-surface: #1E1E1E;     /* 1dp elevation */
-  --color-elevated: #272727;    /* 4dp elevation */
-  --color-input: #2C2C2C;      /* 6dp elevation */
-  --color-border: #333333;      /* 12dp — subtle dividers */
-  --color-border-s: #383838;    /* 24dp — stronger dividers */
+  /* Dark purple elevation system */
+  --color-bg: #110D18;           /* deepest */
+  --color-surface: #1A1525;     /* 1dp elevation */
+  --color-elevated: #241E30;    /* 4dp elevation */
+  --color-input: #2A2337;      /* 6dp elevation */
+  --color-border: #342D42;      /* 12dp — subtle dividers */
+  --color-border-s: #3E3650;    /* 24dp — stronger dividers */
 
   /* Text — white at M2 opacity levels */
   --color-text-p: rgba(255, 255, 255, 0.87);  /* high emphasis */
