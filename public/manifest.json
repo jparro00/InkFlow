@@ -7,10 +7,16 @@
   "theme_color": "#0F0E0D",
   "icons": [
     {
-      "src": "inkflow_logo.png",
+      "src": "apple-touch-icon.png",
       "sizes": "531x531",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "apple-touch-icon-180x180.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }
