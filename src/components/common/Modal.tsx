@@ -215,7 +215,7 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
       >
         <div {...bindDrag()} className="flex flex-col flex-1 overflow-hidden" style={{ touchAction: 'pan-y', overscrollBehavior: 'none' }}>
           {/* Drag handle + header — measured together for collapse target */}
-          <div ref={headerRef}>
+          <div ref={headerRef} onClick={() => { if (collapsedRef.current) expandToFull(); }}>
             {/* Drag handle — mobile */}
             <div className="flex justify-center pt-3 pb-1 lg:hidden">
               <div className="w-10 h-1 rounded-full bg-border-s/60" />
