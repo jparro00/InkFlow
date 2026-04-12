@@ -208,8 +208,8 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
         style={{ y: dragY }}
         className={`fixed inset-0 lg:inset-auto lg:top-1/2 lg:left-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2 ${width} bg-elevated shadow-lg z-50 flex flex-col overflow-hidden ${
           fullScreenMobile
-            ? 'rounded-t-2xl lg:rounded-xl lg:h-auto lg:max-h-[85vh]'
-            : 'rounded-t-2xl lg:rounded-xl max-h-[85vh]'
+            ? 'rounded-t-[28px] lg:rounded-xl lg:h-auto lg:max-h-[85vh]'
+            : 'rounded-t-[28px] lg:rounded-xl max-h-[85vh]'
         }`}
         onClick={(e) => e.stopPropagation()}
       >
