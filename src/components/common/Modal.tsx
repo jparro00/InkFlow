@@ -129,7 +129,7 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
     }, 500);
 
     animate(dragY, sheetHeight, {
-      type: 'spring', stiffness: 300, damping: 30, mass: 0.8,
+      type: 'spring', stiffness: 200, damping: 30, mass: 1.2,
       onComplete: () => {
         if (dismissTimer.current) clearTimeout(dismissTimer.current);
         onClose();
