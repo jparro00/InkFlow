@@ -1,7 +1,18 @@
-import { useRef, useEffect, useCallback, useState } from 'react';
+import { useRef, useEffect, useCallback, useState, createContext, useContext } from 'react';
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
 import { useDrag } from '@use-gesture/react';
 import type { ReactNode } from 'react';
+
+/**
+ * Context that gives any child of a Modal access to the animated dismiss function.
+ * Call `dismiss()` instead of `onClose()` to get a smooth slide-out animation.
+ */
+const ModalDismissContext = createContext<() => void>(() => {});
+
+/** Hook for children of Modal to trigger an animated close. */
+export function useModalDismiss() {
+  return useContext(ModalDismissContext);
+}
 
 interface ModalProps {
   title?: string;
@@ -85,6 +96,15 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
     animate(dragY, 0, { type: 'spring', stiffness: 300, damping: 30 });
   }, [dragY]);
 
+  /*
+   * dismiss() is the ONLY way to close a modal. It animates dragY to push
+   * the sheet offscreen, then calls onClose() to unmount.
+   *
+   * We can't use framer-motion's exit={{ y }} because style={{ y: dragY }}
+   * always overrides exit animations on the same element. So all close
+   * paths — swipe, backdrop tap, and programmatic (via useModalDismiss) —
+   * must go through this function.
+   */
   const dismiss = useCallback(() => {
     if (isDismissing.current) return;
     isDismissing.current = true;
@@ -186,71 +206,57 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
   );
 
   return (
-    <>
+    <ModalDismissContext.Provider value={dismiss}>
       {/* Backdrop */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
         transition={{ duration: 0.2 }}
         className="fixed inset-0 backdrop-blur-sm z-50"
         style={{ backgroundColor: 'var(--color-overlay)', opacity: backdropOpacity }}
         onClick={handleBackdropClick}
       />
 
-      {/*
-        Two-layer architecture for the sheet:
-        - Outer motion.div: handles enter/exit animations (initial/animate/exit)
-        - Inner motion.div: handles drag offset (style={{ y: dragY }})
-
-        This is necessary because framer-motion's style={{ y: motionValue }}
-        always overrides exit={{ y }}, making exit animations impossible
-        if both are on the same element.
-      */}
+      {/* Sheet — single element owns both drag and position */}
       <motion.div
+        ref={sheetRef}
         initial={instant ? false : { y: '100%' }}
         animate={{ y: 0 }}
-        exit={{ y: '100%' }}
         transition={{ type: 'spring', damping: 30, stiffness: 300 }}
         onAnimationComplete={() => onReady?.()}
-        className="fixed top-4 left-0 right-0 bottom-0 lg:inset-auto lg:top-1/2 lg:left-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2 z-50 pointer-events-none"
+        style={{ y: dragY }}
+        className={`fixed top-4 left-0 right-0 bottom-0 lg:inset-auto lg:top-1/2 lg:left-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2 ${width} bg-elevated shadow-lg z-50 flex flex-col overflow-hidden ${
+          fullScreenMobile
+            ? 'rounded-t-[28px] lg:rounded-xl lg:h-auto lg:max-h-[85vh]'
+            : 'rounded-t-[28px] lg:rounded-xl max-h-[85vh]'
+        }`}
+        onClick={(e) => e.stopPropagation()}
       >
-        <motion.div
-          ref={sheetRef}
-          style={{ y: dragY }}
-          className={`h-full ${width} bg-elevated shadow-lg flex flex-col overflow-hidden pointer-events-auto ${
-            fullScreenMobile
-              ? 'rounded-t-[28px] lg:rounded-xl lg:h-auto lg:max-h-[85vh]'
-              : 'rounded-t-[28px] lg:rounded-xl max-h-[85vh]'
-          }`}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div {...bindDrag()} className="flex flex-col flex-1 overflow-hidden" style={{ touchAction: 'pan-y', overscrollBehavior: 'none' }}>
-            {/* Drag handle + header — measured together for collapse target */}
-            <div ref={headerRef} onClick={() => { if (collapsedRef.current) expandToFull(); }}>
-              {/* Drag handle — mobile */}
-              <div className="flex justify-center pt-3 pb-1 lg:hidden">
-                <div className="w-10 h-1 rounded-full bg-border-s/60" />
+        <div {...bindDrag()} className="flex flex-col flex-1 overflow-hidden" style={{ touchAction: 'pan-y', overscrollBehavior: 'none' }}>
+          {/* Drag handle + header — measured together for collapse target */}
+          <div ref={headerRef} onClick={() => { if (collapsedRef.current) expandToFull(); }}>
+            {/* Drag handle — mobile */}
+            <div className="flex justify-center pt-3 pb-1 lg:hidden">
+              <div className="w-10 h-1 rounded-full bg-border-s/60" />
+            </div>
+
+            {/* Header — custom or default title */}
+            {header ? (
+              <div className="shrink-0">{header}</div>
+            ) : title ? (
+              <div className="px-5 py-4 lg:px-6 lg:py-4 border-b border-border shrink-0">
+                <h2 className="font-display text-xl text-text-p">{title}</h2>
               </div>
-
-              {/* Header — custom or default title */}
-              {header ? (
-                <div className="shrink-0">{header}</div>
-              ) : title ? (
-                <div className="px-5 py-4 lg:px-6 lg:py-4 border-b border-border shrink-0">
-                  <h2 className="font-display text-xl text-text-p">{title}</h2>
-                </div>
-              ) : null}
-            </div>
-
-            <div ref={contentRef} className="px-5 py-5 lg:px-6 lg:py-5 overflow-y-auto overflow-x-hidden flex-1"
-              style={{ overscrollBehavior: 'contain', touchAction: 'pan-y' }}
-            >
-              {children}
-            </div>
+            ) : null}
           </div>
-        </motion.div>
+
+          <div ref={contentRef} className="px-5 py-5 lg:px-6 lg:py-5 overflow-y-auto overflow-x-hidden flex-1"
+            style={{ overscrollBehavior: 'contain', touchAction: 'pan-y' }}
+          >
+            {children}
+          </div>
+        </div>
       </motion.div>
-    </>
+    </ModalDismissContext.Provider>
   );
 }
