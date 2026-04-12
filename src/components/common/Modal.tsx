@@ -4,7 +4,8 @@ import { useDrag } from '@use-gesture/react';
 import type { ReactNode } from 'react';
 
 interface ModalProps {
-  title: string;
+  title?: string;
+  header?: ReactNode;
   onClose: () => void;
   children: ReactNode;
   width?: string;
@@ -13,14 +14,13 @@ interface ModalProps {
   instant?: boolean;
 }
 
-export default function Modal({ title, onClose, children, width = 'lg:max-w-[620px]', fullScreenMobile = true, onReady, instant }: ModalProps) {
+export default function Modal({ title, header, onClose, children, width = 'lg:max-w-[620px]', fullScreenMobile = true, onReady, instant }: ModalProps) {
   const dragY = useMotionValue(0);
   const backdropOpacity = useTransform(dragY, [0, 400], [1, 0]);
   const sheetRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const isDismissing = useRef(false);
   const isDragging = useRef(false);
-
 
   // Prevent overscroll bounce at top only
   useEffect(() => {
@@ -40,7 +40,6 @@ export default function Modal({ title, onClose, children, width = 'lg:max-w-[620
       el.removeEventListener('touchmove', onTouchMove);
     };
   }, []);
-
 
   const dismiss = () => {
     if (isDismissing.current) return;
@@ -102,7 +101,7 @@ export default function Modal({ title, onClose, children, width = 'lg:max-w-[620
         onClick={dismiss}
       />
 
-      {/* Mobile: bottom sheet sized to visual viewport. Desktop: centered modal */}
+      {/* Mobile: bottom sheet. Desktop: centered modal */}
       <motion.div
         ref={sheetRef}
         initial={instant ? false : { y: '100%' }}
@@ -124,9 +123,15 @@ export default function Modal({ title, onClose, children, width = 'lg:max-w-[620
             <div className="w-10 h-1 rounded-full bg-border-s/60" />
           </div>
 
-          <div className="px-5 py-4 lg:px-6 lg:py-4 border-b border-border shrink-0">
-            <h2 className="font-display text-xl text-text-p">{title}</h2>
-          </div>
+          {/* Header — custom or default title */}
+          {header ? (
+            <div className="shrink-0">{header}</div>
+          ) : title ? (
+            <div className="px-5 py-4 lg:px-6 lg:py-4 border-b border-border shrink-0">
+              <h2 className="font-display text-xl text-text-p">{title}</h2>
+            </div>
+          ) : null}
+
           <div ref={contentRef} className="px-5 py-5 lg:px-6 lg:py-5 overflow-y-auto overflow-x-hidden flex-1"
             style={{ overscrollBehavior: 'contain', touchAction: 'pan-y' }}
           >
