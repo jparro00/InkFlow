@@ -1,6 +1,7 @@
 import { useClientStore } from '../stores/clientStore';
 import { useBookingStore } from '../stores/bookingStore';
 import { useState } from 'react';
+import AppHeader from '../components/layout/AppHeader';
 
 export default function SettingsPage() {
   const clients = useClientStore((s) => s.clients);
@@ -38,7 +39,9 @@ export default function SettingsPage() {
   const inputClass = "w-full bg-input border border-border/60 rounded-md px-4 py-3.5 text-base text-text-p placeholder:text-text-t focus:outline-none focus:border-accent/40 transition-colors min-h-[48px]";
 
   return (
-    <div className="px-5 pt-6 pb-8 lg:px-6 lg:pt-6 max-w-xl">
+    <div className="h-full flex flex-col">
+      <AppHeader />
+      <div className="flex-1 overflow-y-auto px-3 pb-8 lg:px-6 max-w-xl">
       <h1 className="font-display text-2xl lg:text-2xl text-text-p mb-8">Settings</h1>
 
       <section className={sectionClass}>
@@ -199,6 +202,7 @@ export default function SettingsPage() {
           </div>
         </div>
       </section>
+      </div>
     </div>
   );
 }
