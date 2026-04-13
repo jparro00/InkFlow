@@ -50,7 +50,7 @@ interface UIStore {
 export const useUIStore = create<UIStore>((set) => ({
   calendarView: 'month',
   setCalendarView: (view) => set({ calendarView: view }),
-  calendarDate: new Date(2026, 3, 1),
+  calendarDate: new Date(),
   setCalendarDate: (date) => set({ calendarDate: date }),
   selectedBookingId: null,
   setSelectedBookingId: (id) => {
