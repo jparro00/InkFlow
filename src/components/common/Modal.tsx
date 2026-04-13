@@ -261,7 +261,7 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
   const [collapsed, setCollapsed] = useState(false);
   const collapsedRef = useRef(false);
   const [traceTrigger, setTraceTrigger] = useState(0);
-  const [xTraceTrigger, setXTraceTrigger] = useState(0);
+  const [xTraceTrigger, setXTraceTrigger] = useState(1);
 
   // Keep ref in sync with state
   useEffect(() => { collapsedRef.current = collapsed; }, [collapsed]);
