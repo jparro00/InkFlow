@@ -66,19 +66,12 @@ function ConversationItem({ convo, index }: { convo: ConversationSummary; index:
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
-          <span className="flex items-center gap-2 min-w-0">
-            <span
-              className={`text-base truncate ${
-                isUnread ? 'text-text-p font-semibold' : 'text-text-s font-normal'
-              }`}
-            >
-              {convo.participantName}
-            </span>
-            {isUnread && convo.unreadCount > 1 && (
-              <span className="text-xs text-accent shrink-0">
-                ({convo.unreadCount}+ new)
-              </span>
-            )}
+          <span
+            className={`text-base truncate ${
+              isUnread ? 'text-text-p font-semibold' : 'text-text-s font-normal'
+            }`}
+          >
+            {convo.participantName}
           </span>
           <span className="text-xs text-text-t shrink-0">
             {formatTime(convo.lastMessageTime)}
@@ -87,10 +80,12 @@ function ConversationItem({ convo, index }: { convo: ConversationSummary; index:
         <div className="flex items-center gap-2 mt-0.5">
           <span
             className={`text-sm truncate flex-1 ${
-              isUnread ? 'text-text-p' : 'text-text-t'
+              isUnread ? 'text-text-p font-semibold' : 'text-text-t'
             }`}
           >
-            {convo.lastMessage || 'No messages yet'}
+            {isUnread && convo.unreadCount > 1
+              ? `${convo.unreadCount}+ new messages`
+              : convo.lastMessage || 'No messages yet'}
           </span>
           {isUnread && (
             <span className="w-2.5 h-2.5 rounded-full bg-accent shrink-0" />
