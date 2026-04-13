@@ -131,6 +131,7 @@ function XButtonTrace({ trigger, buttonRef }: { trigger: number; buttonRef: Reac
     const len = path.getTotalLength();
     const segment = len * 0.35;
 
+    svg.style.transition = 'none';
     svg.style.opacity = '1';
     path.style.transition = 'none';
     path.style.strokeDasharray = `${segment} ${len}`;
@@ -142,13 +143,15 @@ function XButtonTrace({ trigger, buttonRef }: { trigger: number; buttonRef: Reac
       path.style.strokeDashoffset = `${-len}`;
     }, 30);
 
-    const hideTimer = setTimeout(() => {
+    // Fade out the SVG as the laser nears the end so it dissolves
+    const fadeTimer = setTimeout(() => {
+      svg.style.transition = 'opacity 0.5s ease-out';
       svg.style.opacity = '0';
-    }, 1600);
+    }, 1100);
 
     return () => {
       clearTimeout(startTimer);
-      clearTimeout(hideTimer);
+      clearTimeout(fadeTimer);
     };
   }, [shape, trigger]);
 
