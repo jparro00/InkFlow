@@ -106,15 +106,27 @@ function AccentTrace({ sheetRef, headerRef, trigger }: { sheetRef: React.RefObje
   );
 }
 
-/** Laser trace around the X icon inside the close button */
-function XButtonTrace({ trigger }: { trigger: number }) {
+/** Laser trace around the X close button — reads actual button dimensions from DOM */
+function XButtonTrace({ trigger, buttonRef }: { trigger: number; buttonRef: React.RefObject<HTMLButtonElement | null> }) {
   const pathRef = useRef<SVGPathElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const [shape, setShape] = useState<{ w: number; h: number; r: number } | null>(null);
+
+  // Read the button's actual size and border-radius from the DOM
+  useEffect(() => {
+    const btn = buttonRef.current;
+    if (!btn) return;
+    const styles = getComputedStyle(btn);
+    const w = btn.offsetWidth;
+    const h = btn.offsetHeight;
+    const r = parseFloat(styles.borderRadius) || 0;
+    setShape({ w, h, r });
+  }, [buttonRef, trigger]);
 
   useEffect(() => {
     const path = pathRef.current;
     const svg = svgRef.current;
-    if (!path || !svg || trigger === 0) return;
+    if (!path || !svg || !shape || trigger === 0) return;
 
     const len = path.getTotalLength();
     const segment = len * 0.35;
@@ -138,32 +150,41 @@ function XButtonTrace({ trigger }: { trigger: number }) {
       clearTimeout(startTimer);
       clearTimeout(hideTimer);
     };
-  }, [trigger]);
+  }, [shape, trigger]);
 
-  // Rounded rectangle matching the button's rounded-lg
-  // Inset by half stroke width so the stroke outer edge aligns with button edge
-  const s = 40;
-  const sw = 2.5; // stroke width
-  const inset = sw / 2;
-  const btnRadius = 8; // Tailwind v4 default rounded-lg = 0.5rem = 8px
-  const r = btnRadius - inset;
-  const d = `M ${inset},${s/2} L ${inset},${r+inset} A ${r},${r} 0 0,1 ${r+inset},${inset} L ${s-r-inset},${inset} A ${r},${r} 0 0,1 ${s-inset},${r+inset} L ${s-inset},${s-r-inset} A ${r},${r} 0 0,1 ${s-r-inset},${s-inset} L ${r+inset},${s-inset} A ${r},${r} 0 0,1 ${inset},${s-r-inset} Z`;
+  if (!shape) return null;
+
+  const { w, h, r } = shape;
+  const sw = 2;
+  const i = sw / 2; // inset so stroke outer edge aligns with button outer edge
+  const ri = r - i; // inset radius
+  const d = `M ${i},${h/2} L ${i},${ri+i} A ${ri},${ri} 0 0,1 ${ri+i},${i} L ${w-ri-i},${i} A ${ri},${ri} 0 0,1 ${w-i},${ri+i} L ${w-i},${h-ri-i} A ${ri},${ri} 0 0,1 ${w-ri-i},${h-i} L ${ri+i},${h-i} A ${ri},${ri} 0 0,1 ${i},${h-ri-i} Z`;
 
   return (
     <svg
       ref={svgRef}
       className="absolute inset-0 pointer-events-none"
-      width={40}
-      height={40}
+      width={w}
+      height={h}
       fill="none"
       style={{ overflow: 'visible', opacity: 1 }}
     >
+      <defs>
+        <filter id="x-glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
       <path
         ref={pathRef}
         d={d}
         stroke="var(--color-accent)"
-        strokeWidth="2.5"
+        strokeWidth={sw}
         strokeLinecap="round"
+        filter="url(#x-glow)"
         style={{ strokeDasharray: 'none', strokeDashoffset: 0 }}
       />
     </svg>
@@ -193,6 +214,7 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
   const sheetRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const xButtonRef = useRef<HTMLButtonElement>(null);
   const isDismissing = useRef(false);
   const isDragging = useRef(false);
   const dismissTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -420,11 +442,12 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
                 <h2 className="font-display text-xl text-text-p flex-1">{title}</h2>
                 {collapsed && (
                   <button
+                    ref={xButtonRef}
                     onClick={(e) => { e.stopPropagation(); dismiss(); }}
                     className="relative w-10 h-10 flex items-center justify-center rounded-lg bg-surface border border-border/40 text-text-s active:text-text-p active:bg-elevated transition-colors cursor-pointer press-scale"
                   >
                     <X size={16} strokeWidth={2.5} />
-                    <XButtonTrace trigger={xTraceTrigger} />
+                    <XButtonTrace trigger={xTraceTrigger} buttonRef={xButtonRef} />
                   </button>
                 )}
               </div>
