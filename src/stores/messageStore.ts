@@ -143,7 +143,9 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
     set({ isLoadingOlder: true });
 
     try {
+      console.log('[loadOlder] Fetching for conversation:', conversationId);
       const older = await fetchOlderMessages(conversationId);
+      console.log('[loadOlder] Got', older.length, 'older messages');
       if (older.length === 0) {
         set({ hasOlderMessages: false, isLoadingOlder: false });
         return;

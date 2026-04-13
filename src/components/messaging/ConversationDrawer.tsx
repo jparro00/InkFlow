@@ -136,13 +136,16 @@ export default function ConversationDrawer() {
     };
   }, [selectedConversationId, fetchMessages, markRead, clearCurrentMessages]);
 
-  // Auto-scroll to bottom when new messages arrive
+  // Auto-scroll to bottom when new messages arrive at the end (not when loading older)
+  const prevLastMid = useRef<string | null>(null);
   useEffect(() => {
-    if (currentMessages.length > prevMsgCount.current && scrollRef.current) {
+    if (!currentMessages.length) return;
+    const lastMid = currentMessages[currentMessages.length - 1].id;
+    if (lastMid !== prevLastMid.current && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-    prevMsgCount.current = currentMessages.length;
-  }, [currentMessages.length]);
+    prevLastMid.current = lastMid;
+  }, [currentMessages]);
 
   if (!convo) return null;
 
