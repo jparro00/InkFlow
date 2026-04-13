@@ -131,53 +131,84 @@ function XButtonTrace({ trigger, buttonRef }: { trigger: number; buttonRef: Reac
     const len = path.getTotalLength();
     const segment = len * 0.35;
     const travelDuration = 1400; // ms — main travel phase
-    const shrinkDuration = 600; // ms — tail catches up phase
+    const shrinkDuration = 600;  // ms — tail catches up phase
     const totalDuration = travelDuration + shrinkDuration;
+
+    // Speed during phase 1 (distance per ms) — used to keep the back
+    // edge moving at the same rate in phase 2
+    const travelDistance = segment + len; // total front-edge travel in phase 1
+    // At end of phase 1 with ease-out cubic, instantaneous speed:
+    // derivative of (1-(1-t)^3) at t=1 is 0, so we use average of last portion
+    const backSpeed = travelDistance / travelDuration; // average speed
 
     svg.style.transition = 'none';
     svg.style.opacity = '1';
 
     let raf: number;
     let cancelled = false;
-    const startTime = performance.now() + 30; // small delay
+    const startTime = performance.now() + 30;
 
     // Reset
     path.style.transition = 'none';
     path.style.strokeDasharray = `${segment} ${len}`;
     path.style.strokeDashoffset = `${segment}`;
 
+    /*
+     * We track front and back edges as positions along the path.
+     * strokeDashoffset positions the start of the dash pattern:
+     *   front edge = -offset
+     *   back edge  = -offset - segment
+     * So: offset = -frontPos, and segment = frontPos - backPos
+     */
+
     const tick = (now: number) => {
       if (cancelled) return;
       const elapsed = now - startTime;
 
       if (elapsed < 0) {
-        // Still in initial delay
         raf = requestAnimationFrame(tick);
         return;
       }
 
+      let front: number;
+      let back: number;
+
       if (elapsed <= travelDuration) {
-        // Phase 1: travel at full segment size
+        // Phase 1: both edges move together, constant segment size
         const t = elapsed / travelDuration;
         const ease = 1 - Math.pow(1 - t, 3); // ease-out cubic
-        const offset = segment - ease * (segment + len);
-        path.style.strokeDasharray = `${segment} ${len}`;
-        path.style.strokeDashoffset = `${offset}`;
+        front = -segment + ease * travelDistance;
+        back = front - segment;
       } else if (elapsed <= totalDuration) {
-        // Phase 2: front slows down, segment shrinks to 0
+        // Phase 2: front decelerates to stop, back keeps constant speed
         const t2 = (elapsed - travelDuration) / shrinkDuration;
-        const ease2 = t2 * t2; // ease-in — slow start, fast end (tail catches up)
-        const currentSegment = segment * (1 - ease2);
-        // Keep moving the offset forward slowly
-        const extraTravel = len * 0.15 * t2;
-        const offset = -len - extraTravel;
-        path.style.strokeDasharray = `${Math.max(currentSegment, 0.5)} ${len}`;
-        path.style.strokeDashoffset = `${offset}`;
+
+        // Front position at end of phase 1
+        const frontAtP1End = -segment + travelDistance; // = len
+
+        // Front eases to a stop (small additional travel)
+        const frontExtra = segment * 0.3; // how far front drifts
+        const easeFront = 1 - Math.pow(1 - t2, 2); // ease-out
+        front = frontAtP1End + frontExtra * easeFront;
+
+        // Back keeps moving at constant speed (catches up)
+        const backAtP1End = frontAtP1End - segment;
+        back = backAtP1End + backSpeed * (elapsed - travelDuration);
+
+        // Clamp: back can't pass front
+        if (back >= front) {
+          svg.style.opacity = '0';
+          return;
+        }
       } else {
-        // Done
         svg.style.opacity = '0';
         return;
       }
+
+      const currentSegment = Math.max(front - back, 0.5);
+      const offset = -front;
+      path.style.strokeDasharray = `${currentSegment} ${len + segment}`;
+      path.style.strokeDashoffset = `${offset}`;
 
       raf = requestAnimationFrame(tick);
     };
