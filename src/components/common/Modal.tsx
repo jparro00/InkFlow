@@ -151,8 +151,9 @@ function XButtonTrace({ trigger, buttonRef }: { trigger: number; buttonRef: Reac
     // Head: ease-in-out — starts slow, bursts through the middle, eases out
     const easeInOut = (t: number) =>
       t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-    // Tail: quartic ease-in — stays put longer, then aggressively catches up
-    const easeInQuart = (t: number) => t * t * t * t;
+    // Tail: ease-in-out but delayed — stays put, bursts, then eases out at end
+    const easeInOutQuart = (t: number) =>
+      t < 0.5 ? 8 * t * t * t * t : 1 - Math.pow(-2 * t + 2, 4) / 2;
 
     const tick = (now: number) => {
       if (cancelled) return;
@@ -160,7 +161,7 @@ function XButtonTrace({ trigger, buttonRef }: { trigger: number; buttonRef: Reac
 
       // Head bursts through middle (ease-in-out), tail chases (quartic ease-in)
       const headPos = easeInOut(t) * len;
-      const tailPos = easeInQuart(t) * len;
+      const tailPos = easeInOutQuart(t) * len;
       const segLen = Math.max(headPos - tailPos, 0.5);
 
       // Fade out when segment becomes negligible
