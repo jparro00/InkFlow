@@ -1,4 +1,4 @@
-const DB_NAME = 'inkflow-images';
+const DB_NAME = 'inkbloop-images';
 const DB_VERSION = 1;
 const STORE_NAME = 'blobs';
 

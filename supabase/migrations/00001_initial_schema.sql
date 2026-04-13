@@ -1,4 +1,4 @@
--- InkFlow initial schema
+-- Ink Bloop initial schema
 -- Run this in the Supabase SQL Editor
 
 -- Extensions

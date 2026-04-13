@@ -91,8 +91,8 @@ export default function BookingForm() {
       if (prefillBookingData.rescheduled) updates.rescheduled = true;
       if (prefillBookingData.timeSlot) {
         const slotTime = prefillBookingData.timeSlot === 'morning'
-          ? (localStorage.getItem('inkflow-morning-time') ?? '10:00')
-          : (localStorage.getItem('inkflow-evening-time') ?? '14:00');
+          ? (localStorage.getItem('inkbloop-morning-time') ?? '10:00')
+          : (localStorage.getItem('inkbloop-evening-time') ?? '14:00');
         updates.time = slotTime;
       }
       if (prefillBookingData.notes) updates.notes = prefillBookingData.notes;
@@ -219,8 +219,8 @@ export default function BookingForm() {
         <div className="flex gap-3">
           {['Morning', 'Evening'].map((slot) => {
             const time = slot === 'Morning'
-              ? (localStorage.getItem('inkflow-morning-time') ?? '10:00')
-              : (localStorage.getItem('inkflow-evening-time') ?? '14:00');
+              ? (localStorage.getItem('inkbloop-morning-time') ?? '10:00')
+              : (localStorage.getItem('inkbloop-evening-time') ?? '14:00');
             const isActive = form.time === time;
             const [h, m] = time.split(':').map(Number);
             const label = format(new Date(2026, 0, 1, h, m), 'h:mm a');

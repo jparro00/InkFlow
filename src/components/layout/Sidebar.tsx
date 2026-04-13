@@ -21,10 +21,10 @@ export default function Sidebar() {
     >
       {/* Logo */}
       <div className={`flex items-center gap-3 h-16 border-b border-border/40 ${sidebarCollapsed ? 'justify-center px-0' : 'px-6'}`}>
-        <img src={`${import.meta.env.BASE_URL}inkflow_logo.png`} alt="InkFlow" className="w-6 h-6 shrink-0" />
+        <img src={`${import.meta.env.BASE_URL}inkbloop_logo.png`} alt="Ink Bloop" className="w-6 h-6 shrink-0" />
         {!sidebarCollapsed && (
           <span className="font-display text-md text-text-p font-bold tracking-wide">
-            InkFlow
+            Ink Bloop
           </span>
         )}
       </div>

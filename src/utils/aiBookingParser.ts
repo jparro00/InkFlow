@@ -17,7 +17,7 @@ export async function parseBookingWithAI(text: string): Promise<ParsedBooking> {
   const clientList = clients.map((c) => ({ id: c.id, name: c.name }));
 
   // Check for legacy localStorage key (migration path)
-  const legacyKey = localStorage.getItem('inkflow-anthropic-key');
+  const legacyKey = localStorage.getItem('inkbloop-anthropic-key');
   if (legacyKey) {
     return parseLegacy(text, legacyKey, clientList);
   }

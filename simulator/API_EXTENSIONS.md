@@ -1,6 +1,6 @@
 # Meta API Simulator — Future Extensions
 
-This document covers Meta API features NOT yet implemented in the simulator but needed for production InkFlow. Each section includes the exact API spec so implementation is copy-paste accurate.
+This document covers Meta API features NOT yet implemented in the simulator but needed for production Ink Bloop. Each section includes the exact API spec so implementation is copy-paste accurate.
 
 ---
 
@@ -27,7 +27,7 @@ POST /v25.0/{PAGE_ID}/messages
         "buttons": [
           { "type": "postback", "title": "Confirm", "payload": "CONFIRM_BOOKING_b123" },
           { "type": "postback", "title": "Reschedule", "payload": "RESCHEDULE_BOOKING_b123" },
-          { "type": "web_url", "title": "View Details", "url": "https://inkflow.app/booking/b123" }
+          { "type": "web_url", "title": "View Details", "url": "https://inkbloop.app/booking/b123" }
         ]
       }
     }
@@ -158,7 +158,7 @@ Allows sending specific non-promotional messages outside the 24-hour window.
 }
 ```
 
-**Allowed tags for InkFlow:**
+**Allowed tags for Ink Bloop:**
 - `CONFIRMED_EVENT_UPDATE` — appointment reminders and updates
 - `POST_PURCHASE_UPDATE` — aftercare instructions, follow-ups
 - `ACCOUNT_UPDATE` — booking changes, cancellations
@@ -258,7 +258,7 @@ Fired when the business sends a message (via API or manually in the inbox). Usef
 ```
 
 ### Simulator implementation notes:
-- After storing a business message via Send API, optionally fire a `message_echoes` webhook event back to InkFlow
+- After storing a business message via Send API, optionally fire a `message_echoes` webhook event back to Ink Bloop
 
 ---
 

@@ -1,5 +1,5 @@
 /**
- * Seed data — maps InkFlow's mock clients to simulated Meta platform identities
+ * Seed data — maps Ink Bloop's mock clients to simulated Meta platform identities
  * and pre-populates realistic tattoo booking conversations.
  *
  * Clients with an `instagram` handle → Instagram platform.

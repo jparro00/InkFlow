@@ -7,7 +7,7 @@ export async function saveApiKey(apiKey: string): Promise<void> {
   if (error) throw error;
 
   // Clean up legacy localStorage key if present
-  localStorage.removeItem('inkflow-anthropic-key');
+  localStorage.removeItem('inkbloop-anthropic-key');
 }
 
 export async function removeApiKey(): Promise<void> {
@@ -16,12 +16,12 @@ export async function removeApiKey(): Promise<void> {
   });
   if (error) throw error;
 
-  localStorage.removeItem('inkflow-anthropic-key');
+  localStorage.removeItem('inkbloop-anthropic-key');
 }
 
 export async function hasApiKey(): Promise<boolean> {
   // Check legacy localStorage first (migration path)
-  if (localStorage.getItem('inkflow-anthropic-key')) return true;
+  if (localStorage.getItem('inkbloop-anthropic-key')) return true;
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return false;

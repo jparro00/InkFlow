@@ -32,7 +32,7 @@ function connectWebSocket() {
     const event = JSON.parse(e.data);
 
     if (event.type === 'business_message') {
-      // InkFlow replied via Send API → show in chat
+      // Ink Bloop replied via Send API → show in chat
       const conv = conversations.find(c => c.participant?.psid === event.recipientPsid);
       if (conv) {
         conv.messages.push({
@@ -227,7 +227,7 @@ async function sendMessage() {
     renderContacts();
   }
 
-  // Send to simulator server → triggers webhook to InkFlow
+  // Send to simulator server → triggers webhook to Ink Bloop
   try {
     const res = await fetch('/sim/send', {
       method: 'POST',

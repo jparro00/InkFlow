@@ -23,8 +23,8 @@ export default function SettingsPage() {
   const [apiKeySaving, setApiKeySaving] = useState(false);
   const [apiKeyConfigured, setApiKeyConfigured] = useState(false);
   const [apiKeyStatus, setApiKeyStatus] = useState<'idle' | 'saved' | 'removed' | 'error'>('idle');
-  const [morningTime, setMorningTime] = useState(() => localStorage.getItem('inkflow-morning-time') ?? '10:00');
-  const [eveningTime, setEveningTime] = useState(() => localStorage.getItem('inkflow-evening-time') ?? '14:00');
+  const [morningTime, setMorningTime] = useState(() => localStorage.getItem('inkbloop-morning-time') ?? '10:00');
+  const [eveningTime, setEveningTime] = useState(() => localStorage.getItem('inkbloop-evening-time') ?? '14:00');
   const [timesSaved, setTimesSaved] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [passwordSaved, setPasswordSaved] = useState(false);
@@ -187,8 +187,8 @@ export default function SettingsPage() {
           </div>
           <button
             onClick={() => {
-              localStorage.setItem('inkflow-morning-time', morningTime);
-              localStorage.setItem('inkflow-evening-time', eveningTime);
+              localStorage.setItem('inkbloop-morning-time', morningTime);
+              localStorage.setItem('inkbloop-evening-time', eveningTime);
               setTimesSaved(true);
               setTimeout(() => setTimesSaved(false), 2000);
             }}
@@ -303,9 +303,9 @@ export default function SettingsPage() {
       <section>
         <h2 className="text-md text-text-p font-display mb-3">About</h2>
         <div className={cardClass}>
-          <div className="text-base text-text-s">InkFlow MVP v0.1.0</div>
+          <div className="text-base text-text-s">Ink Bloop v0.1.0</div>
           <div className="text-sm text-text-t leading-relaxed">
-            InkFlow stores client contact information and booking data for
+            Ink Bloop stores client contact information and booking data for
             business purposes. No data is shared with third parties. No
             third-party analytics or tracking SDKs are used. Client data can be
             exported and deleted upon request via Settings &gt; Privacy.

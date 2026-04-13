@@ -45,8 +45,8 @@ app.use(express.static(join(__dirname, 'public')));
 
 let simConfig = {
   webhookUrl: process.env.WEBHOOK_URL || 'http://localhost:3000/webhook',
-  verifyToken: process.env.VERIFY_TOKEN || 'inkflow-dev-token',
-  appSecret: process.env.APP_SECRET || 'inkflow-dev-secret',
+  verifyToken: process.env.VERIFY_TOKEN || 'inkbloop-dev-token',
+  appSecret: process.env.APP_SECRET || 'inkbloop-dev-secret',
   accessToken: process.env.ACCESS_TOKEN || 'SIM_ACCESS_TOKEN_DEV',
   enforce24hrWindow: false,
   deliveryReceiptDelay: 500,
@@ -288,7 +288,7 @@ app.get('/sim/profiles', (req, res) => {
   res.json(getAllProfiles());
 });
 
-// Send a message as a client → fires webhook to InkFlow
+// Send a message as a client → fires webhook to Ink Bloop
 app.post('/sim/send', async (req, res) => {
   const { psid, text, attachments } = req.body;
   if (!psid || (!text && !attachments)) {
@@ -311,7 +311,7 @@ app.post('/sim/send', async (req, res) => {
     message: { mid: message.mid, text, attachments: message.attachments, timestamp: message.timestamp },
   });
 
-  // Deliver webhook to InkFlow's endpoint
+  // Deliver webhook to Ink Bloop's endpoint
   const webhookResult = await deliverMessageWithReceipts(
     simConfig.webhookUrl,
     simConfig.appSecret,
@@ -362,7 +362,7 @@ const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log('');
   console.log('  ┌──────────────────────────────────────────────────┐');
-  console.log('  │  Meta API Simulator for InkFlow                  │');
+  console.log('  │  Meta API Simulator for Ink Bloop                  │');
   console.log('  ├──────────────────────────────────────────────────┤');
   console.log(`  │  Simulator UI:  http://localhost:${PORT}             │`);
   console.log(`  │  Graph API:     http://localhost:${PORT}/v25.0/      │`);

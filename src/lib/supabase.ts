@@ -15,6 +15,6 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    storageKey: 'inkflow-auth',
+    storageKey: 'inkbloop-auth',
   },
 });

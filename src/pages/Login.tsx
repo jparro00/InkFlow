@@ -103,7 +103,7 @@ export default function LoginPage() {
           animate={{ scale: [1, 1.02, 1] }}
           transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
         >
-          <img src={`${import.meta.env.BASE_URL}inkflow_logo.png`} alt="Ink Bloop" className="w-9 h-9 mx-auto" />
+          <img src={`${import.meta.env.BASE_URL}inkbloop_logo.png`} alt="Ink Bloop" className="w-9 h-9 mx-auto" />
           <h1 className="font-display text-2xl text-text-p mt-3">Ink Bloop</h1>
           <p className="text-xs text-text-t mt-1.5 tracking-wider uppercase">Studio Management</p>
         </motion.div>

@@ -3,13 +3,9 @@
 <head>
   <meta charset="utf-8">
   <script>
-    // SPA redirect for GitHub Pages
+    // SPA redirect
     var path = window.location.pathname;
-    var repo = '/InkFlow';
-    if (path.startsWith(repo)) {
-      var route = path.slice(repo.length);
-      window.location.replace(repo + '/?route=' + encodeURIComponent(route));
-    }
+    window.location.replace('/?route=' + encodeURIComponent(path));
   </script>
 </head>
 <body></body>

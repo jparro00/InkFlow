@@ -147,7 +147,7 @@ export function listConversations(ownerId) {
       participants: {
         data: [
           { id: conv.participantPsid, name: participant?.name || 'Unknown' },
-          { id: ownerId, name: 'InkFlow' },
+          { id: ownerId, name: 'Ink Bloop' },
         ],
       },
     });
@@ -197,7 +197,7 @@ export function getConversation(convId, fields) {
     result.participants = {
       data: [
         { id: conv.participantPsid, name: participant?.name || 'Unknown' },
-        { id: ownerId, name: 'InkFlow' },
+        { id: ownerId, name: 'Ink Bloop' },
       ],
     };
   }
@@ -333,6 +333,6 @@ export function hasProfile(psid) {
 function profileNameOrBusiness(id) {
   const p = profiles.get(id);
   if (p) return p.name;
-  if (id === config.pageId || id === config.igUserId) return 'InkFlow';
+  if (id === config.pageId || id === config.igUserId) return 'Ink Bloop';
   return 'Unknown';
 }

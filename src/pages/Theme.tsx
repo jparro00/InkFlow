@@ -237,12 +237,12 @@ export default function ThemePage() {
         {/* Brand */}
         <div className="flex items-center gap-4 mb-10">
           <img
-            src={import.meta.env.BASE_URL + 'inkflow_logo.png'}
-            alt="InkFlow"
+            src={import.meta.env.BASE_URL + 'inkbloop_logo.png'}
+            alt="Ink Bloop"
             className="w-14 h-14 rounded-lg"
           />
           <div className="flex-1">
-            <h1 className="font-display text-2xl text-text-p">InkFlow</h1>
+            <h1 className="font-display text-2xl text-text-p">Ink Bloop</h1>
             <p className="text-sm text-text-t">Theme Reference</p>
           </div>
           <button
@@ -415,7 +415,7 @@ export default function ThemePage() {
           </div>
         </section>
 
-        <div className="text-xs text-text-t text-center pt-4 border-t border-border/30">InkFlow v0.1.0</div>
+        <div className="text-xs text-text-t text-center pt-4 border-t border-border/30">Ink Bloop v0.1.0</div>
       </div>
     </div>
   );
