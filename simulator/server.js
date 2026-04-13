@@ -45,7 +45,7 @@ app.use(express.static(join(__dirname, 'public')));
 // ── Simulator config ─────────────────────────────────────────────────────────
 
 let simConfig = {
-  webhookUrl: process.env.WEBHOOK_URL || 'http://localhost:3000/webhook',
+  webhookUrl: process.env.WEBHOOK_URL || 'https://jpjvexfldouobiiczhax.supabase.co/functions/v1/webhook',
   verifyToken: process.env.VERIFY_TOKEN || 'inkbloop-dev-token',
   appSecret: process.env.APP_SECRET || 'inkbloop-dev-secret',
   accessToken: process.env.ACCESS_TOKEN || 'SIM_ACCESS_TOKEN_DEV',
