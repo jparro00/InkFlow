@@ -138,7 +138,7 @@ function XButtonTrace({ trigger, buttonRef }: { trigger: number; buttonRef: Reac
     if (!path || !svg || !shape || trigger === 0) return;
 
     const len = path.getTotalLength();
-    const duration = 700;
+    const duration = 1000;
 
     svg.style.transition = 'none';
     svg.style.opacity = '1';
