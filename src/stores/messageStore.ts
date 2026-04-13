@@ -120,10 +120,13 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
       const dbMessages = await fetchMessagesFromDB(conversationId);
       if (get().currentConversationId === conversationId || !get().currentConversationId) {
         const older = get().olderMessages;
+        // Only set hasOlderMessages to true if DB has 20+ AND we haven't already
+        // confirmed there are no older messages via loadOlderMessages
+        const currentHasOlder = get().hasOlderMessages;
         set((s) => ({
           currentMessages: [...older, ...dbMessages],
           currentConversationId: conversationId,
-          hasOlderMessages: dbMessages.length >= 20,
+          hasOlderMessages: currentHasOlder && dbMessages.length >= 20,
           isLoadingMessages: false,
           messageCache: { ...s.messageCache, [conversationId]: dbMessages },
         }));
