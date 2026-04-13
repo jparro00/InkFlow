@@ -119,7 +119,7 @@ function HueSlider({ value, onChange }: { value: string; onChange: (v: string) =
 
 // --- Defaults ---
 const defaults = {
-  accent: '#FF422D',
+  accent: '#DE0000',
   'accent-dim': '#CC0068',
   danger: '#FE0000',
   success: '#FECA00',

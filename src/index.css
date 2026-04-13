@@ -15,10 +15,10 @@
   --color-text-t: rgba(255, 255, 255, 0.38);  /* disabled / tertiary */
 
   /* Primary accent — Keeps Red */
-  --color-accent: #FF422D;
+  --color-accent: #DE0000;
   --color-accent-dim: #CC0068;
-  --color-accent-glow: rgba(255, 66, 45, 0.12);
-  --accent-rgb: 255, 66, 45;
+  --color-accent-glow: rgba(222, 0, 0, 0.12);
+  --accent-rgb: 222, 0, 0;
 
   /* Status colors */
   --color-danger: #FE0000;
@@ -50,8 +50,8 @@
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.6);
   --shadow-md: 0 4px 20px rgba(0,0,0,0.7);
   --shadow-lg: 0 12px 40px rgba(0,0,0,0.8);
-  --shadow-glow: 0 0 14px rgba(255,66,45,0.20);
-  --shadow-glow-strong: 0 0 22px rgba(255,66,45,0.32);
+  --shadow-glow: 0 0 14px rgba(222,0,0,0.20);
+  --shadow-glow-strong: 0 0 22px rgba(222,0,0,0.32);
 
   --radius-sm: 6px;
   --radius-md: 10px;
