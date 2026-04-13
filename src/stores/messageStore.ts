@@ -157,7 +157,8 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
     set({ isLoadingOlder: true });
 
     try {
-      const older = await fetchOlderMessages(conversationId);
+      const knownMids = get().currentMessages.map(m => m.id);
+      const older = await fetchOlderMessages(conversationId, knownMids);
       if (older.length === 0) {
         set({ hasOlderMessages: false, isLoadingOlder: false });
         return;

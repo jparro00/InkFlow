@@ -398,8 +398,8 @@ export async function storeOutgoingMessage(
   }
 }
 
-/** Fetch older messages from Graph API (beyond what's in DB). */
-export async function fetchOlderMessages(conversationId: string): Promise<GraphMessage[]> {
+/** Fetch older messages from Graph API (beyond what's in DB + already loaded). */
+export async function fetchOlderMessages(conversationId: string, knownMids: string[]): Promise<GraphMessage[]> {
   // Get all mids currently in DB for this conversation
   const { data: dbRows } = await supabase
     .from('messages')
@@ -408,7 +408,7 @@ export async function fetchOlderMessages(conversationId: string): Promise<GraphM
 
   if (!dbRows?.length) return [];
 
-  const existingMids = new Set(dbRows.map(r => r.mid));
+  const existingMids = new Set([...dbRows.map(r => r.mid), ...knownMids]);
   const platform = dbRows[0].platform;
 
   // Extract client PSID from conversation_id (format: t_{psid})
@@ -435,8 +435,9 @@ export async function fetchOlderMessages(conversationId: string): Promise<GraphM
     };
     const allMsgs = detail.messages?.data ?? [];
 
-    // Return any messages not already in our DB
-    return allMsgs.filter(m => !existingMids.has(m.id));
+    // Return up to 20 messages not already known, oldest first
+    const unknown = allMsgs.filter(m => !existingMids.has(m.id));
+    return unknown.slice(0, 20);
   } catch {
     return [];
   }
