@@ -130,16 +130,7 @@ function XButtonTrace({ trigger, buttonRef }: { trigger: number; buttonRef: Reac
 
     const len = path.getTotalLength();
     const segment = len * 0.35;
-    const travelDuration = 1400; // ms — main travel phase
-    const shrinkDuration = 600;  // ms — tail catches up phase
-    const totalDuration = travelDuration + shrinkDuration;
-
-    // Speed during phase 1 (distance per ms) — used to keep the back
-    // edge moving at the same rate in phase 2
-    const travelDistance = segment + len; // total front-edge travel in phase 1
-    // At end of phase 1 with ease-out cubic, instantaneous speed:
-    // derivative of (1-(1-t)^3) at t=1 is 0, so we use average of last portion
-    const backSpeed = travelDistance / travelDuration; // average speed
+    const duration = 1800; // total animation time
 
     svg.style.transition = 'none';
     svg.style.opacity = '1';
@@ -150,15 +141,18 @@ function XButtonTrace({ trigger, buttonRef }: { trigger: number; buttonRef: Reac
 
     // Reset
     path.style.transition = 'none';
-    path.style.strokeDasharray = `${segment} ${len}`;
-    path.style.strokeDashoffset = `${segment}`;
 
     /*
-     * We track front and back edges as positions along the path.
-     * strokeDashoffset positions the start of the dash pattern:
-     *   front edge = -offset
-     *   back edge  = -offset - segment
-     * So: offset = -frontPos, and segment = frontPos - backPos
+     * Simultaneous animation of dashoffset (position) and dasharray (size).
+     *
+     * dashoffset moves linearly: the "back edge" of the segment advances
+     * at constant speed around the entire path.
+     *
+     * dasharray (segment width) starts at full size, holds steady for the
+     * first 60%, then shrinks to 0 over the remaining 40% with ease-in
+     * timing — the front edge decelerates while the back edge catches up.
+     *
+     * This is the standard technique used in Material/Fluent loading indicators.
      */
 
     const tick = (now: number) => {
@@ -170,44 +164,29 @@ function XButtonTrace({ trigger, buttonRef }: { trigger: number; buttonRef: Reac
         return;
       }
 
-      let front: number;
-      let back: number;
+      const t = Math.min(elapsed / duration, 1);
 
-      if (elapsed <= travelDuration) {
-        // Phase 1: both edges move together, constant segment size
-        const t = elapsed / travelDuration;
-        const ease = 1 - Math.pow(1 - t, 3); // ease-out cubic
-        front = -segment + ease * travelDistance;
-        back = front - segment;
-      } else if (elapsed <= totalDuration) {
-        // Phase 2: front decelerates to stop, back keeps constant speed
-        const t2 = (elapsed - travelDuration) / shrinkDuration;
+      // Offset moves linearly — back edge at constant speed
+      // Goes from +segment (segment hidden before path start) to -len (past end)
+      const offset = segment - t * (segment + len + segment);
 
-        // Front position at end of phase 1
-        const frontAtP1End = -segment + travelDistance; // = len
-
-        // Front eases to a stop (small additional travel)
-        const frontExtra = segment * 0.3; // how far front drifts
-        const easeFront = 1 - Math.pow(1 - t2, 2); // ease-out
-        front = frontAtP1End + frontExtra * easeFront;
-
-        // Back keeps moving at constant speed (catches up)
-        const backAtP1End = frontAtP1End - segment;
-        back = backAtP1End + backSpeed * (elapsed - travelDuration);
-
-        // Clamp: back can't pass front
-        if (back >= front) {
-          svg.style.opacity = '0';
-          return;
-        }
+      // Segment width: full size for first 60%, then shrinks to 0
+      const shrinkStart = 0.6;
+      let currentSegment: number;
+      if (t < shrinkStart) {
+        currentSegment = segment;
       } else {
+        const st = (t - shrinkStart) / (1 - shrinkStart); // 0→1 within shrink phase
+        const ease = st * st; // ease-in: slow start, accelerates (tail catches front)
+        currentSegment = segment * (1 - ease);
+      }
+
+      if (currentSegment < 0.5) {
         svg.style.opacity = '0';
         return;
       }
 
-      const currentSegment = Math.max(front - back, 0.5);
-      const offset = -front;
-      path.style.strokeDasharray = `${currentSegment} ${len + segment}`;
+      path.style.strokeDasharray = `${currentSegment} ${len}`;
       path.style.strokeDashoffset = `${offset}`;
 
       raf = requestAnimationFrame(tick);
