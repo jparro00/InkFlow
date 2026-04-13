@@ -22,6 +22,7 @@ interface MessageStore {
 
   // Chat detail state
   currentMessages: GraphMessage[];
+  olderMessages: GraphMessage[];
   currentConversationId: string | null;
   isLoadingMessages: boolean;
   isSending: boolean;
@@ -87,7 +88,11 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
   },
 
   // Chat detail
+  // olderMessages: ephemeral messages loaded from Graph API (not in DB)
+  // dbMessages: messages from Supabase (last 20)
+  // currentMessages: [...olderMessages, ...dbMessages] (computed on each update)
   currentMessages: [],
+  olderMessages: [] as GraphMessage[],
   currentConversationId: null,
   isLoadingMessages: false,
   isSending: false,
@@ -99,7 +104,12 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
     // Show cached messages instantly while fetching fresh ones
     const cached = get().messageCache[conversationId];
     if (cached && get().currentConversationId !== conversationId) {
-      set({ currentMessages: cached, currentConversationId: conversationId, hasOlderMessages: cached.length >= 20 });
+      set({
+        currentMessages: cached,
+        currentConversationId: conversationId,
+        olderMessages: [],
+        hasOlderMessages: cached.length >= 20,
+      });
     }
 
     if (!cached) {
@@ -107,23 +117,20 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
     }
 
     try {
-      const messages = await fetchMessagesFromDB(conversationId);
+      const dbMessages = await fetchMessagesFromDB(conversationId);
       if (get().currentConversationId === conversationId || !get().currentConversationId) {
-        // Preserve any older messages loaded from Graph API (not in DB)
-        const dbMids = new Set(messages.map(m => m.id));
-        const olderMessages = get().currentMessages.filter(m => !dbMids.has(m.id));
-
+        const older = get().olderMessages;
         set((s) => ({
-          currentMessages: [...olderMessages, ...messages],
+          currentMessages: [...older, ...dbMessages],
           currentConversationId: conversationId,
-          hasOlderMessages: messages.length >= 20 || olderMessages.length > 0,
+          hasOlderMessages: dbMessages.length >= 20,
           isLoadingMessages: false,
-          messageCache: { ...s.messageCache, [conversationId]: messages },
+          messageCache: { ...s.messageCache, [conversationId]: dbMessages },
         }));
 
         // Update read state if new messages arrived
-        if (messages.length > 0) {
-          const latestMid = messages[messages.length - 1].id;
+        if (dbMessages.length > 0) {
+          const latestMid = dbMessages[dbMessages.length - 1].id;
           const convo = get().conversations.find((c) => c.id === conversationId);
           if (convo && convo.lastMid !== latestMid) {
             set((s) => ({
@@ -147,18 +154,21 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
     set({ isLoadingOlder: true });
 
     try {
-      console.log('[loadOlder] Fetching for conversation:', conversationId);
       const older = await fetchOlderMessages(conversationId);
-      console.log('[loadOlder] Got', older.length, 'older messages');
       if (older.length === 0) {
         set({ hasOlderMessages: false, isLoadingOlder: false });
         return;
       }
-      set((s) => ({
-        currentMessages: [...older, ...s.currentMessages],
-        hasOlderMessages: older.length >= 20,
-        isLoadingOlder: false,
-      }));
+      // Store in ephemeral olderMessages — these never go to DB
+      set((s) => {
+        const allOlder = [...older, ...s.olderMessages];
+        return {
+          olderMessages: allOlder,
+          currentMessages: [...allOlder, ...s.messageCache[conversationId] || []],
+          hasOlderMessages: older.length >= 20,
+          isLoadingOlder: false,
+        };
+      });
     } catch {
       set({ isLoadingOlder: false });
     }
@@ -243,7 +253,7 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
     }
   },
 
-  clearCurrentMessages: () => set({ currentMessages: [], currentConversationId: null, hasOlderMessages: true, isLoadingMessages: false }),
+  clearCurrentMessages: () => set({ currentMessages: [], olderMessages: [], currentConversationId: null, hasOlderMessages: true, isLoadingMessages: false }),
 
   // Draft persistence
   drafts: {},
