@@ -5,7 +5,8 @@ const ACCESS_TOKEN = import.meta.env.VITE_META_ACCESS_TOKEN || 'SIM_ACCESS_TOKEN
 
 async function graphGet(path: string): Promise<unknown> {
   const sep = path.includes('?') ? '&' : '?';
-  const res = await fetch(`${API_URL}/v25.0/${path}${sep}access_token=${ACCESS_TOKEN}`);
+  const url = `${API_URL}/v25.0/${path}${sep}access_token=${ACCESS_TOKEN}&_t=${Date.now()}`;
+  const res = await fetch(url, { cache: 'no-store' });
   if (!res.ok) throw new Error(`Graph API error: ${res.status}`);
   return res.json();
 }
