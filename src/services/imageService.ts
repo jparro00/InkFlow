@@ -1,18 +1,23 @@
 import { supabase } from '../lib/supabase';
 import type { BookingImage, ImageSyncStatus } from '../types';
+import type { Database } from '../types/database';
 
-function toBookingImage(row: Record<string, unknown>): BookingImage {
+type ImageRow = Database['public']['Tables']['booking_images']['Row'];
+type ImageInsert = Database['public']['Tables']['booking_images']['Insert'];
+type ImageUpdate = Database['public']['Tables']['booking_images']['Update'];
+
+function toBookingImage(row: ImageRow): BookingImage {
   return {
-    id: row.id as string,
-    booking_id: row.booking_id as string,
-    created_at: row.created_at as string,
-    filename: row.filename as string,
-    mime_type: row.mime_type as string,
-    size_bytes: row.size_bytes as number,
-    width: row.width as number,
-    height: row.height as number,
+    id: row.id,
+    booking_id: row.booking_id,
+    created_at: row.created_at,
+    filename: row.filename,
+    mime_type: row.mime_type,
+    size_bytes: row.size_bytes,
+    width: row.width,
+    height: row.height,
     sync_status: row.sync_status as ImageSyncStatus,
-    remote_path: (row.remote_path as string) ?? undefined,
+    remote_path: row.remote_path ?? undefined,
   };
 }
 
@@ -29,19 +34,21 @@ export async function fetchImages(): Promise<BookingImage[]> {
 export async function createImageMeta(
   image: Omit<BookingImage, 'created_at'>
 ): Promise<BookingImage> {
+  const row: ImageInsert = {
+    id: image.id,
+    booking_id: image.booking_id,
+    filename: image.filename,
+    mime_type: image.mime_type,
+    size_bytes: image.size_bytes,
+    width: image.width,
+    height: image.height,
+    sync_status: image.sync_status,
+    remote_path: image.remote_path ?? null,
+  };
+
   const { data, error } = await supabase
     .from('booking_images')
-    .insert({
-      id: image.id,
-      booking_id: image.booking_id,
-      filename: image.filename,
-      mime_type: image.mime_type,
-      size_bytes: image.size_bytes,
-      width: image.width,
-      height: image.height,
-      sync_status: image.sync_status,
-      remote_path: image.remote_path ?? null,
-    })
+    .insert(row)
     .select()
     .single();
 
@@ -72,7 +79,7 @@ export async function updateImageSyncStatus(
   syncStatus: ImageSyncStatus,
   remotePath?: string
 ): Promise<void> {
-  const update: Record<string, unknown> = { sync_status: syncStatus };
+  const update: ImageUpdate = { sync_status: syncStatus };
   if (remotePath !== undefined) update.remote_path = remotePath;
 
   const { error } = await supabase
@@ -89,7 +96,7 @@ export async function remapBookingImages(
 ): Promise<void> {
   const { error } = await supabase
     .from('booking_images')
-    .update({ booking_id: newBookingId })
+    .update({ booking_id: newBookingId } as ImageUpdate)
     .eq('booking_id', oldBookingId);
 
   if (error) throw error;

@@ -1,21 +1,26 @@
 import { supabase } from '../lib/supabase';
 import type { Client, ClientNote } from '../types';
+import type { Database, Json } from '../types/database';
+
+type ClientRow = Database['public']['Tables']['clients']['Row'];
+type ClientInsert = Database['public']['Tables']['clients']['Insert'];
+type ClientUpdate = Database['public']['Tables']['clients']['Update'];
 
 /** Transform a Supabase row into a frontend Client object. */
-function toClient(row: Record<string, unknown>): Client {
+function toClient(row: ClientRow): Client {
   return {
-    id: row.id as string,
-    created_at: row.created_at as string,
-    name: row.name as string,
-    display_name: (row.display_name as string) ?? undefined,
-    phone: (row.phone as string) ?? undefined,
-    instagram: (row.instagram as string) ?? undefined,
-    facebook_id: (row.facebook_id as string) ?? undefined,
-    email: (row.email as string) ?? undefined,
-    dob: (row.dob as string) ?? undefined,
-    channel: (row.channel as Client['channel']) ?? undefined,
-    tags: (row.tags as string[]) ?? [],
-    notes: (row.notes as ClientNote[]) ?? [],
+    id: row.id,
+    created_at: row.created_at,
+    name: row.name,
+    display_name: row.display_name ?? undefined,
+    phone: row.phone ?? undefined,
+    instagram: row.instagram ?? undefined,
+    facebook_id: row.facebook_id ?? undefined,
+    email: row.email ?? undefined,
+    dob: row.dob ?? undefined,
+    channel: row.channel ?? undefined,
+    tags: row.tags ?? [],
+    notes: (row.notes as unknown as ClientNote[]) ?? [],
   };
 }
 
@@ -32,20 +37,22 @@ export async function fetchClients(): Promise<Client[]> {
 export async function createClient(
   client: Omit<Client, 'id' | 'created_at' | 'notes'>
 ): Promise<Client> {
+  const row: ClientInsert = {
+    name: client.name,
+    display_name: client.display_name ?? null,
+    phone: client.phone ?? null,
+    instagram: client.instagram ?? null,
+    facebook_id: client.facebook_id ?? null,
+    email: client.email ?? null,
+    dob: client.dob ?? null,
+    channel: client.channel ?? null,
+    tags: client.tags ?? [],
+    notes: [] as Json,
+  };
+
   const { data, error } = await supabase
     .from('clients')
-    .insert({
-      name: client.name,
-      display_name: client.display_name ?? null,
-      phone: client.phone ?? null,
-      instagram: client.instagram ?? null,
-      facebook_id: client.facebook_id ?? null,
-      email: client.email ?? null,
-      dob: client.dob ?? null,
-      channel: client.channel ?? null,
-      tags: client.tags ?? [],
-      notes: [],
-    })
+    .insert(row)
     .select()
     .single();
 
@@ -57,14 +64,18 @@ export async function updateClient(
   id: string,
   updates: Partial<Client>
 ): Promise<void> {
-  // Strip frontend-only fields that don't exist in DB
-  const { id: _id, created_at: _ca, ...dbUpdates } = updates as Record<string, unknown>;
+  const payload: ClientUpdate = {};
 
-  // Convert undefined to null for nullable DB columns
-  const payload: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(dbUpdates)) {
-    payload[key] = value === undefined ? null : value;
-  }
+  if (updates.name !== undefined) payload.name = updates.name;
+  if (updates.display_name !== undefined) payload.display_name = updates.display_name ?? null;
+  if (updates.phone !== undefined) payload.phone = updates.phone ?? null;
+  if (updates.instagram !== undefined) payload.instagram = updates.instagram ?? null;
+  if (updates.facebook_id !== undefined) payload.facebook_id = updates.facebook_id ?? null;
+  if (updates.email !== undefined) payload.email = updates.email ?? null;
+  if (updates.dob !== undefined) payload.dob = updates.dob ?? null;
+  if (updates.channel !== undefined) payload.channel = updates.channel ?? null;
+  if (updates.tags !== undefined) payload.tags = updates.tags;
+  if (updates.notes !== undefined) payload.notes = updates.notes as unknown as Json;
 
   const { error } = await supabase
     .from('clients')
@@ -89,7 +100,7 @@ export async function updateClientNotes(
 ): Promise<void> {
   const { error } = await supabase
     .from('clients')
-    .update({ notes: notes as unknown as Record<string, unknown>[] })
+    .update({ notes: notes as unknown as Json })
     .eq('id', id);
 
   if (error) throw error;

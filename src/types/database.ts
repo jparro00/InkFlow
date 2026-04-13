@@ -49,6 +49,15 @@ export interface Database {
           tags?: string[];
           notes?: Json;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'clients_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       bookings: {
         Row: {
@@ -93,6 +102,22 @@ export interface Database {
           notes?: string | null;
           quick_booking_raw?: string | null;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'bookings_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'bookings_client_id_fkey';
+            columns: ['client_id'];
+            isOneToOne: false;
+            referencedRelation: 'clients';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       booking_images: {
         Row: {
@@ -134,6 +159,22 @@ export interface Database {
           sync_status?: string;
           remote_path?: string | null;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'booking_images_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'booking_images_booking_id_fkey';
+            columns: ['booking_id'];
+            isOneToOne: false;
+            referencedRelation: 'bookings';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       documents: {
         Row: {
@@ -178,6 +219,29 @@ export interface Database {
           size_bytes?: number | null;
           notes?: string | null;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'documents_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'documents_client_id_fkey';
+            columns: ['client_id'];
+            isOneToOne: false;
+            referencedRelation: 'clients';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'documents_booking_id_fkey';
+            columns: ['booking_id'];
+            isOneToOne: false;
+            referencedRelation: 'bookings';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       age_verification_logs: {
         Row: {
@@ -210,10 +274,27 @@ export interface Database {
           document_deleted?: boolean;
           notes?: string | null;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'age_verification_logs_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'age_verification_logs_client_id_fkey';
+            columns: ['client_id'];
+            isOneToOne: false;
+            referencedRelation: 'clients';
+            referencedColumns: ['id'];
+          },
+        ];
       };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
     Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
   };
 }
