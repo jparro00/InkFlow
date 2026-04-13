@@ -54,10 +54,14 @@ export default function ClientDetailPage() {
     openBookingForm();
   };
 
-  const handleAddNote = () => {
+  const handleAddNote = async () => {
     if (noteText.trim()) {
-      addNote(client.id, noteText.trim());
-      setNoteText('');
+      try {
+        await addNote(client.id, noteText.trim());
+        setNoteText('');
+      } catch (e) {
+        console.error('Failed to add note:', e);
+      }
     }
   };
 

@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useImageStore } from '../stores/imageStore';
 import { saveImage, getThumbnail, getOriginal, deleteImage as deleteImageBlob } from '../lib/imageDb';
 import { generateThumbnail } from '../utils/imageProcessing';
+import { imageSyncQueue } from '../lib/imageSync';
+import { supabase } from '../lib/supabase';
 import type { BookingImage } from '../types';
 
 export interface ThumbnailEntry {
@@ -24,6 +26,7 @@ export function useBookingImages(bookingId: string | undefined) {
   const urlsRef = useRef<string[]>([]);
 
   // Load thumbnails from IndexedDB when image metadata changes
+  // Falls back to downloading from Supabase Storage if not available locally
   useEffect(() => {
     if (!images.length) {
       setThumbnails([]);
@@ -35,7 +38,28 @@ export function useBookingImages(bookingId: string | undefined) {
     async function loadThumbnails() {
       const entries: ThumbnailEntry[] = [];
       for (const meta of images) {
-        const blob = await getThumbnail(meta.id);
+        let blob = await getThumbnail(meta.id);
+
+        // If no local blob but synced to cloud, download from Supabase Storage
+        if (!blob && meta.sync_status === 'synced' && meta.remote_path) {
+          try {
+            const { data } = await supabase.storage
+              .from('booking-images')
+              .download(meta.remote_path);
+
+            if (data && !cancelled) {
+              // Regenerate thumbnail and cache locally
+              const { thumbnail } = await generateThumbnail(
+                new File([data], meta.filename, { type: meta.mime_type })
+              );
+              await saveImage(meta.id, data, thumbnail);
+              blob = thumbnail;
+            }
+          } catch (e) {
+            console.error(`[useBookingImages] Failed to download ${meta.id}:`, e);
+          }
+        }
+
         if (blob && !cancelled) {
           const url = URL.createObjectURL(blob);
           urlsRef.current.push(url);
@@ -70,6 +94,7 @@ export function useBookingImages(bookingId: string | undefined) {
       const id = crypto.randomUUID();
       const { thumbnail, width, height } = await generateThumbnail(file);
 
+      // Save to IndexedDB immediately (local-first)
       await saveImage(id, file, thumbnail);
 
       const meta = addImageMeta({
@@ -81,6 +106,14 @@ export function useBookingImages(bookingId: string | undefined) {
         width,
         height,
         sync_status: 'local',
+      });
+
+      // Enqueue background upload to Supabase Storage
+      imageSyncQueue.enqueue({
+        imageId: id,
+        bookingId,
+        filename: file.name,
+        mimeType: file.type || 'image/jpeg',
       });
 
       const url = URL.createObjectURL(thumbnail);
@@ -103,10 +136,27 @@ export function useBookingImages(bookingId: string | undefined) {
   }, [removeImageMeta]);
 
   const getOriginalUrl = useCallback(async (id: string): Promise<string | null> => {
-    const blob = await getOriginal(id);
+    // Try local first
+    let blob = await getOriginal(id);
+
+    // Fall back to cloud
+    if (!blob) {
+      const meta = images.find((img) => img.id === id);
+      if (meta?.sync_status === 'synced' && meta.remote_path) {
+        try {
+          const { data } = await supabase.storage
+            .from('booking-images')
+            .download(meta.remote_path);
+          if (data) blob = data;
+        } catch (e) {
+          console.error(`[useBookingImages] Failed to download original ${id}:`, e);
+        }
+      }
+    }
+
     if (!blob) return null;
     return URL.createObjectURL(blob);
-  }, []);
+  }, [images]);
 
   return { thumbnails, isLoading, addImages, removeImage, getOriginalUrl };
 }

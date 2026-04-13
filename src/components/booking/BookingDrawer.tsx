@@ -34,20 +34,28 @@ export default function BookingDrawer() {
   const endTime = new Date(d.getTime() + booking.duration * 60 * 60 * 1000);
   const onClose = () => setSelectedBookingId(null);
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     const bookingCopy = { ...booking };
     allImages.filter((img) => img.booking_id === booking.id).forEach((img) => deleteImageBlob(img.id));
     removeImagesForBooking(booking.id);
-    deleteBooking(booking.id);
+    try {
+      await deleteBooking(booking.id);
+    } catch (e) {
+      console.error('Failed to delete booking:', e);
+    }
     setSelectedBookingId(null);
     addToast('Booking deleted', {
       label: 'Undo',
-      onClick: () => useBookingStore.getState().addBooking(bookingCopy),
+      onClick: () => { useBookingStore.getState().addBooking(bookingCopy).catch(console.error); },
     });
   };
 
-  const handleStatusChange = (status: BookingStatus) => {
-    updateBooking(booking.id, { status });
+  const handleStatusChange = async (status: BookingStatus) => {
+    try {
+      await updateBooking(booking.id, { status });
+    } catch (e) {
+      console.error('Failed to update status:', e);
+    }
   };
 
   return (
@@ -131,7 +139,7 @@ export default function BookingDrawer() {
         {/* Rescheduled flag */}
         <div className="h-px bg-border/40 my-5" />
         <button
-          onClick={() => updateBooking(booking.id, { rescheduled: !booking.rescheduled })}
+          onClick={() => { updateBooking(booking.id, { rescheduled: !booking.rescheduled }).catch(console.error); }}
           className={`flex items-center gap-3 w-full text-left py-3 cursor-pointer press-scale min-h-[44px] transition-colors ${booking.rescheduled ? 'text-danger' : 'text-text-s'}`}
         >
           <span className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${booking.rescheduled ? 'border-danger bg-danger/20' : 'border-border'}`}>

@@ -120,7 +120,7 @@ export default function BookingForm() {
     ? clients.filter((c) => c.name.toLowerCase().includes(clientSearch.toLowerCase()))
     : clients;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const dateTime = new Date(`${form.date}T${form.time}`);
     const data: Omit<Booking, 'id' | 'created_at'> = {
       client_id: form.client_id || null,
@@ -133,13 +133,17 @@ export default function BookingForm() {
       notes: form.notes || undefined,
     };
 
-    if (editingBookingId) {
-      updateBooking(editingBookingId, data);
-    } else {
-      const newBooking = addBooking(data);
-      remapBookingImages(tempBookingId.current, newBooking.id);
+    try {
+      if (editingBookingId) {
+        await updateBooking(editingBookingId, data);
+      } else {
+        const newBooking = await addBooking(data);
+        remapBookingImages(tempBookingId.current, newBooking.id);
+      }
+      closeBookingForm();
+    } catch (e) {
+      console.error('Failed to save booking:', e);
     }
-    closeBookingForm();
   };
 
   const isValid = form.date && form.client_id;
@@ -379,7 +383,7 @@ export default function BookingForm() {
           const currentClients = useClientStore.getState().clients;
           // Only auto-select if a new client was actually added
           if (currentClients.length > clients.length) {
-            const latest = currentClients[currentClients.length - 1];
+            const latest = currentClients[0]; // Optimistic insert prepends
             setForm((f) => ({ ...f, client_id: latest.id }));
             setClientSearch(latest.name);
           }

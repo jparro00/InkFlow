@@ -23,14 +23,18 @@ function CreateClientFormContent() {
 
   const isValid = name.trim().length > 0;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!isValid) return;
-    addClient({
-      name: name.trim(),
-      phone: phone || undefined,
-      channel: channel || undefined,
-      tags: [],
-    });
+    try {
+      await addClient({
+        name: name.trim(),
+        phone: phone || undefined,
+        channel: channel || undefined,
+        tags: [],
+      });
+    } catch (e) {
+      console.error('Failed to create client:', e);
+    }
     dismiss();
   };
 

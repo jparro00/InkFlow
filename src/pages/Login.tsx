@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { supabase } from '../lib/supabase';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -8,14 +9,79 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [showTotp, setShowTotp] = useState(false);
   const [totp, setTotp] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [factorId, setFactorId] = useState('');
+  const [challengeId, setChallengeId] = useState('');
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!showTotp) {
-      setShowTotp(true);
-      return;
+    setError('');
+    setIsLoading(true);
+
+    try {
+      if (!showTotp) {
+        // Phase 1: email + password
+        const { data, error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (signInError) {
+          setError(signInError.message);
+          setIsLoading(false);
+          return;
+        }
+
+        // Check if MFA is required
+        const { data: factors } = await supabase.auth.mfa.listFactors();
+        const totpFactors = factors?.totp ?? [];
+
+        if (totpFactors.length > 0) {
+          // MFA enrolled — challenge required
+          const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
+            factorId: totpFactors[0].id,
+          });
+
+          if (challengeError) {
+            setError(challengeError.message);
+            setIsLoading(false);
+            return;
+          }
+
+          setFactorId(totpFactors[0].id);
+          setChallengeId(challenge.id);
+          setShowTotp(true);
+          setIsLoading(false);
+          return;
+        }
+
+        // No MFA — session is ready
+        if (data.session) {
+          navigate('/');
+        }
+      } else {
+        // Phase 2: verify TOTP
+        const { error: verifyError } = await supabase.auth.mfa.verify({
+          factorId,
+          challengeId,
+          code: totp,
+        });
+
+        if (verifyError) {
+          setError(verifyError.message);
+          setTotp('');
+          setIsLoading(false);
+          return;
+        }
+
+        navigate('/');
+      }
+    } catch (err) {
+      setError('An unexpected error occurred');
     }
-    navigate('/');
+
+    setIsLoading(false);
   };
 
   const inputClass = "w-full bg-input border border-border/60 rounded-md px-4 py-4 text-base text-text-p placeholder:text-text-t focus:outline-none focus:border-accent/40 transition-colors min-h-[52px]";
@@ -57,6 +123,7 @@ export default function LoginPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     className={inputClass}
                     autoFocus
+                    required
                   />
                 </div>
                 <div>
@@ -68,6 +135,7 @@ export default function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className={inputClass}
+                    required
                   />
                 </div>
               </>
@@ -94,11 +162,18 @@ export default function LoginPage() {
               </motion.div>
             )}
 
+            {error && (
+              <div className="text-sm text-danger text-center py-2">
+                {error}
+              </div>
+            )}
+
             <button
               type="submit"
-              className="w-full py-4 bg-accent text-bg text-base rounded-md font-medium cursor-pointer press-scale transition-all shadow-glow active:shadow-glow-strong mt-3 min-h-[52px]"
+              disabled={isLoading}
+              className="w-full py-4 bg-accent text-bg text-base rounded-md font-medium cursor-pointer press-scale transition-all shadow-glow active:shadow-glow-strong mt-3 min-h-[52px] disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {showTotp ? 'Verify' : 'Sign In'}
+              {isLoading ? 'Signing in...' : showTotp ? 'Verify' : 'Sign In'}
             </button>
           </form>
         </div>

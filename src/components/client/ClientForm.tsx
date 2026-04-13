@@ -48,7 +48,7 @@ export default function ClientForm({ client, onClose }: ClientFormProps) {
   const facebookValid = !form.facebook_id || facebookRegex.test(form.facebook_id);
   const isValid = form.name.trim() && emailValid && instagramValid && facebookValid;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!isValid) return;
     const data = {
       name: form.name,
@@ -64,10 +64,14 @@ export default function ClientForm({ client, onClose }: ClientFormProps) {
         .filter(Boolean),
     };
 
-    if (client) {
-      updateClient(client.id, data);
-    } else {
-      addClient(data);
+    try {
+      if (client) {
+        await updateClient(client.id, data);
+      } else {
+        await addClient(data);
+      }
+    } catch (e) {
+      console.error('Failed to save client:', e);
     }
     onClose();
   };

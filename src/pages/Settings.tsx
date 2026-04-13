@@ -2,11 +2,14 @@ import { useClientStore } from '../stores/clientStore';
 import { useBookingStore } from '../stores/bookingStore';
 import { useState, useEffect } from 'react';
 import { useUIStore } from '../stores/uiStore';
+import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
 
 export default function SettingsPage() {
   const clients = useClientStore((s) => s.clients);
   const bookings = useBookingStore((s) => s.bookings);
   const { setHeaderLeft, setHeaderRight } = useUIStore();
+  const { signOut } = useAuth();
 
   useEffect(() => {
     setHeaderLeft(null);
@@ -20,6 +23,31 @@ export default function SettingsPage() {
   const [morningTime, setMorningTime] = useState(() => localStorage.getItem('inkflow-morning-time') ?? '10:00');
   const [eveningTime, setEveningTime] = useState(() => localStorage.getItem('inkflow-evening-time') ?? '14:00');
   const [timesSaved, setTimesSaved] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [passwordSaved, setPasswordSaved] = useState(false);
+  const [totpLoading, setTotpLoading] = useState(false);
+  const [totpStatus, setTotpStatus] = useState<'checking' | 'enabled' | 'disabled'>('checking');
+
+  // Check TOTP status on mount
+  useEffect(() => {
+    supabase.auth.mfa.listFactors().then(({ data }) => {
+      const hasTotp = (data?.totp?.length ?? 0) > 0;
+      setTotpStatus(hasTotp ? 'enabled' : 'disabled');
+    });
+  }, []);
+
+  const handleChangePassword = async () => {
+    if (!newPassword.trim()) return;
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      setPasswordSaved(true);
+      setNewPassword('');
+      setTimeout(() => setPasswordSaved(false), 3000);
+    } catch (e) {
+      console.error('Failed to change password:', e);
+    }
+  };
 
   const handleExport = () => {
     const client = clients.find(
@@ -53,17 +81,21 @@ export default function SettingsPage() {
       <section className={sectionClass}>
         <h2 className="text-md text-text-p font-display mb-3">Account</h2>
         <div className={cardClass}>
-          <div className={rowClass}>
-            <span className="text-base text-text-s">Change password</span>
-            <button className="text-base text-accent active:text-accent-dim transition-colors cursor-pointer press-scale min-h-[44px] px-2">
-              Change
-            </button>
-          </div>
-          <div className="h-px bg-border/30" />
-          <div className={rowClass}>
-            <span className="text-base text-text-s">Backup recovery codes</span>
-            <button className="text-base text-accent active:text-accent-dim transition-colors cursor-pointer press-scale min-h-[44px] px-2">
-              Regenerate
+          <div className="text-base text-text-s mb-2">Change password</div>
+          <div className="flex gap-3">
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="New password"
+              className={`${inputClass} flex-1`}
+            />
+            <button
+              onClick={handleChangePassword}
+              disabled={!newPassword.trim()}
+              className="px-5 py-3.5 text-base bg-accent text-bg rounded-md cursor-pointer press-scale transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0 min-h-[48px]"
+            >
+              {passwordSaved ? 'Updated!' : 'Change'}
             </button>
           </div>
         </div>
@@ -75,10 +107,33 @@ export default function SettingsPage() {
           <div className={rowClass}>
             <div>
               <div className="text-base text-text-p">TOTP Status</div>
-              <div className="text-sm text-success mt-1">Enabled</div>
+              <div className={`text-sm mt-1 ${totpStatus === 'enabled' ? 'text-success' : totpStatus === 'disabled' ? 'text-text-t' : 'text-text-t'}`}>
+                {totpStatus === 'checking' ? 'Checking...' : totpStatus === 'enabled' ? 'Enabled' : 'Not enrolled'}
+              </div>
             </div>
-            <button className="text-base text-accent active:text-accent-dim transition-colors cursor-pointer press-scale min-h-[44px] px-2">
-              Re-enroll
+            <button
+              onClick={async () => {
+                setTotpLoading(true);
+                try {
+                  if (totpStatus === 'enabled') {
+                    const { data } = await supabase.auth.mfa.listFactors();
+                    if (data?.totp?.[0]) {
+                      await supabase.auth.mfa.unenroll({ factorId: data.totp[0].id });
+                      setTotpStatus('disabled');
+                    }
+                  } else {
+                    await supabase.auth.mfa.enroll({ factorType: 'totp' });
+                    setTotpStatus('enabled');
+                  }
+                } catch (e) {
+                  console.error('TOTP action failed:', e);
+                }
+                setTotpLoading(false);
+              }}
+              disabled={totpLoading || totpStatus === 'checking'}
+              className="text-base text-accent active:text-accent-dim transition-colors cursor-pointer press-scale min-h-[44px] px-2 disabled:opacity-40"
+            >
+              {totpLoading ? '...' : totpStatus === 'enabled' ? 'Remove' : 'Enroll'}
             </button>
           </div>
         </div>
@@ -87,15 +142,12 @@ export default function SettingsPage() {
       <section className={sectionClass}>
         <h2 className="text-md text-text-p font-display mb-3">Session</h2>
         <div className={cardClass}>
-          <div className={rowClass}>
-            <span className="text-base text-text-s">Auto-logout timeout</span>
-            <select className="bg-input border border-border/60 rounded-md px-4 py-3 text-base text-text-p cursor-pointer min-h-[48px]">
-              <option>4 hours</option>
-              <option>8 hours</option>
-              <option>12 hours</option>
-              <option>24 hours</option>
-            </select>
-          </div>
+          <button
+            onClick={() => signOut()}
+            className="w-full py-3.5 text-base text-danger rounded-md border border-danger/30 cursor-pointer press-scale transition-all active:bg-danger/10 min-h-[48px]"
+          >
+            Sign Out
+          </button>
         </div>
       </section>
 
