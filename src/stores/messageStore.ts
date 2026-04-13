@@ -21,6 +21,11 @@ interface MessageStore {
   fetchMessages: (conversationId: string) => Promise<void>;
   sendMessage: (conversationId: string, platform: 'instagram' | 'messenger', recipientPsid: string, text: string) => Promise<void>;
   clearCurrentMessages: () => void;
+
+  // Draft persistence
+  drafts: Record<string, string>;
+  setDraft: (conversationId: string, text: string) => void;
+  clearDraft: (conversationId: string) => void;
 }
 
 export const useMessageStore = create<MessageStore>((set, get) => ({
@@ -83,14 +88,18 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
         ),
         isSending: false,
       }));
-      // Also update the conversation list snippet
-      set((s) => ({
-        conversations: s.conversations.map((c) =>
-          c.id === conversationId
-            ? { ...c, lastMessage: text, lastMessageTime: new Date().toISOString(), lastMessageFromClient: false, unreadCount: 0 }
-            : c
-        ),
-      }));
+      // Also update the conversation list snippet and clear draft
+      set((s) => {
+        const { [conversationId]: _, ...restDrafts } = s.drafts;
+        return {
+          conversations: s.conversations.map((c) =>
+            c.id === conversationId
+              ? { ...c, lastMessage: text, lastMessageTime: new Date().toISOString(), lastMessageFromClient: false, unreadCount: 0 }
+              : c
+          ),
+          drafts: restDrafts,
+        };
+      });
     } catch (e) {
       // Remove optimistic on failure
       set((s) => ({
@@ -102,6 +111,16 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
   },
 
   clearCurrentMessages: () => set({ currentMessages: [], currentConversationId: null }),
+
+  // Draft persistence
+  drafts: {},
+  setDraft: (conversationId, text) =>
+    set((s) => ({ drafts: { ...s.drafts, [conversationId]: text } })),
+  clearDraft: (conversationId) =>
+    set((s) => {
+      const { [conversationId]: _, ...rest } = s.drafts;
+      return { drafts: rest };
+    }),
 }));
 
 export { isBusinessMessage };

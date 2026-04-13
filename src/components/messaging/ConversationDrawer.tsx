@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
-import { Send } from 'lucide-react';
+import { useEffect, useRef, useCallback } from 'react';
+import { Send, ArrowLeft } from 'lucide-react';
 import { format } from 'date-fns';
-import Modal from '../common/Modal';
+import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
+import { useDrag } from '@use-gesture/react';
 import { useUIStore } from '../../stores/uiStore';
 import { useMessageStore, isBusinessMessage } from '../../stores/messageStore';
 import type { GraphMessage } from '../../services/messageService';
@@ -52,11 +53,57 @@ export default function ConversationDrawer() {
   const markRead = useMessageStore((s) => s.markRead);
   const clearCurrentMessages = useMessageStore((s) => s.clearCurrentMessages);
   const isSending = useMessageStore((s) => s.isSending);
+  const drafts = useMessageStore((s) => s.drafts);
+  const setDraft = useMessageStore((s) => s.setDraft);
+  const clearDraft = useMessageStore((s) => s.clearDraft);
 
   const convo = conversations.find((c) => c.id === selectedConversationId);
-  const [text, setText] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevMsgCount = useRef(0);
+  const isDismissing = useRef(false);
+
+  // Slide-from-right animation
+  const dragX = useMotionValue(window.innerWidth);
+  const backdropOpacity = useTransform(dragX, [0, window.innerWidth], [1, 0]);
+
+  // Enter animation
+  useEffect(() => {
+    animate(dragX, 0, { type: 'spring', damping: 30, stiffness: 300 });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const dismiss = useCallback(() => {
+    if (isDismissing.current) return;
+    isDismissing.current = true;
+    animate(dragX, window.innerWidth, {
+      type: 'spring', stiffness: 200, damping: 30, mass: 1.2,
+      onComplete: () => setSelectedConversationId(null),
+    });
+  }, [dragX, setSelectedConversationId]);
+
+  // Swipe right to close
+  const bindDrag = useDrag(
+    ({ movement: [mx], velocity: [vx], direction: [dx], last, cancel }) => {
+      if (isDismissing.current) return;
+
+      // Only allow rightward swipe
+      if (mx < 0) {
+        dragX.set(0);
+        cancel();
+        return;
+      }
+
+      dragX.set(mx);
+
+      if (last) {
+        if (mx > 80 || (vx > 0.4 && dx > 0)) {
+          dismiss();
+        } else {
+          animate(dragX, 0, { type: 'spring', stiffness: 400, damping: 30 });
+        }
+      }
+    },
+    { axis: 'x', filterTaps: true, threshold: 10, pointer: { touch: true } }
+  );
 
   // Fetch messages on open + poll
   useEffect(() => {
@@ -85,13 +132,25 @@ export default function ConversationDrawer() {
 
   if (!convo) return null;
 
+  const draftText = drafts[convo.id] ?? '';
+
+  const handleTextChange = (value: string) => {
+    if (value) {
+      setDraft(convo.id, value);
+    } else {
+      clearDraft(convo.id);
+    }
+  };
+
   const handleSend = async () => {
-    const msg = text.trim();
+    const msg = draftText.trim();
     if (!msg) return;
-    setText('');
+    clearDraft(convo.id);
     try {
       await sendMessage(convo.id, convo.platform, convo.participantPsid, msg);
     } catch (e) {
+      // Restore draft on failure
+      setDraft(convo.id, msg);
       console.error('Failed to send:', e);
     }
   };
@@ -104,16 +163,35 @@ export default function ConversationDrawer() {
   };
 
   return (
-    <Modal
-      title={convo.participantName}
-      onClose={() => setSelectedConversationId(null)}
-      fullScreenMobile={true}
-    >
-      <div className="flex flex-col h-full -mx-5 -my-5 lg:-mx-6 lg:-my-5">
+    <>
+      {/* Backdrop */}
+      <motion.div
+        className="fixed inset-0 z-50 backdrop-blur-sm"
+        style={{ backgroundColor: 'var(--color-overlay)', opacity: backdropOpacity }}
+        onClick={dismiss}
+      />
+
+      {/* Panel — slides from right */}
+      <motion.div
+        {...bindDrag()}
+        style={{ x: dragX, touchAction: 'pan-y' }}
+        className="fixed inset-y-0 right-0 w-full lg:max-w-[480px] bg-elevated z-50 flex flex-col shadow-lg"
+      >
+        {/* Header */}
+        <div className="shrink-0 flex items-center gap-3 px-4 py-4 border-b border-border/40">
+          <button
+            onClick={dismiss}
+            className="w-10 h-10 flex items-center justify-center rounded-lg text-text-s active:text-text-p active:bg-surface transition-colors cursor-pointer press-scale"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <h2 className="font-display text-lg text-text-p flex-1 truncate">{convo.participantName}</h2>
+        </div>
+
         {/* Messages area */}
         <div
           ref={scrollRef}
-          className="flex-1 overflow-y-auto px-4 py-4 lg:px-5"
+          className="flex-1 overflow-y-auto px-4 py-4"
           style={{ minHeight: 0 }}
         >
           {currentMessages.length === 0 ? (
@@ -126,10 +204,10 @@ export default function ConversationDrawer() {
         </div>
 
         {/* Composer */}
-        <div className="shrink-0 border-t border-border/40 px-4 py-3 lg:px-5 flex items-end gap-3 bg-elevated">
+        <div className="shrink-0 border-t border-border/40 px-4 py-3 flex items-end gap-3 bg-elevated safe-bottom">
           <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
+            value={draftText}
+            onChange={(e) => handleTextChange(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Type a message..."
             rows={1}
@@ -137,13 +215,13 @@ export default function ConversationDrawer() {
           />
           <button
             onClick={handleSend}
-            disabled={!text.trim() || isSending}
+            disabled={!draftText.trim() || isSending}
             className="w-10 h-10 rounded-full bg-accent text-bg flex items-center justify-center cursor-pointer press-scale transition-all disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
           >
             <Send size={18} />
           </button>
         </div>
-      </div>
-    </Modal>
+      </motion.div>
+    </>
   );
 }
