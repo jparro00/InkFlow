@@ -99,8 +99,8 @@ function DayPanel({
         const top = currentHour * HOUR_HEIGHT;
         return (
           <div className="absolute left-0 right-0 z-20 pointer-events-none flex items-center" style={{ top, transform: 'translateY(-50%)' }}>
-            <div className="shrink-0 flex justify-end" style={{ width: 68 }}>
-              <span className="text-base text-white font-medium bg-today rounded-sm px-3 py-0.5">
+            <div className="shrink-0 flex" style={{ width: 64 }}>
+              <span className="flex-1 text-center text-base text-white font-medium bg-today rounded-sm py-0.5">
                 {format(now, 'h:mm')}
               </span>
             </div>
