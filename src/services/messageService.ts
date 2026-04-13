@@ -299,6 +299,7 @@ export async function fetchConversationsFromDB(): Promise<ConversationSummary[]>
   const convMap = new Map<string, {
     lastMsg: DBMessage;
     unreadCount: number;
+    countingDone: boolean; // stop counting after hitting an echo
   }>();
 
   for (const msg of messages) {
@@ -307,11 +308,14 @@ export async function fetchConversationsFromDB(): Promise<ConversationSummary[]>
       convMap.set(msg.conversation_id, {
         lastMsg: msg,
         unreadCount: !msg.is_echo ? 1 : 0,
+        countingDone: msg.is_echo, // if latest is echo, no unreads
       });
-    } else {
-      // Count consecutive unreads (messages are newest-first)
-      if (!existing.lastMsg.is_echo && !msg.is_echo && existing.unreadCount > 0) {
+    } else if (!existing.countingDone) {
+      // Count consecutive client messages from the end (newest-first)
+      if (!msg.is_echo) {
         existing.unreadCount++;
+      } else {
+        existing.countingDone = true; // hit a business reply, stop counting
       }
     }
   }
