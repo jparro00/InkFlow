@@ -497,13 +497,13 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
             {header ? (
               <div className="shrink-0">{header}</div>
             ) : title ? (
-              <div className="px-5 py-4 lg:px-6 lg:py-4 border-b border-border shrink-0 flex items-center">
+              <div className="px-5 py-4 lg:px-6 lg:py-4 border-b border-border shrink-0 flex items-center relative">
                 <h2 className="font-display text-xl text-text-p flex-1">{title}</h2>
                 {collapsed && (
                   <button
                     ref={xButtonRef}
                     onClick={(e) => { e.stopPropagation(); dismiss(); }}
-                    className="relative w-10 h-10 flex items-center justify-center rounded-lg bg-surface border border-border/40 text-text-s active:text-text-p active:bg-elevated transition-colors cursor-pointer press-scale"
+                    className="absolute top-5 right-5 lg:top-4 lg:right-6 w-10 h-10 flex items-center justify-center rounded-lg bg-surface border border-border/40 text-text-s active:text-text-p active:bg-elevated transition-colors cursor-pointer press-scale"
                   >
                     <X size={16} strokeWidth={2.5} />
                     <XButtonTrace trigger={xTraceTrigger} buttonRef={xButtonRef} />
