@@ -108,8 +108,11 @@ export default function MessagesPage() {
     return () => { setHeaderLeft(null); setHeaderRight(null); };
   }, [setHeaderLeft, setHeaderRight]);
 
+  // Fetch on mount + poll every 5 seconds for new messages
   useEffect(() => {
     fetchConversations();
+    const interval = setInterval(fetchConversations, 5000);
+    return () => clearInterval(interval);
   }, [fetchConversations]);
 
   const filtered = search
