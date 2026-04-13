@@ -82,12 +82,24 @@ function AccentTrace({ sheetRef, headerRef, trigger }: { sheetRef: React.RefObje
       fill="none"
       style={{ overflow: 'visible', opacity: 0 }}
     >
+      <defs>
+        <filter id="accent-glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur" />
+          <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="blur2" />
+          <feMerge>
+            <feMergeNode in="blur2" />
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
       <path
         ref={pathRef}
         d={d}
         stroke="var(--color-accent)"
         strokeWidth="2"
         strokeLinecap="round"
+        filter="url(#accent-glow)"
       />
     </svg>
   );
