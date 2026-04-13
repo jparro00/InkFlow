@@ -322,6 +322,14 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
     };
   }, []);
 
+  // Listen for blocked modal opens → flash X button trace
+  const blockedOpenTrigger = useUIStore((s) => s.blockedOpenTrigger);
+  useEffect(() => {
+    if (collapsed && blockedOpenTrigger > 0) {
+      setXTraceTrigger((n) => n + 1);
+    }
+  }, [blockedOpenTrigger, collapsed]);
+
   // When collapsed, listen for taps on non-interactive elements → flash X button
   useEffect(() => {
     if (!collapsed) return;

@@ -44,6 +44,7 @@ interface UIStore {
   setEditingClientId: (id: string | null) => void;
   modalCollapsed: boolean;
   setModalCollapsed: (collapsed: boolean) => void;
+  blockedOpenTrigger: number;
 }
 
 export const useUIStore = create<UIStore>((set) => ({
@@ -53,25 +54,37 @@ export const useUIStore = create<UIStore>((set) => ({
   setCalendarDate: (date) => set({ calendarDate: date }),
   selectedBookingId: null,
   setSelectedBookingId: (id) => {
-    if (id && useUIStore.getState().modalCollapsed) return;
+    if (id && useUIStore.getState().modalCollapsed) {
+      set((s) => ({ blockedOpenTrigger: s.blockedOpenTrigger + 1 }));
+      return;
+    }
     set({ selectedBookingId: id });
   },
   bookingFormOpen: false,
   editingBookingId: null,
   openBookingForm: (editId) => {
-    if (useUIStore.getState().modalCollapsed) return;
+    if (useUIStore.getState().modalCollapsed) {
+      set((s) => ({ blockedOpenTrigger: s.blockedOpenTrigger + 1 }));
+      return;
+    }
     set({ bookingFormOpen: true, editingBookingId: editId ?? null });
   },
   closeBookingForm: () =>
     set({ bookingFormOpen: false, editingBookingId: null, prefillBookingData: null }),
   quickBookingOpen: false,
   setQuickBookingOpen: (open) => {
-    if (open && useUIStore.getState().modalCollapsed) return;
+    if (open && useUIStore.getState().modalCollapsed) {
+      set((s) => ({ blockedOpenTrigger: s.blockedOpenTrigger + 1 }));
+      return;
+    }
     set({ quickBookingOpen: open });
   },
   searchOpen: false,
   setSearchOpen: (open) => {
-    if (open && useUIStore.getState().modalCollapsed) return;
+    if (open && useUIStore.getState().modalCollapsed) {
+      set((s) => ({ blockedOpenTrigger: s.blockedOpenTrigger + 1 }));
+      return;
+    }
     set({ searchOpen: open });
   },
   sidebarCollapsed: false,
@@ -97,14 +110,21 @@ export const useUIStore = create<UIStore>((set) => ({
   setHeaderRight: (node) => set({ headerRight: node }),
   createClientFormOpen: false,
   setCreateClientFormOpen: (open) => {
-    if (open && useUIStore.getState().modalCollapsed) return;
+    if (open && useUIStore.getState().modalCollapsed) {
+      set((s) => ({ blockedOpenTrigger: s.blockedOpenTrigger + 1 }));
+      return;
+    }
     set({ createClientFormOpen: open });
   },
   editingClientId: null,
   setEditingClientId: (id) => {
-    if (id && useUIStore.getState().modalCollapsed) return;
+    if (id && useUIStore.getState().modalCollapsed) {
+      set((s) => ({ blockedOpenTrigger: s.blockedOpenTrigger + 1 }));
+      return;
+    }
     set({ editingClientId: id });
   },
   modalCollapsed: false,
   setModalCollapsed: (collapsed) => set({ modalCollapsed: collapsed }),
+  blockedOpenTrigger: 0,
 }));
