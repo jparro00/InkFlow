@@ -44,8 +44,7 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
     try {
       const [conversations, readMids] = await Promise.all([
         fetchAllConversations(),
-        // Only fetch read states if we don't have them yet
-        Object.keys(get().readMids).length === 0 ? fetchReadStates() : Promise.resolve(get().readMids),
+        fetchReadStates(),
       ]);
 
       const currentReadMids = { ...get().readMids, ...readMids };
