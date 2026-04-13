@@ -106,10 +106,7 @@ function AccentTrace({ sheetRef, headerRef, trigger }: { sheetRef: React.RefObje
   );
 }
 
-const XBTN_R = 8; // matches rounded-lg (8px)
-const XBTN_SIZE = 40; // w-10 h-10
-
-/** Laser trace around the X close button */
+/** Laser trace around the X icon inside the close button */
 function XButtonTrace({ trigger }: { trigger: number }) {
   const pathRef = useRef<SVGPathElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -120,7 +117,7 @@ function XButtonTrace({ trigger }: { trigger: number }) {
     if (!path || !svg || trigger === 0) return;
 
     const len = path.getTotalLength();
-    const segment = len * 0.3;
+    const segment = len * 0.35;
 
     svg.style.opacity = '1';
     path.style.transition = 'none';
@@ -129,13 +126,13 @@ function XButtonTrace({ trigger }: { trigger: number }) {
     path.getBoundingClientRect();
 
     const startTimer = setTimeout(() => {
-      path.style.transition = 'stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1)';
+      path.style.transition = 'stroke-dashoffset 1.4s cubic-bezier(0.4, 0, 0.2, 1)';
       path.style.strokeDashoffset = `${-len}`;
     }, 30);
 
     const hideTimer = setTimeout(() => {
       svg.style.opacity = '0';
-    }, 900);
+    }, 1600);
 
     return () => {
       clearTimeout(startTimer);
@@ -143,16 +140,18 @@ function XButtonTrace({ trigger }: { trigger: number }) {
     };
   }, [trigger]);
 
-  const s = XBTN_SIZE;
-  const r = XBTN_R;
-  const d = `M 0,${s/2} L 0,${r} A ${r},${r} 0 0,1 ${r},0 L ${s-r},0 A ${r},${r} 0 0,1 ${s},${r} L ${s},${s-r} A ${r},${r} 0 0,1 ${s-r},${s} L ${r},${s} A ${r},${r} 0 0,1 0,${s-r} Z`;
+  // Two strokes of the X: top-left→bottom-right, then top-right→bottom-left
+  // Sized to match the X icon (16px) centered in the 40px button
+  const p = 12; // padding from button edge to X stroke start
+  const s = 40 - p; // stroke end
+  const d = `M ${p},${p} L ${s},${s} M ${s},${p} L ${p},${s}`;
 
   return (
     <svg
       ref={svgRef}
       className="absolute inset-0 pointer-events-none"
-      width={s}
-      height={s}
+      width={40}
+      height={40}
       fill="none"
       style={{ overflow: 'visible', opacity: 0 }}
     >
@@ -169,7 +168,7 @@ function XButtonTrace({ trigger }: { trigger: number }) {
         ref={pathRef}
         d={d}
         stroke="var(--color-accent)"
-        strokeWidth="2"
+        strokeWidth="2.5"
         strokeLinecap="round"
         filter="url(#x-glow)"
       />
