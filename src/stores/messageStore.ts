@@ -35,11 +35,23 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
   isLoading: false,
   error: null,
 
+  // Track when each conversation was marked read (timestamp). New messages after this time show as unread.
+  readTimestamps: {} as Record<string, number>,
+
   fetchConversations: async () => {
     set({ isLoading: true, error: null });
     try {
       const conversations = await fetchAllConversations();
-      set({ conversations, isLoading: false });
+      const readTs = get().readTimestamps;
+      // Preserve read state unless new client messages arrived after we read
+      const merged = conversations.map((c) => {
+        const readAt = readTs[c.id];
+        if (readAt && new Date(c.lastMessageTime).getTime() <= readAt) {
+          return { ...c, lastMessageFromClient: false, unreadCount: 0 };
+        }
+        return c;
+      });
+      set({ conversations: merged, isLoading: false });
     } catch (e) {
       set({ error: (e as Error).message, isLoading: false });
     }
@@ -47,6 +59,7 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
 
   markRead: (conversationId) => {
     set((s) => ({
+      readTimestamps: { ...s.readTimestamps, [conversationId]: Date.now() },
       conversations: s.conversations.map((c) =>
         c.id === conversationId ? { ...c, lastMessageFromClient: false, unreadCount: 0 } : c
       ),
