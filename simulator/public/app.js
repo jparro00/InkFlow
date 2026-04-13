@@ -57,7 +57,7 @@ function connectWebSocket() {
       if (conv) {
         // Check for existing message by mid OR a pending message with matching text
         const existing = conv.messages.find(m => m.mid === event.message.mid);
-        const pending = !existing && conv.messages.find(m => m.mid.startsWith('pending_') && m.text === event.message.text);
+        const pending = !existing && conv.messages.find(m => m.mid.startsWith('pending_') && (m.text === event.message.text || (!m.text && event.message.attachments)));
         if (pending) {
           // Replace pending with real message
           pending.mid = event.message.mid;
@@ -285,11 +285,17 @@ async function handleAttach(input) {
 
   // Send to server
   try {
-    await fetch('/sim/send', {
+    const res = await fetch('/sim/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ psid: selectedPsid, attachments }),
     });
+    const data = await res.json();
+    // Update pending mid so WebSocket dedup works
+    if (conv && data.messageId) {
+      const pending = conv.messages.find(m => m.mid.startsWith('pending_') && !m.text && m.attachments);
+      if (pending) pending.mid = data.messageId;
+    }
   } catch (err) {
     console.error('Attach send failed:', err);
   }

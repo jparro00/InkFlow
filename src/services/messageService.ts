@@ -23,6 +23,7 @@ interface GraphMessage {
   from: { id: string; name: string };
   to: { data: { id: string; name: string }[] };
   message?: string;
+  attachments?: { data: { type: string }[] };
 }
 
 interface GraphProfile {
@@ -83,7 +84,7 @@ async function fetchConversationsForId(
       const msgs = detail.messages?.data;
       if (msgs && msgs.length > 0) {
         const latest = msgs[msgs.length - 1]; // API returns oldest-first
-        lastMessage = latest.message;
+        lastMessage = latest.message || (latest.attachments?.data?.length ? 'Sent an image' : undefined);
         lastMessageTime = latest.created_time;
         lastMessageFromClient = latest.from.id !== PAGE_ID && latest.from.id !== IG_USER_ID;
 
