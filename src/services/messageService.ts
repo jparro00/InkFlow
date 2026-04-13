@@ -80,7 +80,7 @@ async function fetchConversationsForId(
       };
       const msgs = detail.messages?.data;
       if (msgs && msgs.length > 0) {
-        const latest = msgs[0];
+        const latest = msgs[msgs.length - 1]; // API returns oldest-first
         lastMessage = latest.message;
         lastMessageTime = latest.created_time;
         lastMessageFromClient = latest.from.id !== PAGE_ID && latest.from.id !== IG_USER_ID;
