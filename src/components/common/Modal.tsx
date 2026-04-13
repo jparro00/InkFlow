@@ -341,9 +341,9 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
                 {collapsed && (
                   <button
                     onClick={(e) => { e.stopPropagation(); dismiss(); }}
-                    className="w-8 h-8 flex items-center justify-center rounded-full text-text-t active:text-text-p active:bg-surface transition-colors cursor-pointer"
+                    className="w-10 h-10 flex items-center justify-center rounded-lg bg-surface border border-border/40 text-text-s active:text-text-p active:bg-elevated transition-colors cursor-pointer press-scale"
                   >
-                    <X size={18} />
+                    <X size={16} strokeWidth={2.5} />
                   </button>
                 )}
               </div>
