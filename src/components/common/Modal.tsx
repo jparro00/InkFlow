@@ -140,11 +140,11 @@ function XButtonTrace({ trigger }: { trigger: number }) {
     };
   }, [trigger]);
 
-  // Two strokes of the X: top-left→bottom-right, then top-right→bottom-left
-  // Sized to match the X icon (16px) centered in the 40px button
-  const p = 12; // padding from button edge to X stroke start
-  const s = 40 - p; // stroke end
-  const d = `M ${p},${p} L ${s},${s} M ${s},${p} L ${p},${s}`;
+  // Rounded rectangle matching the button's rounded-lg (8px radius), inset by 0.5 for the border
+  const s = 40;
+  const r = 8;
+  const i = 0.5; // inset to sit on the border
+  const d = `M ${i},${s/2} L ${i},${r+i} A ${r},${r} 0 0,1 ${r+i},${i} L ${s-r-i},${i} A ${r},${r} 0 0,1 ${s-i},${r+i} L ${s-i},${s-r-i} A ${r},${r} 0 0,1 ${s-r-i},${s-i} L ${r+i},${s-i} A ${r},${r} 0 0,1 ${i},${s-r-i} Z`;
 
   return (
     <svg
