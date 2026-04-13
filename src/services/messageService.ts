@@ -156,6 +156,27 @@ export async function sendMessage(
   return res.json();
 }
 
+export async function sendImageMessage(
+  platform: 'instagram' | 'messenger',
+  recipientPsid: string,
+  imageUrl: string
+): Promise<{ recipientId: string; messageId: string }> {
+  const id = platform === 'instagram' ? IG_USER_ID : PAGE_ID;
+  const res = await fetch(`${API_URL}/v25.0/${id}/messages?access_token=${ACCESS_TOKEN}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      recipient: { id: recipientPsid },
+      messaging_type: 'RESPONSE',
+      message: {
+        attachment: { type: 'image', payload: { url: imageUrl } },
+      },
+    }),
+  });
+  if (!res.ok) throw new Error(`Send API error: ${res.status}`);
+  return res.json();
+}
+
 export async function fetchAllConversations(): Promise<ConversationSummary[]> {
   const [messenger, instagram] = await Promise.all([
     fetchConversationsForId(PAGE_ID, 'messenger').catch(() => []),

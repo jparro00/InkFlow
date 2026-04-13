@@ -3,6 +3,7 @@ import {
   fetchAllConversations,
   fetchConversationMessages,
   sendMessage as sendMessageApi,
+  sendImageMessage as sendImageApi,
   isBusinessMessage,
 } from '../services/messageService';
 import type { ConversationSummary, GraphMessage } from '../services/messageService';
@@ -20,6 +21,7 @@ interface MessageStore {
   isSending: boolean;
   fetchMessages: (conversationId: string) => Promise<void>;
   sendMessage: (conversationId: string, platform: 'instagram' | 'messenger', recipientPsid: string, text: string) => Promise<void>;
+  sendImage: (conversationId: string, platform: 'instagram' | 'messenger', recipientPsid: string, imageUrl: string) => Promise<void>;
   clearCurrentMessages: () => void;
 
   // Draft persistence
@@ -102,6 +104,38 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
       });
     } catch (e) {
       // Remove optimistic on failure
+      set((s) => ({
+        currentMessages: s.currentMessages.filter((m) => m.id !== optimistic.id),
+        isSending: false,
+      }));
+      throw e;
+    }
+  },
+
+  sendImage: async (conversationId, platform, recipientPsid, imageUrl) => {
+    const optimistic: GraphMessage = {
+      id: 'pending_' + Date.now(),
+      created_time: new Date().toISOString(),
+      from: { id: '__self__', name: 'Ink Bloop' },
+      to: { data: [{ id: recipientPsid, name: '' }] },
+      attachments: { data: [{ type: 'image', payload: { url: imageUrl } }] },
+    };
+    set((s) => ({ currentMessages: [...s.currentMessages, optimistic], isSending: true }));
+
+    try {
+      const result = await sendImageApi(platform, recipientPsid, imageUrl);
+      set((s) => ({
+        currentMessages: s.currentMessages.map((m) =>
+          m.id === optimistic.id ? { ...m, id: result.messageId } : m
+        ),
+        isSending: false,
+        conversations: s.conversations.map((c) =>
+          c.id === conversationId
+            ? { ...c, lastMessage: 'Sent an image', lastMessageTime: new Date().toISOString(), lastMessageFromClient: false, unreadCount: 0 }
+            : c
+        ),
+      }));
+    } catch (e) {
       set((s) => ({
         currentMessages: s.currentMessages.filter((m) => m.id !== optimistic.id),
         isSending: false,

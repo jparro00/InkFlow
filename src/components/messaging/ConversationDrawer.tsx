@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { Send, ArrowLeft } from 'lucide-react';
+import { Send, ArrowLeft, ImagePlus } from 'lucide-react';
 import { format } from 'date-fns';
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
 import { useDrag } from '@use-gesture/react';
@@ -53,12 +53,14 @@ export default function ConversationDrawer() {
   const markRead = useMessageStore((s) => s.markRead);
   const clearCurrentMessages = useMessageStore((s) => s.clearCurrentMessages);
   const isSending = useMessageStore((s) => s.isSending);
+  const sendImage = useMessageStore((s) => s.sendImage);
   const drafts = useMessageStore((s) => s.drafts);
   const setDraft = useMessageStore((s) => s.setDraft);
   const clearDraft = useMessageStore((s) => s.clearDraft);
 
   const convo = conversations.find((c) => c.id === selectedConversationId);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const prevMsgCount = useRef(0);
   const isDismissing = useRef(false);
 
@@ -162,6 +164,24 @@ export default function ConversationDrawer() {
     }
   };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !convo) return;
+    e.target.value = '';
+
+    const dataUrl = await new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.readAsDataURL(file);
+    });
+
+    try {
+      await sendImage(convo.id, convo.platform, convo.participantPsid, dataUrl);
+    } catch (err) {
+      console.error('Failed to send image:', err);
+    }
+  };
+
   return (
     <>
       {/* Backdrop */}
@@ -191,7 +211,7 @@ export default function ConversationDrawer() {
         {/* Messages area */}
         <div
           ref={scrollRef}
-          className="flex-1 overflow-y-auto px-4 py-4"
+          className="flex-1 overflow-y-auto px-4 pt-4 pb-8"
           style={{ minHeight: 0 }}
         >
           {currentMessages.length === 0 ? (
@@ -204,7 +224,21 @@ export default function ConversationDrawer() {
         </div>
 
         {/* Composer */}
-        <div className="shrink-0 border-t border-border/40 px-4 py-3 flex items-end gap-3 bg-elevated safe-bottom">
+        <div className="shrink-0 border-t border-border/40 px-4 py-3 flex items-end gap-2 bg-elevated safe-bottom">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleImageUpload}
+            className="hidden"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isSending}
+            className="w-10 h-10 rounded-full flex items-center justify-center text-text-s active:text-text-p active:bg-surface transition-colors cursor-pointer press-scale shrink-0 disabled:opacity-30"
+          >
+            <ImagePlus size={20} />
+          </button>
           <textarea
             value={draftText}
             onChange={(e) => handleTextChange(e.target.value)}
