@@ -155,24 +155,15 @@ function XButtonTrace({ trigger }: { trigger: number }) {
       width={40}
       height={40}
       fill="none"
-      style={{ overflow: 'visible', opacity: 0 }}
+      style={{ overflow: 'visible', opacity: 1 }}
     >
-      <defs>
-        <filter id="x-glow" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur" />
-          <feMerge>
-            <feMergeNode in="blur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-      </defs>
       <path
         ref={pathRef}
         d={d}
         stroke="var(--color-accent)"
         strokeWidth="2.5"
         strokeLinecap="round"
-        filter="url(#x-glow)"
+        style={{ strokeDasharray: 'none', strokeDashoffset: 0 }}
       />
     </svg>
   );
