@@ -291,6 +291,32 @@ export interface Database {
           },
         ];
       };
+      conversation_reads: {
+        Row: {
+          user_id: string;
+          conversation_id: string;
+          last_read_mid: string;
+        };
+        Insert: {
+          user_id: string;
+          conversation_id: string;
+          last_read_mid: string;
+        };
+        Update: {
+          user_id?: string;
+          conversation_id?: string;
+          last_read_mid?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'conversation_reads_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       user_settings: {
         Row: {
           user_id: string;

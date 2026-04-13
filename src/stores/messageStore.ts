@@ -5,6 +5,8 @@ import {
   sendMessage as sendMessageApi,
   sendImageMessage as sendImageApi,
   isBusinessMessage,
+  markConversationRead,
+  fetchReadStates,
 } from '../services/messageService';
 import type { ConversationSummary, GraphMessage } from '../services/messageService';
 
@@ -12,6 +14,7 @@ interface MessageStore {
   conversations: ConversationSummary[];
   isLoading: boolean;
   error: string | null;
+  readMids: Record<string, string>; // conversationId → last_read_mid (from Supabase)
   fetchConversations: () => Promise<void>;
   markRead: (conversationId: string) => void;
 
@@ -34,36 +37,50 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
   conversations: [],
   isLoading: false,
   error: null,
-
-  // Track when each conversation was marked read (timestamp). New messages after this time show as unread.
-  readTimestamps: {} as Record<string, number>,
+  readMids: {},
 
   fetchConversations: async () => {
     set({ isLoading: true, error: null });
     try {
-      const conversations = await fetchAllConversations();
-      const readTs = get().readTimestamps;
-      // Preserve read state unless new client messages arrived after we read
+      const [conversations, readMids] = await Promise.all([
+        fetchAllConversations(),
+        // Only fetch read states if we don't have them yet
+        Object.keys(get().readMids).length === 0 ? fetchReadStates() : Promise.resolve(get().readMids),
+      ]);
+
+      const currentReadMids = { ...get().readMids, ...readMids };
+
+      // Apply read state: if last message mid matches what we last read, it's read
       const merged = conversations.map((c) => {
-        const readAt = readTs[c.id];
-        if (readAt && new Date(c.lastMessageTime).getTime() <= readAt) {
+        const readMid = currentReadMids[c.id];
+        if (readMid && c.lastMid && readMid === c.lastMid) {
           return { ...c, lastMessageFromClient: false, unreadCount: 0 };
         }
         return c;
       });
-      set({ conversations: merged, isLoading: false });
+
+      set({ conversations: merged, isLoading: false, readMids: currentReadMids });
     } catch (e) {
       set({ error: (e as Error).message, isLoading: false });
     }
   },
 
   markRead: (conversationId) => {
+    const convo = get().conversations.find((c) => c.id === conversationId);
+    const lastMid = convo?.lastMid;
+
+    // Optimistic local update
     set((s) => ({
-      readTimestamps: { ...s.readTimestamps, [conversationId]: Date.now() },
+      readMids: lastMid ? { ...s.readMids, [conversationId]: lastMid } : s.readMids,
       conversations: s.conversations.map((c) =>
         c.id === conversationId ? { ...c, lastMessageFromClient: false, unreadCount: 0 } : c
       ),
     }));
+
+    // Persist to Supabase (fire-and-forget)
+    if (lastMid) {
+      markConversationRead(conversationId, lastMid).catch(console.error);
+    }
   },
 
   // Chat detail
@@ -74,9 +91,24 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
   fetchMessages: async (conversationId) => {
     try {
       const messages = await fetchConversationMessages(conversationId);
-      // Only update if still viewing this conversation
       if (get().currentConversationId === conversationId || !get().currentConversationId) {
         set({ currentMessages: messages, currentConversationId: conversationId });
+
+        // Update lastMid if new messages arrived while viewing
+        if (messages.length > 0) {
+          const latestMid = messages[messages.length - 1].id;
+          const convo = get().conversations.find((c) => c.id === conversationId);
+          if (convo && convo.lastMid !== latestMid) {
+            // Mark read with the new latest mid
+            set((s) => ({
+              readMids: { ...s.readMids, [conversationId]: latestMid },
+              conversations: s.conversations.map((c) =>
+                c.id === conversationId ? { ...c, lastMid: latestMid, lastMessageFromClient: false, unreadCount: 0 } : c
+              ),
+            }));
+            markConversationRead(conversationId, latestMid).catch(console.error);
+          }
+        }
       }
     } catch (e) {
       console.error('Failed to fetch messages:', e);
@@ -84,7 +116,6 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
   },
 
   sendMessage: async (conversationId, platform, recipientPsid, text) => {
-    // Optimistic: add message immediately
     const optimistic: GraphMessage = {
       id: 'pending_' + Date.now(),
       created_time: new Date().toISOString(),
@@ -96,27 +127,27 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
 
     try {
       const result = await sendMessageApi(platform, recipientPsid, text);
-      // Replace optimistic with real message id
       set((s) => ({
         currentMessages: s.currentMessages.map((m) =>
           m.id === optimistic.id ? { ...m, id: result.messageId } : m
         ),
         isSending: false,
       }));
-      // Also update the conversation list snippet and clear draft
+      // Update snippet, clear draft, mark read with our own message
       set((s) => {
         const { [conversationId]: _, ...restDrafts } = s.drafts;
         return {
+          readMids: { ...s.readMids, [conversationId]: result.messageId },
           conversations: s.conversations.map((c) =>
             c.id === conversationId
-              ? { ...c, lastMessage: text, lastMessageTime: new Date().toISOString(), lastMessageFromClient: false, unreadCount: 0 }
+              ? { ...c, lastMessage: text, lastMessageTime: new Date().toISOString(), lastMessageFromClient: false, lastMid: result.messageId, unreadCount: 0 }
               : c
           ),
           drafts: restDrafts,
         };
       });
+      markConversationRead(conversationId, result.messageId).catch(console.error);
     } catch (e) {
-      // Remove optimistic on failure
       set((s) => ({
         currentMessages: s.currentMessages.filter((m) => m.id !== optimistic.id),
         isSending: false,
@@ -142,12 +173,14 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
           m.id === optimistic.id ? { ...m, id: result.messageId } : m
         ),
         isSending: false,
+        readMids: { ...s.readMids, [conversationId]: result.messageId },
         conversations: s.conversations.map((c) =>
           c.id === conversationId
-            ? { ...c, lastMessage: 'Sent an image', lastMessageTime: new Date().toISOString(), lastMessageFromClient: false, unreadCount: 0 }
+            ? { ...c, lastMessage: 'Sent an image', lastMessageTime: new Date().toISOString(), lastMessageFromClient: false, lastMid: result.messageId, unreadCount: 0 }
             : c
         ),
       }));
+      markConversationRead(conversationId, result.messageId).catch(console.error);
     } catch (e) {
       set((s) => ({
         currentMessages: s.currentMessages.filter((m) => m.id !== optimistic.id),

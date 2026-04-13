@@ -1,3 +1,5 @@
+import { supabase } from '../lib/supabase';
+
 const API_URL = import.meta.env.VITE_META_API_URL || 'http://localhost:3001';
 const PAGE_ID = import.meta.env.VITE_META_PAGE_ID || '111222333444555';
 const IG_USER_ID = import.meta.env.VITE_META_IG_USER_ID || '999888777666555';
@@ -43,6 +45,7 @@ export interface ConversationSummary {
   lastMessage?: string;
   lastMessageTime: string;
   lastMessageFromClient: boolean;
+  lastMid?: string;
   unreadCount: number;
 }
 
@@ -75,6 +78,7 @@ async function fetchConversationsForId(
     let lastMessage: string | undefined;
     let lastMessageFromClient = false;
     let lastMessageTime = convo.updated_time;
+    let lastMid: string | undefined;
     let unreadCount = 0;
 
     try {
@@ -84,6 +88,7 @@ async function fetchConversationsForId(
       const msgs = detail.messages?.data;
       if (msgs && msgs.length > 0) {
         const latest = msgs[msgs.length - 1]; // API returns oldest-first
+        lastMid = latest.id;
         lastMessage = latest.message || (latest.attachments?.data?.length ? 'Sent an image' : undefined);
         lastMessageTime = latest.created_time;
         lastMessageFromClient = latest.from.id !== PAGE_ID && latest.from.id !== IG_USER_ID;
@@ -119,6 +124,7 @@ async function fetchConversationsForId(
       lastMessage,
       lastMessageTime,
       lastMessageFromClient,
+      lastMid,
       unreadCount,
     });
   }
@@ -190,6 +196,35 @@ export async function sendMarkSeen(
       sender_action: 'mark_seen',
     }),
   });
+}
+
+// ── Read State (Supabase) ────────────────────────────────────────────────────
+
+export async function markConversationRead(conversationId: string, lastMid: string): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+
+  await supabase.from('conversation_reads').upsert({
+    user_id: user.id,
+    conversation_id: conversationId,
+    last_read_mid: lastMid,
+  });
+}
+
+export async function fetchReadStates(): Promise<Record<string, string>> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return {};
+
+  const { data } = await supabase
+    .from('conversation_reads')
+    .select('conversation_id, last_read_mid')
+    .eq('user_id', user.id);
+
+  const map: Record<string, string> = {};
+  for (const row of data ?? []) {
+    map[row.conversation_id] = row.last_read_mid;
+  }
+  return map;
 }
 
 export async function fetchAllConversations(): Promise<ConversationSummary[]> {
