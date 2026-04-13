@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { Send, ArrowLeft, ImagePlus } from 'lucide-react';
+import { Send, ArrowLeft, ImagePlus, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
 import { useDrag } from '@use-gesture/react';
@@ -54,6 +54,7 @@ export default function ConversationDrawer() {
   const markRead = useMessageStore((s) => s.markRead);
   const clearCurrentMessages = useMessageStore((s) => s.clearCurrentMessages);
   const isSending = useMessageStore((s) => s.isSending);
+  const isLoadingMessages = useMessageStore((s) => s.isLoadingMessages);
   const sendImage = useMessageStore((s) => s.sendImage);
   const hasOlderMessages = useMessageStore((s) => s.hasOlderMessages);
   const isLoadingOlder = useMessageStore((s) => s.isLoadingOlder);
@@ -226,7 +227,13 @@ export default function ConversationDrawer() {
           style={{ minHeight: 0 }}
         >
           {currentMessages.length === 0 ? (
-            <div className="text-center text-text-t text-sm py-12">No messages yet</div>
+            <div className="flex items-center justify-center py-12">
+              {isLoadingMessages ? (
+                <Loader2 size={24} className="animate-spin text-text-t" />
+              ) : (
+                <span className="text-text-t text-sm">No messages yet</span>
+              )}
+            </div>
           ) : (
             <>
               {hasOlderMessages && (

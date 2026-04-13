@@ -23,9 +23,11 @@ interface MessageStore {
   // Chat detail state
   currentMessages: GraphMessage[];
   currentConversationId: string | null;
+  isLoadingMessages: boolean;
   isSending: boolean;
   hasOlderMessages: boolean;
   isLoadingOlder: boolean;
+  messageCache: Record<string, GraphMessage[]>;
   fetchMessages: (conversationId: string) => Promise<void>;
   loadOlderMessages: (conversationId: string) => Promise<void>;
   sendMessage: (conversationId: string, platform: 'instagram' | 'messenger', recipientPsid: string, text: string) => Promise<void>;
@@ -87,19 +89,33 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
   // Chat detail
   currentMessages: [],
   currentConversationId: null,
+  isLoadingMessages: false,
   isSending: false,
   hasOlderMessages: true,
   isLoadingOlder: false,
+  messageCache: {},
 
   fetchMessages: async (conversationId) => {
+    // Show cached messages instantly while fetching fresh ones
+    const cached = get().messageCache[conversationId];
+    if (cached && get().currentConversationId !== conversationId) {
+      set({ currentMessages: cached, currentConversationId: conversationId });
+    }
+
+    if (!cached) {
+      set({ isLoadingMessages: true });
+    }
+
     try {
       const messages = await fetchMessagesFromDB(conversationId);
       if (get().currentConversationId === conversationId || !get().currentConversationId) {
-        set({
+        set((s) => ({
           currentMessages: messages,
           currentConversationId: conversationId,
           hasOlderMessages: messages.length >= 20,
-        });
+          isLoadingMessages: false,
+          messageCache: { ...s.messageCache, [conversationId]: messages },
+        }));
 
         // Update read state if new messages arrived
         if (messages.length > 0) {
@@ -117,6 +133,7 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
         }
       }
     } catch (e) {
+      set({ isLoadingMessages: false });
       console.error('Failed to fetch messages:', e);
     }
   },
@@ -220,7 +237,7 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
     }
   },
 
-  clearCurrentMessages: () => set({ currentMessages: [], currentConversationId: null, hasOlderMessages: true }),
+  clearCurrentMessages: () => set({ currentMessages: [], currentConversationId: null, hasOlderMessages: true, isLoadingMessages: false }),
 
   // Draft persistence
   drafts: {},
