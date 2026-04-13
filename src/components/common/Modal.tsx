@@ -106,7 +106,16 @@ function AccentTrace({ sheetRef, headerRef, trigger }: { sheetRef: React.RefObje
   );
 }
 
-/** Laser trace around the X close button — reads actual button dimensions from DOM */
+/**
+ * Laser trace around the X close button — Material Design indeterminate-style.
+ *
+ * Two independently eased edges create the natural grow-travel-shrink effect:
+ * - Head (leading edge): ease-out — races ahead quickly, decelerates at the end
+ * - Tail (trailing edge): ease-in — starts slow, accelerates to catch up
+ *
+ * This produces a segment that organically grows as the head outpaces the tail,
+ * travels around the button, then tapers to nothing as the tail catches up.
+ */
 function XButtonTrace({ trigger, buttonRef }: { trigger: number; buttonRef: React.RefObject<HTMLButtonElement | null> }) {
   const pathRef = useRef<SVGPathElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -129,56 +138,38 @@ function XButtonTrace({ trigger, buttonRef }: { trigger: number; buttonRef: Reac
     if (!path || !svg || !shape || trigger === 0) return;
 
     const len = path.getTotalLength();
-    const segment = len * 0.35;
-    const duration = 1800; // total animation time
+    const duration = 1400;
 
     svg.style.transition = 'none';
     svg.style.opacity = '1';
+    path.style.transition = 'none';
 
     let raf: number;
     let cancelled = false;
-    const startTime = performance.now() + 30;
+    const startTime = performance.now();
 
-    // Reset
-    path.style.transition = 'none';
-
-    /*
-     * Simultaneous animation of dashoffset (position) and dasharray (size).
-     *
-     * dashoffset moves linearly: the "back edge" of the segment advances
-     * at constant speed around the entire path.
-     *
-     * dasharray (segment width) shrinks continuously from start to end
-     * using cubic ease-in (t³) — barely noticeable at first, most of
-     * the shrinking happens in the final third. One smooth animation.
-     */
+    // Cubic ease-out: fast start, gentle deceleration
+    const easeOut = (t: number) => 1 - (1 - t) * (1 - t) * (1 - t);
+    // Cubic ease-in: gentle start, accelerates to catch up
+    const easeIn = (t: number) => t * t * t;
 
     const tick = (now: number) => {
       if (cancelled) return;
-      const elapsed = now - startTime;
+      const t = Math.min((now - startTime) / duration, 1);
 
-      if (elapsed < 0) {
-        raf = requestAnimationFrame(tick);
-        return;
-      }
+      // Head races ahead (ease-out), tail chases (ease-in)
+      const headPos = easeOut(t) * len;
+      const tailPos = easeIn(t) * len;
+      const segLen = Math.max(headPos - tailPos, 0.5);
 
-      const t = Math.min(elapsed / duration, 1);
-
-      // Offset moves linearly — back edge at constant speed
-      // Goes from +segment (segment hidden before path start) to -len (past end)
-      const offset = segment - t * (segment + len + segment);
-
-      // Segment shrinks continuously: very gradual at first, accelerating toward end
-      // t^3 ease-in means at t=0.5 only 12.5% has shrunk, most shrinking is in the last 30%
-      const currentSegment = segment * (1 - t * t * t);
-
-      if (currentSegment < 0.5) {
+      // Fade out when segment becomes negligible
+      if (t >= 1 || segLen < 0.5) {
         svg.style.opacity = '0';
         return;
       }
 
-      path.style.strokeDasharray = `${currentSegment} ${len}`;
-      path.style.strokeDashoffset = `${offset}`;
+      path.style.strokeDasharray = `${segLen} ${len}`;
+      path.style.strokeDashoffset = `${-tailPos}`;
 
       raf = requestAnimationFrame(tick);
     };
