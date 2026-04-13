@@ -98,7 +98,7 @@ export function useTabSwipe() {
           const w = window.innerWidth;
           const slideTarget = swipedLeft ? -w : w;
 
-          // Slide current page off-screen, then navigate
+          // Carousel: slide current page off, then slide new page in from opposite edge
           animating.current = true;
           animate(dragX, slideTarget, {
             type: 'spring',
@@ -107,8 +107,17 @@ export function useTabSwipe() {
             mass: 0.8,
             onComplete: () => {
               navigate(TAB_ROUTES[targetIndex]);
-              dragX.set(0);
-              animating.current = false;
+              // New page enters from the opposite side
+              dragX.set(-slideTarget);
+              animate(dragX, 0, {
+                type: 'spring',
+                stiffness: 300,
+                damping: 30,
+                mass: 0.8,
+                onComplete: () => {
+                  animating.current = false;
+                },
+              });
             },
           });
         } else {
