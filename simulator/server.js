@@ -231,7 +231,10 @@ app.get('/v25.0/:id', requireAuth, (req, res) => {
 
   // Conversation (t_ prefix)
   if (id.startsWith('t_')) {
-    const conv = getConversation(id, fields);
+    const limit = req.query.limit ? parseInt(req.query.limit, 10) : 20;
+    const after = req.query.after || undefined;
+    const before = req.query.before || undefined;
+    const conv = getConversation(id, fields, { limit, after, before });
     if (!conv) return metaError(res, 404, `(#803) Some of the aliases you requested do not exist: ${id}`, 803);
     return res.json(conv);
   }

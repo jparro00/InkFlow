@@ -168,14 +168,14 @@ export function listConversations(ownerId) {
  * Get a single conversation with its messages.
  * Meta returns last 25 by default; we cap at 20 to match their documented limit.
  */
-export function getConversation(convId, fields) {
+export function getConversation(convId, fields, { limit = 20, after, before } = {}) {
   const conv = conversations.get(convId);
   if (!conv) return null;
 
   const result = { id: conv.id };
 
   if (!fields || fields.includes('messages')) {
-    const msgs = conv.messages.map(m => ({
+    const allMsgs = conv.messages.map(m => ({
       id: m.mid,
       created_time: new Date(m.timestamp).toISOString(),
       from: { id: m.senderId, name: profileNameOrBusiness(m.senderId) },
@@ -184,10 +184,39 @@ export function getConversation(convId, fields) {
       attachments: m.attachments ? { data: m.attachments } : undefined,
     }));
 
+    // Cursor-based pagination (cursors are message indices)
+    let startIdx = 0;
+    let endIdx = allMsgs.length;
+
+    if (after) {
+      // "after" cursor: start after this index
+      const idx = parseInt(after, 10);
+      if (!isNaN(idx)) startIdx = idx + 1;
+    }
+    if (before) {
+      // "before" cursor: end before this index
+      const idx = parseInt(before, 10);
+      if (!isNaN(idx)) endIdx = idx;
+    }
+
+    // Default: return the LAST `limit` messages (most recent)
+    if (!after && !before) {
+      startIdx = Math.max(0, allMsgs.length - limit);
+    }
+
+    const page = allMsgs.slice(startIdx, startIdx + limit);
+    const hasNext = startIdx + limit < endIdx && startIdx + limit < allMsgs.length;
+    const hasPrev = startIdx > 0;
+
     result.messages = {
-      data: msgs,
+      data: page,
       paging: {
-        cursors: { before: 'cursor_start', after: 'cursor_end' },
+        cursors: {
+          before: hasPrev ? String(startIdx - 1) : null,
+          after: hasNext ? String(startIdx + page.length - 1) : null,
+        },
+        ...(hasPrev ? { previous: `?before=${startIdx}` } : {}),
+        ...(hasNext ? { next: `?after=${startIdx + page.length - 1}` } : {}),
       },
     };
   }

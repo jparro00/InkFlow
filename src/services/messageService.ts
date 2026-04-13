@@ -398,28 +398,24 @@ export async function storeOutgoingMessage(
   }
 }
 
-/** Fetch older messages from Graph API (beyond what's in DB + already loaded). */
-export async function fetchOlderMessages(conversationId: string, knownMids: string[]): Promise<GraphMessage[]> {
-  // Get all mids currently in DB for this conversation
+/** Fetch older messages from Graph API using cursor pagination. */
+export async function fetchOlderMessages(conversationId: string, beforeCursor: string | null): Promise<{ messages: GraphMessage[]; nextCursor: string | null }> {
+  // Get platform from DB
   const { data: dbRows } = await supabase
     .from('messages')
-    .select('mid, platform')
-    .eq('conversation_id', conversationId);
+    .select('platform')
+    .eq('conversation_id', conversationId)
+    .limit(1);
 
-  if (!dbRows?.length) return [];
+  if (!dbRows?.length) return { messages: [], nextCursor: null };
 
-  const existingMids = new Set([...dbRows.map(r => r.mid), ...knownMids]);
   const platform = dbRows[0].platform;
-
-  // Extract client PSID from conversation_id (format: t_{psid})
   const clientPsid = conversationId.startsWith('t_') ? conversationId.slice(2) : conversationId;
-
-  // Find the real Graph API conversation ID for this client
   const ownerId = platform === 'instagram' ? IG_USER_ID : PAGE_ID;
 
   try {
+    // Find the real Graph API conversation ID
     const convList = await graphGet(`${ownerId}/conversations`) as { data: GraphConversation[] };
-
     let graphConvId: string | null = null;
     for (const conv of convList.data ?? []) {
       if (conv.participants.data.some(p => p.id === clientPsid)) {
@@ -427,18 +423,24 @@ export async function fetchOlderMessages(conversationId: string, knownMids: stri
         break;
       }
     }
+    if (!graphConvId) return { messages: [], nextCursor: null };
 
-    if (!graphConvId) return [];
+    // Fetch page of messages using cursor
+    let url = `${graphConvId}?fields=messages&limit=20`;
+    if (beforeCursor) url += `&before=${beforeCursor}`;
 
-    const detail = await graphGet(`${graphConvId}?fields=messages`) as {
-      messages?: { data: GraphMessage[] };
+    const detail = await graphGet(url) as {
+      messages?: {
+        data: GraphMessage[];
+        paging?: { cursors?: { before?: string | null } };
+      };
     };
-    const allMsgs = detail.messages?.data ?? [];
 
-    // Return up to 20 messages not already known, oldest first
-    const unknown = allMsgs.filter(m => !existingMids.has(m.id));
-    return unknown.slice(0, 20);
+    const msgs = detail.messages?.data ?? [];
+    const nextCursor = detail.messages?.paging?.cursors?.before ?? null;
+
+    return { messages: msgs, nextCursor };
   } catch {
-    return [];
+    return { messages: [], nextCursor: null };
   }
 }

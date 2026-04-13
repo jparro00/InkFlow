@@ -28,6 +28,7 @@ interface MessageStore {
   isSending: boolean;
   hasOlderMessages: boolean;
   isLoadingOlder: boolean;
+  olderCursor: string | null;
   messageCache: Record<string, GraphMessage[]>;
   fetchMessages: (conversationId: string) => Promise<void>;
   loadOlderMessages: (conversationId: string) => Promise<void>;
@@ -98,6 +99,7 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
   isSending: false,
   hasOlderMessages: true,
   isLoadingOlder: false,
+  olderCursor: null as string | null,
   messageCache: {},
 
   fetchMessages: async (conversationId) => {
@@ -157,20 +159,29 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
     set({ isLoadingOlder: true });
 
     try {
-      const knownMids = get().currentMessages.map(m => m.id);
-      const older = await fetchOlderMessages(conversationId, knownMids);
+      const { messages: older, nextCursor } = await fetchOlderMessages(conversationId, get().olderCursor);
       if (older.length === 0) {
-        set({ hasOlderMessages: false, isLoadingOlder: false });
+        set({ hasOlderMessages: false, isLoadingOlder: false, olderCursor: null });
         return;
       }
+      // Deduplicate against what we already have
+      const knownMids = new Set(get().currentMessages.map(m => m.id));
+      const newOlder = older.filter(m => !knownMids.has(m.id));
+
+      if (newOlder.length === 0) {
+        set({ hasOlderMessages: false, isLoadingOlder: false, olderCursor: null });
+        return;
+      }
+
       // Store in ephemeral olderMessages — these never go to DB
       set((s) => {
-        const allOlder = [...older, ...s.olderMessages];
+        const allOlder = [...newOlder, ...s.olderMessages];
         return {
           olderMessages: allOlder,
-          currentMessages: [...allOlder, ...s.messageCache[conversationId] || []],
-          hasOlderMessages: older.length >= 20,
+          currentMessages: [...allOlder, ...(s.messageCache[conversationId] || [])],
+          hasOlderMessages: !!nextCursor,
           isLoadingOlder: false,
+          olderCursor: nextCursor,
         };
       });
     } catch {
@@ -257,7 +268,7 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
     }
   },
 
-  clearCurrentMessages: () => set({ currentMessages: [], olderMessages: [], currentConversationId: null, hasOlderMessages: true, isLoadingMessages: false }),
+  clearCurrentMessages: () => set({ currentMessages: [], olderMessages: [], currentConversationId: null, hasOlderMessages: true, isLoadingMessages: false, olderCursor: null }),
 
   // Draft persistence
   drafts: {},
