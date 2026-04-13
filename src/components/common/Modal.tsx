@@ -106,6 +106,77 @@ function AccentTrace({ sheetRef, headerRef, trigger }: { sheetRef: React.RefObje
   );
 }
 
+const XBTN_R = 8; // matches rounded-lg (8px)
+const XBTN_SIZE = 40; // w-10 h-10
+
+/** Laser trace around the X close button */
+function XButtonTrace({ trigger }: { trigger: number }) {
+  const pathRef = useRef<SVGPathElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  useEffect(() => {
+    const path = pathRef.current;
+    const svg = svgRef.current;
+    if (!path || !svg || trigger === 0) return;
+
+    const len = path.getTotalLength();
+    const segment = len * 0.3;
+
+    svg.style.opacity = '1';
+    path.style.transition = 'none';
+    path.style.strokeDasharray = `${segment} ${len}`;
+    path.style.strokeDashoffset = `${segment}`;
+    path.getBoundingClientRect();
+
+    const startTimer = setTimeout(() => {
+      path.style.transition = 'stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1)';
+      path.style.strokeDashoffset = `${-len}`;
+    }, 30);
+
+    const hideTimer = setTimeout(() => {
+      svg.style.opacity = '0';
+    }, 900);
+
+    return () => {
+      clearTimeout(startTimer);
+      clearTimeout(hideTimer);
+    };
+  }, [trigger]);
+
+  const s = XBTN_SIZE;
+  const r = XBTN_R;
+  const d = `M 0,${s/2} L 0,${r} A ${r},${r} 0 0,1 ${r},0 L ${s-r},0 A ${r},${r} 0 0,1 ${s},${r} L ${s},${s-r} A ${r},${r} 0 0,1 ${s-r},${s} L ${r},${s} A ${r},${r} 0 0,1 0,${s-r} Z`;
+
+  return (
+    <svg
+      ref={svgRef}
+      className="absolute inset-0 pointer-events-none"
+      width={s}
+      height={s}
+      fill="none"
+      style={{ overflow: 'visible', opacity: 0 }}
+    >
+      <defs>
+        <filter id="x-glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+      <path
+        ref={pathRef}
+        d={d}
+        stroke="var(--color-accent)"
+        strokeWidth="2"
+        strokeLinecap="round"
+        filter="url(#x-glow)"
+      />
+    </svg>
+  );
+}
+
 interface ModalProps {
   title?: string;
   header?: ReactNode;
@@ -134,7 +205,8 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
   const dismissTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [collapsed, setCollapsed] = useState(false);
   const collapsedRef = useRef(false);
-  const [traceTrigger, setTraceTrigger] = useState(0); // 0 = don't fire on mount
+  const [traceTrigger, setTraceTrigger] = useState(0);
+  const [xTraceTrigger, setXTraceTrigger] = useState(0);
 
   // Keep ref in sync with state
   useEffect(() => { collapsedRef.current = collapsed; }, [collapsed]);
@@ -184,6 +256,21 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
       el.removeEventListener('touchmove', onTouchMove);
     };
   }, []);
+
+  // When collapsed, listen for taps on non-interactive elements → flash X button
+  useEffect(() => {
+    if (!collapsed) return;
+    const handler = (e: MouseEvent) => {
+      // Ignore if tap was on the sheet itself
+      if (sheetRef.current?.contains(e.target as Node)) return;
+      // Ignore if tap was on an interactive element
+      const el = e.target as HTMLElement;
+      if (el.closest('button, a, input, textarea, select, [role="button"], [onclick]')) return;
+      setXTraceTrigger((n) => n + 1);
+    };
+    document.addEventListener('click', handler, true);
+    return () => document.removeEventListener('click', handler, true);
+  }, [collapsed]);
 
   // Clean up on unmount
   useEffect(() => {
@@ -341,9 +428,10 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
                 {collapsed && (
                   <button
                     onClick={(e) => { e.stopPropagation(); dismiss(); }}
-                    className="w-10 h-10 flex items-center justify-center rounded-lg bg-surface border border-border/40 text-text-s active:text-text-p active:bg-elevated transition-colors cursor-pointer press-scale"
+                    className="relative w-10 h-10 flex items-center justify-center rounded-lg bg-surface border border-border/40 text-text-s active:text-text-p active:bg-elevated transition-colors cursor-pointer press-scale"
                   >
                     <X size={16} strokeWidth={2.5} />
+                    <XButtonTrace trigger={xTraceTrigger} />
                   </button>
                 )}
               </div>
