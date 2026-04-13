@@ -341,7 +341,6 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
   const collapseToHeader = useCallback(() => {
     const target = getCollapsedY();
     setCollapsed(true);
-    setTraceTrigger((n) => n + 1);
     animate(dragY, target, { type: 'spring', stiffness: 300, damping: 30 });
   }, [dragY, getCollapsedY]);
 
