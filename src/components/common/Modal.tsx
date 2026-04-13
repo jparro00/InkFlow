@@ -1,6 +1,7 @@
 import { useRef, useEffect, useCallback, useState, createContext, useContext } from 'react';
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
 import { useDrag } from '@use-gesture/react';
+import { X } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 /**
@@ -327,7 +328,7 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
 
         <div {...bindDrag()} className="flex flex-col flex-1 overflow-hidden" style={{ touchAction: 'pan-y', overscrollBehavior: 'none' }}>
           {/* Drag handle + header */}
-          <div ref={headerRef} onClick={() => { if (collapsedRef.current) dismiss(); }}>
+          <div ref={headerRef} onClick={() => { if (collapsedRef.current) expandToFull(); }}>
             <div className="flex justify-center pt-3 pb-1 lg:hidden">
               <div className="w-10 h-1 rounded-full bg-border-s/60" />
             </div>
@@ -335,8 +336,16 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
             {header ? (
               <div className="shrink-0">{header}</div>
             ) : title ? (
-              <div className="px-5 py-4 lg:px-6 lg:py-4 border-b border-border shrink-0">
-                <h2 className="font-display text-xl text-text-p">{title}</h2>
+              <div className="px-5 py-4 lg:px-6 lg:py-4 border-b border-border shrink-0 flex items-center">
+                <h2 className="font-display text-xl text-text-p flex-1">{title}</h2>
+                {collapsed && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); dismiss(); }}
+                    className="w-8 h-8 flex items-center justify-center rounded-full text-text-t active:text-text-p active:bg-surface transition-colors cursor-pointer"
+                  >
+                    <X size={18} />
+                  </button>
+                )}
               </div>
             ) : null}
           </div>
