@@ -11,6 +11,7 @@ import {
   isBusinessMessage,
   fetchReadStates,
   markConversationRead,
+  sendMarkSeen,
 } from '../services/messageService';
 import type { ConversationSummary, GraphMessage } from '../services/messageService';
 
@@ -81,8 +82,13 @@ export const useMessageStore = create<MessageStore>()(
             // Refresh conversations list from DB
             await get().fetchConversations();
             // If the affected conversation is currently open, refresh its messages
+            // and send a read receipt back to Meta/simulator
             if (openId && payload?.conversation_id === openId) {
               await get().fetchMessages(openId);
+              const c = get().conversations.find((cv) => cv.id === openId);
+              if (c) {
+                sendMarkSeen(c.platform, c.participantPsid).catch(console.error);
+              }
             }
           })
           .on('broadcast', { event: 'profile-updated' }, async () => {

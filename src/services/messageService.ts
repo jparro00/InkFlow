@@ -369,7 +369,10 @@ export async function fetchConversationsFromDB(readMids?: Record<string, string>
 
   const results: ConversationSummary[] = entries.map(([convId, { lastMsg, unreadCount }], i) => {
     const clientPsid = psids[i];
-    const lastMessageFromClient = !lastMsg.is_echo;
+    // Only flag as "from client" (= unread) if there are actually unread messages.
+    // Without this check, every fetchConversations() call reverts read conversations
+    // back to "unread" just because the latest message happens to be from the client.
+    const lastMessageFromClient = !lastMsg.is_echo && unreadCount > 0;
     const profile = profileMap.get(clientPsid);
     const participantName = profile?.name || lastMsg.sender_name || clientPsid;
     const profilePic = profile?.profile_pic || undefined;
