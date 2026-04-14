@@ -166,7 +166,9 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
           ),
         }));
       })
-      .subscribe();
+      .subscribe((status, err) => {
+        console.log('[Realtime] subscription status:', status, err ?? '');
+      });
 
     set({ _realtimeChannel: channel });
   },
