@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Green Man Tattoo — Color Palette</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a0a;
+    color: rgba(255,255,255,0.87);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    padding: 40px;
+    min-height: 100vh;
+  }
+  h1 { font-size: 28px; margin-bottom: 8px; }
+  .subtitle { color: rgba(255,255,255,0.6); margin-bottom: 40px; font-size: 14px; }
+  h2 { font-size: 18px; margin-bottom: 16px; color: rgba(255,255,255,0.87); }
+  .section { margin-bottom: 48px; }
+
+  .palette-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+  }
+  .swatch {
+    width: 160px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #1E1E1E;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  }
+  .swatch-color {
+    height: 80px;
+    display: flex;
+    align-items: flex-end;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .swatch-info {
+    padding: 10px 12px;
+  }
+  .swatch-name {
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+  .swatch-hex {
+    font-size: 11px;
+    color: rgba(255,255,255,0.6);
+    font-family: 'Consolas', monospace;
+  }
+  .swatch-role {
+    font-size: 10px;
+    color: rgba(255,255,255,0.38);
+    margin-top: 4px;
+  }
+
+  .surface-strip {
+    display: flex;
+    border-radius: 12px;
+    overflow: hidden;
+    height: 64px;
+    margin-bottom: 8px;
+  }
+  .surface-cell {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: rgba(255,255,255,0.6);
+    font-family: 'Consolas', monospace;
+  }
+  .surface-cell span:first-child {
+    font-weight: 600;
+    color: rgba(255,255,255,0.87);
+    margin-bottom: 2px;
+  }
+
+  .text-demo {
+    background: #121212;
+    border-radius: 12px;
+    padding: 20px 24px;
+    display: flex;
+    gap: 32px;
+    flex-wrap: wrap;
+  }
+  .text-sample { display: flex; flex-direction: column; gap: 4px; }
+  .text-label { font-size: 10px; font-family: 'Consolas', monospace; color: rgba(255,255,255,0.38); }
+
+  .contrast-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .contrast-table th {
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom: 1px solid #333;
+    color: rgba(255,255,255,0.6);
+    font-weight: 600;
+    font-size: 11px;
+  }
+  .contrast-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid #1E1E1E;
+  }
+  .contrast-table .pass { color: #22D3EE; }
+  .contrast-dot {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+
+  .mock-card {
+    background: #1E1E1E;
+    border-radius: 12px;
+    padding: 20px;
+    max-width: 360px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.7);
+  }
+  .mock-card h3 {
+    color: #4ADE80;
+    font-size: 16px;
+    margin-bottom: 8px;
+  }
+  .mock-card p {
+    color: rgba(255,255,255,0.6);
+    font-size: 13px;
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+  .mock-btn {
+    display: inline-block;
+    padding: 8px 20px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-right: 8px;
+  }
+  .mock-btn-primary { background: #4ADE80; color: #000; }
+  .mock-btn-secondary { background: #FBBF24; color: #000; }
+  .mock-btn-outline { background: transparent; color: #4ADE80; border: 1px solid rgba(74,222,128,0.3); }
+
+  .glow-demo {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .glow-box {
+    width: 120px;
+    height: 80px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .status-row {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .status-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    background: #1E1E1E;
+  }
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+</style>
+</head>
+<body>
+
+<h1>Green Man Tattoo</h1>
+<p class="subtitle">M2 Dark Theme Color Palette — Bold & Edgy</p>
+
+<!-- PRIMARY & SECONDARY -->
+<div class="section">
+  <h2>Primary & Secondary</h2>
+  <div class="palette-row">
+    <div class="swatch">
+      <div class="swatch-color" style="background:#4ADE80; color:#000;">On Primary</div>
+      <div class="swatch-info">
+        <div class="swatch-name">Primary</div>
+        <div class="swatch-hex">#4ADE80</div>
+        <div class="swatch-role">Brand green (200-tone)</div>
+      </div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background:#16A34A; color:#fff;">On Variant</div>
+      <div class="swatch-info">
+        <div class="swatch-name">Primary Variant</div>
+        <div class="swatch-hex">#16A34A</div>
+        <div class="swatch-role">Pressed / active states</div>
+      </div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background:#FBBF24; color:#000;">On Secondary</div>
+      <div class="swatch-info">
+        <div class="swatch-name">Secondary</div>
+        <div class="swatch-hex">#FBBF24</div>
+        <div class="swatch-role">Warm amber accent</div>
+      </div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background:#D97706; color:#fff;">On Variant</div>
+      <div class="swatch-info">
+        <div class="swatch-name">Secondary Variant</div>
+        <div class="swatch-hex">#D97706</div>
+        <div class="swatch-role">Pressed / active states</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STATUS COLORS -->
+<div class="section">
+  <h2>Status / Semantic</h2>
+  <div class="palette-row">
+    <div class="swatch">
+      <div class="swatch-color" style="background:#22D3EE; color:#000;"></div>
+      <div class="swatch-info">
+        <div class="swatch-name">Success</div>
+        <div class="swatch-hex">#22D3EE</div>
+        <div class="swatch-role">Cyan (avoids green conflict)</div>
+      </div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background:#CF6679; color:#000;"></div>
+      <div class="swatch-info">
+        <div class="swatch-name">Error</div>
+        <div class="swatch-hex">#CF6679</div>
+        <div class="swatch-role">M2 standard dark error</div>
+      </div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background:#FFB74D; color:#000;"></div>
+      <div class="swatch-info">
+        <div class="swatch-name">Warning</div>
+        <div class="swatch-hex">#FFB74D</div>
+        <div class="swatch-role">Amber/orange</div>
+      </div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background:#E8453C; color:#fff;"></div>
+      <div class="swatch-info">
+        <div class="swatch-name">Today</div>
+        <div class="swatch-hex">#E8453C</div>
+        <div class="swatch-role">Current-date indicator</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SURFACE ELEVATION -->
+<div class="section">
+  <h2>Surface Elevation (M2 overlay system)</h2>
+  <div class="surface-strip">
+    <div class="surface-cell" style="background:#121212;"><span>0dp</span>#121212</div>
+    <div class="surface-cell" style="background:#1E1E1E;"><span>1dp</span>#1E1E1E</div>
+    <div class="surface-cell" style="background:#232323;"><span>2dp</span>#232323</div>
+    <div class="surface-cell" style="background:#252525;"><span>3dp</span>#252525</div>
+    <div class="surface-cell" style="background:#272727;"><span>4dp</span>#272727</div>
+    <div class="surface-cell" style="background:#2C2C2C;"><span>6dp</span>#2C2C2C</div>
+    <div class="surface-cell" style="background:#2E2E2E;"><span>8dp</span>#2E2E2E</div>
+    <div class="surface-cell" style="background:#333333;"><span>12dp</span>#333333</div>
+    <div class="surface-cell" style="background:#363636;"><span>16dp</span>#363636</div>
+    <div class="surface-cell" style="background:#383838;"><span>24dp</span>#383838</div>
+  </div>
+</div>
+
+<!-- TEXT HIERARCHY -->
+<div class="section">
+  <h2>Text Hierarchy</h2>
+  <div class="text-demo">
+    <div class="text-sample">
+      <div class="text-label">High emphasis — 87%</div>
+      <div style="color:rgba(255,255,255,0.87); font-size:16px;">Primary body text</div>
+    </div>
+    <div class="text-sample">
+      <div class="text-label">Medium emphasis — 60%</div>
+      <div style="color:rgba(255,255,255,0.60); font-size:16px;">Secondary text</div>
+    </div>
+    <div class="text-sample">
+      <div class="text-label">Disabled — 38%</div>
+      <div style="color:rgba(255,255,255,0.38); font-size:16px;">Disabled text</div>
+    </div>
+    <div class="text-sample">
+      <div class="text-label">Accent text</div>
+      <div style="color:#4ADE80; font-size:16px;">Green Man Tattoo</div>
+    </div>
+    <div class="text-sample">
+      <div class="text-label">Secondary accent text</div>
+      <div style="color:#FBBF24; font-size:16px;">Book Now</div>
+    </div>
+  </div>
+</div>
+
+<!-- GLOW EFFECTS -->
+<div class="section">
+  <h2>Glow & Shadow</h2>
+  <div class="glow-demo">
+    <div class="glow-box" style="background:#1E1E1E; box-shadow:0 0 24px rgba(74,222,128,0.10); color:#4ADE80;">Subtle glow</div>
+    <div class="glow-box" style="background:#1E1E1E; box-shadow:0 0 40px rgba(74,222,128,0.16); color:#4ADE80;">Strong glow</div>
+    <div class="glow-box" style="background:#1E1E1E; box-shadow:0 4px 20px rgba(0,0,0,0.7); color:rgba(255,255,255,0.6);">Elevation</div>
+    <div class="glow-box" style="background:#4ADE80; box-shadow:0 0 30px rgba(74,222,128,0.3); color:#000;">Accent</div>
+  </div>
+</div>
+
+<!-- MOCK UI -->
+<div class="section">
+  <h2>UI Preview</h2>
+  <div style="display:flex; gap:24px; flex-wrap:wrap;">
+    <div class="mock-card">
+      <h3>Booking Confirmed</h3>
+      <p>Your session with Mike is scheduled for Saturday at 2:00 PM. Full sleeve continuation — upper arm shading.</p>
+      <div>
+        <span class="mock-btn mock-btn-primary">View Details</span>
+        <span class="mock-btn mock-btn-outline">Reschedule</span>
+      </div>
+    </div>
+    <div class="mock-card">
+      <h3 style="color:#FBBF24;">New Walk-In</h3>
+      <p>Quick piece request — small flash design. Estimated 45 minutes. Station 3 available.</p>
+      <div>
+        <span class="mock-btn mock-btn-secondary">Accept</span>
+        <span class="mock-btn mock-btn-outline" style="color:#FBBF24; border-color:rgba(251,191,36,0.3);">Decline</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STATUS CHIPS -->
+<div class="section">
+  <h2>Booking Status</h2>
+  <div class="status-row">
+    <div class="status-chip"><div class="status-dot" style="background:rgba(255,255,255,0.87);"></div> Confirmed</div>
+    <div class="status-chip"><div class="status-dot" style="background:rgba(255,255,255,0.38);"></div> Tentative</div>
+    <div class="status-chip"><div class="status-dot" style="background:#22D3EE;"></div> Completed</div>
+    <div class="status-chip"><div class="status-dot" style="background:#CF6679;"></div> Cancelled</div>
+    <div class="status-chip"><div class="status-dot" style="background:#FFB74D;"></div> No-show</div>
+  </div>
+</div>
+
+<!-- CONTRAST TABLE -->
+<div class="section">
+  <h2>Contrast Ratios (WCAG AA)</h2>
+  <table class="contrast-table">
+    <tr><th>Pairing</th><th>Ratio</th><th>Status</th></tr>
+    <tr><td><span class="contrast-dot" style="background:#4ADE80;"></span>Primary on 0dp</td><td>~9.2:1</td><td class="pass">Pass AAA</td></tr>
+    <tr><td><span class="contrast-dot" style="background:#4ADE80;"></span>Primary on 24dp</td><td>~6.8:1</td><td class="pass">Pass AA</td></tr>
+    <tr><td><span class="contrast-dot" style="background:#FBBF24;"></span>Secondary on 0dp</td><td>~10.5:1</td><td class="pass">Pass AAA</td></tr>
+    <tr><td><span class="contrast-dot" style="background:#FBBF24;"></span>Secondary on 24dp</td><td>~8.2:1</td><td class="pass">Pass AAA</td></tr>
+    <tr><td><span class="contrast-dot" style="background:#CF6679;"></span>Error on 0dp</td><td>~5.5:1</td><td class="pass">Pass AA</td></tr>
+    <tr><td><span class="contrast-dot" style="background:rgba(255,255,255,0.87);"></span>Text 87% on 0dp</td><td>~14:1</td><td class="pass">Pass AAA</td></tr>
+    <tr><td><span class="contrast-dot" style="background:rgba(255,255,255,0.6);"></span>Text 60% on 0dp</td><td>~8:1</td><td class="pass">Pass AAA</td></tr>
+  </table>
+</div>
+
+</body>
+</html>

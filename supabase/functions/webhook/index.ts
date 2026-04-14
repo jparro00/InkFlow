@@ -73,6 +73,29 @@ Deno.serve(async (req: Request) => {
       return new Response(JSON.stringify({ error: "Invalid JSON" }), { status: 400, headers });
     }
 
+    // ── Profile Update Event ──────────────────────────────────────────────
+    // Fired by the simulator when a contact's avatar is changed.
+    // In production this would be a server-side push from your own tooling.
+    if (payload.object === "profile_update") {
+      for (const entry of payload.entry || []) {
+        for (const event of entry.messaging || []) {
+          const psid = event.sender?.id;
+          const profilePic = event.profile_update?.profile_pic ?? null;
+          const name = event.profile_update?.name ?? null;
+          if (psid) {
+            await supabase.from("participant_profiles").upsert({
+              psid,
+              user_id: ownerUserId,
+              ...(name ? { name } : {}),
+              ...(profilePic !== null ? { profile_pic: profilePic } : {}),
+              updated_at: new Date().toISOString(),
+            });
+          }
+        }
+      }
+      return new Response("EVENT_RECEIVED", { status: 200 });
+    }
+
     const platform = payload.object === "instagram" ? "instagram" : "messenger";
 
     for (const entry of payload.entry || []) {
@@ -108,6 +131,16 @@ Deno.serve(async (req: Request) => {
 
           // Get sender name (best effort)
           const senderName = event.message.is_echo ? "Ink Bloop" : null;
+
+          // Upsert participant profile (name known for echoes; platform always known)
+          if (clientPsid) {
+            await supabase.from("participant_profiles").upsert({
+              psid: clientPsid,
+              user_id: ownerUserId,
+              platform,
+              updated_at: new Date().toISOString(),
+            }, { onConflict: "user_id,psid", ignoreDuplicates: true });
+          }
 
           // Upsert message
           await supabase.from("messages").upsert({

@@ -49,16 +49,32 @@ export interface ConversationSummary {
   unreadCount: number;
 }
 
-const profileCache = new Map<string, { profile: GraphProfile; fetchedAt: number }>();
-const PROFILE_CACHE_TTL_MS = 30_000; // 30 seconds — keeps the API fast but lets avatar updates propagate
+const profileCache = new Map<string, GraphProfile>();
 
 export async function fetchProfile(psid: string): Promise<GraphProfile> {
   const cached = profileCache.get(psid);
-  if (cached && Date.now() - cached.fetchedAt < PROFILE_CACHE_TTL_MS) return cached.profile;
+  if (cached) return cached;
 
   const data = await graphGet(`${psid}?fields=first_name,last_name,name,profile_pic`) as GraphProfile;
-  profileCache.set(psid, { profile: data, fetchedAt: Date.now() });
+  profileCache.set(psid, data);
   return data;
+}
+
+/** Upsert participant profile info into Supabase so Realtime can broadcast changes. */
+export async function upsertParticipantProfile(
+  psid: string,
+  name: string,
+  profilePic?: string
+): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  await supabase.from('participant_profiles').upsert({
+    psid,
+    user_id: user.id,
+    name,
+    profile_pic: profilePic ?? null,
+    updated_at: new Date().toISOString(),
+  });
 }
 
 async function fetchConversationsForId(
@@ -334,6 +350,8 @@ export async function fetchConversationsFromDB(): Promise<ConversationSummary[]>
       const profile = await fetchProfile(clientPsid);
       participantName = profile.name;
       profilePic = profile.profile_pic;
+      // Persist in Supabase so Realtime can broadcast future profile changes
+      upsertParticipantProfile(clientPsid, profile.name, profile.profile_pic).catch(() => {});
     } catch {
       // Use sender_name or PSID as fallback
     }

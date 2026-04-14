@@ -11,7 +11,7 @@ import {
   markConversationSeen, createContact, updateProfilePic,
 } from './lib/store.js';
 import {
-  deliverMessageWithReceipts, getDeliveryLog, signPayload,
+  deliverMessageWithReceipts, deliverProfileUpdate, getDeliveryLog, signPayload,
 } from './lib/webhook.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -363,10 +363,21 @@ app.post('/sim/contacts', (req, res) => {
 });
 
 // Update a contact's profile picture
-app.post('/sim/contacts/:psid/avatar', (req, res) => {
+app.post('/sim/contacts/:psid/avatar', async (req, res) => {
   const profile = updateProfilePic(req.params.psid, req.body.dataUrl);
   if (!profile) return res.status(404).json({ error: 'Unknown PSID' });
+
   broadcast({ type: 'avatar_updated', psid: req.params.psid, profilePic: profile.profilePic });
+
+  // Fire a profile_update webhook so Ink Bloop updates in real time via Supabase Realtime
+  if (simConfig.webhookUrl) {
+    deliverProfileUpdate(simConfig.webhookUrl, simConfig.appSecret, {
+      psid: req.params.psid,
+      name: profile.name,
+      profilePic: profile.profilePic,
+    }).catch(err => console.error('[webhook] profile_update failed:', err.message));
+  }
+
   res.json(profile);
 });
 

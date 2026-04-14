@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { supabase } from '../lib/supabase';
 import {
   fetchConversationsFromDB,
   fetchMessagesFromDB,
@@ -9,8 +10,30 @@ import {
   isBusinessMessage,
   fetchReadStates,
   markConversationRead,
+  upsertParticipantProfile,
 } from '../services/messageService';
 import type { ConversationSummary, GraphMessage } from '../services/messageService';
+
+interface DBMessageRow {
+  mid: string;
+  conversation_id: string;
+  sender_id: string;
+  sender_name: string | null;
+  recipient_id: string;
+  platform: string;
+  text: string | null;
+  attachments: { type: string; payload?: { url?: string } }[] | null;
+  created_at: string;
+  is_echo: boolean;
+  user_id: string;
+}
+
+interface ParticipantProfileRow {
+  psid: string;
+  user_id: string;
+  name: string | null;
+  profile_pic: string | null;
+}
 
 interface MessageStore {
   conversations: ConversationSummary[];
@@ -19,6 +42,9 @@ interface MessageStore {
   readMids: Record<string, string>;
   fetchConversations: () => Promise<void>;
   markRead: (conversationId: string) => void;
+  startRealtime: () => Promise<void>;
+  stopRealtime: () => void;
+  _realtimeChannel: ReturnType<typeof supabase.channel> | null;
 
   // Chat detail state
   currentMessages: GraphMessage[];
@@ -47,6 +73,106 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
   isLoading: false,
   error: null,
   readMids: {},
+  _realtimeChannel: null,
+
+  startRealtime: async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const channel = supabase
+      .channel('inkbloop-realtime')
+      // New message inserted by the webhook
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `user_id=eq.${user.id}`,
+      }, (payload) => {
+        const row = payload.new as DBMessageRow;
+        const isFromClient = !row.is_echo;
+
+        const newMsg: GraphMessage = {
+          id: row.mid,
+          created_time: row.created_at,
+          from: { id: row.sender_id, name: row.sender_name || '' },
+          to: { data: [{ id: row.recipient_id, name: '' }] },
+          message: row.text || undefined,
+          attachments: row.attachments?.length
+            ? { data: row.attachments }
+            : undefined,
+        };
+
+        const isOpen = row.conversation_id === get().currentConversationId;
+
+        // Update conversation list in-place
+        set((s) => {
+          const exists = s.conversations.some(c => c.id === row.conversation_id);
+          if (!exists) {
+            // Unknown conversation — trigger a full refresh
+            get().fetchConversations();
+            return {};
+          }
+          return {
+            conversations: s.conversations.map(c => {
+              if (c.id !== row.conversation_id) return c;
+              const unreadCount = isFromClient && !isOpen ? c.unreadCount + 1 : 0;
+              return {
+                ...c,
+                lastMessage: row.text || (row.attachments?.length ? 'Sent an image' : c.lastMessage),
+                lastMessageTime: row.created_at,
+                lastMessageFromClient: isFromClient,
+                lastMid: row.mid,
+                unreadCount,
+              };
+            }),
+          };
+        });
+
+        // Append to open conversation (skip our own echoes — already added optimistically)
+        if (isOpen && !row.is_echo) {
+          const alreadyPresent = get().currentMessages.some(m => m.id === row.mid);
+          if (!alreadyPresent) {
+            set((s) => ({
+              currentMessages: [...s.currentMessages, newMsg],
+              messageCache: {
+                ...s.messageCache,
+                [row.conversation_id]: [...(s.messageCache[row.conversation_id] ?? []), newMsg],
+              },
+            }));
+            get().markRead(row.conversation_id);
+          }
+        }
+      })
+      // Profile picture updated via profile_update webhook
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'participant_profiles',
+        filter: `user_id=eq.${user.id}`,
+      }, (payload) => {
+        const row = payload.new as ParticipantProfileRow;
+        set((s) => ({
+          conversations: s.conversations.map(c =>
+            c.participantPsid === row.psid
+              ? {
+                  ...c,
+                  profilePic: row.profile_pic ?? c.profilePic,
+                  participantName: row.name ?? c.participantName,
+                }
+              : c
+          ),
+        }));
+      })
+      .subscribe();
+
+    set({ _realtimeChannel: channel });
+  },
+
+  stopRealtime: () => {
+    const ch = get()._realtimeChannel;
+    if (ch) supabase.removeChannel(ch);
+    set({ _realtimeChannel: null });
+  },
 
   fetchConversations: async () => {
     set({ isLoading: true, error: null });

@@ -112,7 +112,7 @@ export default function ConversationDrawer() {
     { axis: 'x', filterTaps: true, threshold: 10, pointer: { touch: true } }
   );
 
-  // Fetch messages from DB on open + lightweight poll + send mark_seen
+  // Fetch messages on open + send mark_seen. New messages arrive via Realtime (no polling).
   useEffect(() => {
     if (!selectedConversationId) return;
 
@@ -125,13 +125,7 @@ export default function ConversationDrawer() {
       sendMarkSeen(c.platform, c.participantPsid).catch(() => {});
     }
 
-    // Poll Supabase (lightweight DB query) for new messages
-    const interval = setInterval(() => {
-      fetchMessages(selectedConversationId);
-    }, 3000);
-
     return () => {
-      clearInterval(interval);
       clearCurrentMessages();
     };
   }, [selectedConversationId, fetchMessages, markRead, clearCurrentMessages]);

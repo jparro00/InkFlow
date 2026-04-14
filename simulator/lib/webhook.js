@@ -205,6 +205,29 @@ export async function deliverMessageWithReceipts(webhookUrl, appSecret, eventPar
   return result;
 }
 
+/**
+ * Fire a profile_update event to the webhook.
+ * Not part of Meta's API — used by the simulator so Ink Bloop can update
+ * profile pics in real time without polling.
+ */
+export async function deliverProfileUpdate(webhookUrl, appSecret, { psid, name, profilePic }) {
+  const payload = {
+    object: 'profile_update',
+    entry: [{
+      id: psid,
+      time: Date.now(),
+      messaging: [{
+        sender: { id: psid },
+        profile_update: {
+          ...(name ? { name } : {}),
+          ...(profilePic ? { profile_pic: profilePic } : {}),
+        },
+      }],
+    }],
+  };
+  return deliverWebhook(webhookUrl, payload, appSecret);
+}
+
 function pushLog(entry) {
   deliveryLog.unshift(entry);
   if (deliveryLog.length > MAX_LOG) deliveryLog.length = MAX_LOG;

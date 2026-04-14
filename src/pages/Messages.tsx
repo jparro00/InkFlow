@@ -103,6 +103,8 @@ export default function MessagesPage() {
   const isLoading = useMessageStore((s) => s.isLoading);
   const error = useMessageStore((s) => s.error);
   const fetchConversations = useMessageStore((s) => s.fetchConversations);
+  const startRealtime = useMessageStore((s) => s.startRealtime);
+  const stopRealtime = useMessageStore((s) => s.stopRealtime);
   const markRead = useMessageStore((s) => s.markRead);
   const [search, setSearch] = useState('');
 
@@ -112,12 +114,12 @@ export default function MessagesPage() {
     return () => { setHeaderLeft(null); setHeaderRight(null); };
   }, [setHeaderLeft, setHeaderRight]);
 
-  // Fetch on mount + poll every 5 seconds for new messages
+  // Fetch on mount, then receive updates via Supabase Realtime (no polling)
   useEffect(() => {
     fetchConversations();
-    const interval = setInterval(fetchConversations, 5000);
-    return () => clearInterval(interval);
-  }, [fetchConversations]);
+    startRealtime();
+    return () => stopRealtime();
+  }, [fetchConversations, startRealtime, stopRealtime]);
 
   const filtered = search
     ? conversations.filter((c) =>
