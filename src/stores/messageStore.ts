@@ -329,12 +329,33 @@ export const useMessageStore = create<MessageStore>()(
     }),
     {
       name: 'inkbloop-messages',
-      // Only persist lightweight state — conversations load fast from DB on mount
-      // and are too large to reliably fit in mobile localStorage quotas
+      // Cache conversations for instant render; strip profilePic (re-fetched
+      // from DB) to keep the payload small for mobile localStorage quotas.
       partialize: (state) => ({
+        conversations: state.conversations.map(({ profilePic: _, ...c }) => c),
         readMids: state.readMids,
         drafts: state.drafts,
       }),
+      storage: {
+        getItem: (name) => {
+          const str = localStorage.getItem(name);
+          return str ? JSON.parse(str) : null;
+        },
+        setItem: (name, value) => {
+          try {
+            localStorage.setItem(name, JSON.stringify(value));
+          } catch {
+            // Quota exceeded — drop stale cache and retry once
+            try {
+              localStorage.removeItem(name);
+              localStorage.setItem(name, JSON.stringify(value));
+            } catch {
+              // Still full — app works fine without cache
+            }
+          }
+        },
+        removeItem: (name) => localStorage.removeItem(name),
+      },
     },
   ),
 );
