@@ -71,6 +71,10 @@ interface MessageStore {
   clearDraft: (conversationId: string) => void;
 }
 
+function sortByRecent(convos: ConversationSummary[]): ConversationSummary[] {
+  return [...convos].sort((a, b) => new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime());
+}
+
 export const useMessageStore = create<MessageStore>((set, get) => ({
   conversations: [],
   isLoading: false,
@@ -155,7 +159,7 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
         return {};
       }
       return {
-        conversations: s.conversations.map(c => {
+        conversations: sortByRecent(s.conversations.map(c => {
           if (c.id !== row.conversation_id) return c;
           const unreadCount = isFromClient && !isOpen ? c.unreadCount + 1 : 0;
           return {
@@ -166,7 +170,7 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
             lastMid: row.mid,
             unreadCount,
           };
-        }),
+        })),
       };
     });
 
@@ -359,11 +363,11 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
         const { [conversationId]: _, ...restDrafts } = s.drafts;
         return {
           readMids: { ...s.readMids, [conversationId]: result.messageId },
-          conversations: s.conversations.map((c) =>
+          conversations: sortByRecent(s.conversations.map((c) =>
             c.id === conversationId
               ? { ...c, lastMessage: text, lastMessageTime: new Date().toISOString(), lastMessageFromClient: false, lastMid: result.messageId, unreadCount: 0 }
               : c
-          ),
+          )),
           drafts: restDrafts,
         };
       });
@@ -395,11 +399,11 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
         ),
         isSending: false,
         readMids: { ...s.readMids, [conversationId]: result.messageId },
-        conversations: s.conversations.map((c) =>
+        conversations: sortByRecent(s.conversations.map((c) =>
           c.id === conversationId
             ? { ...c, lastMessage: 'Sent an image', lastMessageTime: new Date().toISOString(), lastMessageFromClient: false, lastMid: result.messageId, unreadCount: 0 }
             : c
-        ),
+        )),
       }));
       storeOutgoingMessage(result.messageId, conversationId, recipientPsid, platform, undefined, [{ type: 'image', payload: { url: imageUrl } }]).catch(console.error);
       markConversationRead(conversationId, result.messageId).catch(console.error);
