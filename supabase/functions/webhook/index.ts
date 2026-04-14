@@ -180,7 +180,8 @@ Deno.serve(async (req: Request) => {
           }
 
           // Upsert participant profile with name + pic from simulator
-          if (clientPsid) {
+          // Only for incoming messages — echoes would overwrite with "Ink Bloop"
+          if (clientPsid && !isEcho) {
             await supabase.from("participant_profiles").upsert({
               psid: clientPsid,
               user_id: ownerUserId,
