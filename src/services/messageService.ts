@@ -352,28 +352,30 @@ export async function fetchConversationsFromDB(readMids?: Record<string, string>
     }
   }
 
-  // Build summaries
-  const results: ConversationSummary[] = [];
-  for (const [convId, { lastMsg, unreadCount }] of convMap) {
+  // Build summaries — fetch all profiles in parallel
+  const entries = Array.from(convMap.entries());
+  const profiles = await Promise.all(
+    entries.map(async ([, { lastMsg }]) => {
+      const clientPsid = lastMsg.is_echo ? lastMsg.recipient_id : lastMsg.sender_id;
+      try {
+        const profile = await fetchProfile(clientPsid);
+        upsertParticipantProfile(clientPsid, profile.name, profile.profile_pic).catch(() => {});
+        return profile;
+      } catch {
+        return null;
+      }
+    })
+  );
+
+  const results: ConversationSummary[] = entries.map(([convId, { lastMsg, unreadCount }], i) => {
     const clientPsid = lastMsg.is_echo ? lastMsg.recipient_id : lastMsg.sender_id;
     const lastMessageFromClient = !lastMsg.is_echo;
-
-    // Fetch profile for name and pic
-    let participantName = lastMsg.sender_name || clientPsid;
-    let profilePic: string | undefined;
-    try {
-      const profile = await fetchProfile(clientPsid);
-      participantName = profile.name;
-      profilePic = profile.profile_pic;
-      // Persist in Supabase so Realtime can broadcast future profile changes
-      upsertParticipantProfile(clientPsid, profile.name, profile.profile_pic).catch(() => {});
-    } catch {
-      // Use sender_name or PSID as fallback
-    }
-
+    const profile = profiles[i];
+    const participantName = profile?.name || lastMsg.sender_name || clientPsid;
+    const profilePic = profile?.profile_pic;
     const lastMessage = lastMsg.text || (lastMsg.attachments ? 'Sent an image' : undefined);
 
-    results.push({
+    return {
       id: convId,
       platform: lastMsg.platform as 'instagram' | 'messenger',
       participantName,
@@ -384,8 +386,8 @@ export async function fetchConversationsFromDB(readMids?: Record<string, string>
       lastMessageFromClient,
       lastMid: lastMsg.mid,
       unreadCount: lastMessageFromClient ? unreadCount : 0,
-    });
-  }
+    };
+  });
 
   results.sort((a, b) => new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime());
   return results;
