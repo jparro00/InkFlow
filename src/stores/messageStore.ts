@@ -120,7 +120,7 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
           console.log('[Realtime] connected — stopping poll');
           const pollId = get()._pollInterval;
           if (pollId) { clearInterval(pollId); set({ _pollInterval: null }); }
-        } else if (status !== 'SUBSCRIBED') {
+        } else {
           // Any non-success status: start polling as fallback
           get()._startPolling();
         }
