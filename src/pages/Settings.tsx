@@ -30,6 +30,11 @@ export default function SettingsPage() {
   const [passwordSaved, setPasswordSaved] = useState(false);
   const [totpLoading, setTotpLoading] = useState(false);
   const [totpStatus, setTotpStatus] = useState<'checking' | 'enabled' | 'disabled'>('checking');
+  const [totpQr, setTotpQr] = useState<string | null>(null);
+  const [totpSecret, setTotpSecret] = useState<string | null>(null);
+  const [totpFactorId, setTotpFactorId] = useState<string | null>(null);
+  const [totpVerifyCode, setTotpVerifyCode] = useState('');
+  const [totpError, setTotpError] = useState('');
 
   // Check TOTP status on mount
   useEffect(() => {
@@ -112,38 +117,119 @@ export default function SettingsPage() {
       <section className={sectionClass}>
         <h2 className="text-md text-text-p font-display mb-3">Two-Factor Authentication</h2>
         <div className={cardClass}>
-          <div className={rowClass}>
-            <div>
-              <div className="text-base text-text-p">TOTP Status</div>
-              <div className={`text-sm mt-1 ${totpStatus === 'enabled' ? 'text-success' : totpStatus === 'disabled' ? 'text-text-t' : 'text-text-t'}`}>
-                {totpStatus === 'checking' ? 'Checking...' : totpStatus === 'enabled' ? 'Enabled' : 'Not enrolled'}
+          {totpQr ? (
+            /* Enrollment flow — show QR + verify */
+            <div className="space-y-4">
+              <div className="text-base text-text-p">Scan this QR code with your authenticator app</div>
+              <div className="flex justify-center">
+                <img src={totpQr} alt="TOTP QR Code" className="w-48 h-48 rounded-lg bg-white p-2" />
+              </div>
+              {totpSecret && (
+                <div className="text-center">
+                  <div className="text-xs text-text-t mb-1">Or enter this key manually:</div>
+                  <code className="text-sm text-text-s bg-input px-3 py-1.5 rounded select-text break-all">{totpSecret}</code>
+                </div>
+              )}
+              <div>
+                <label className="text-sm text-text-t uppercase tracking-wider mb-2 block font-medium">Verification Code</label>
+                <input
+                  type="text"
+                  value={totpVerifyCode}
+                  onChange={(e) => setTotpVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="000000"
+                  maxLength={6}
+                  className={`${inputClass} text-center tracking-[0.3em]`}
+                />
+              </div>
+              {totpError && <div className="text-sm text-danger text-center">{totpError}</div>}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    // Cancel enrollment — unenroll the unverified factor
+                    if (totpFactorId) {
+                      supabase.auth.mfa.unenroll({ factorId: totpFactorId }).catch(() => {});
+                    }
+                    setTotpQr(null);
+                    setTotpSecret(null);
+                    setTotpFactorId(null);
+                    setTotpVerifyCode('');
+                    setTotpError('');
+                  }}
+                  className="flex-1 py-3.5 text-base text-text-s rounded-md border border-border/40 cursor-pointer press-scale transition-colors min-h-[48px]"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    if (totpVerifyCode.length !== 6 || !totpFactorId) return;
+                    setTotpLoading(true);
+                    setTotpError('');
+                    try {
+                      const { data: challenge, error: challengeErr } = await supabase.auth.mfa.challenge({ factorId: totpFactorId });
+                      if (challengeErr) throw challengeErr;
+                      const { error: verifyErr } = await supabase.auth.mfa.verify({
+                        factorId: totpFactorId,
+                        challengeId: challenge.id,
+                        code: totpVerifyCode,
+                      });
+                      if (verifyErr) throw verifyErr;
+                      setTotpStatus('enabled');
+                      setTotpQr(null);
+                      setTotpSecret(null);
+                      setTotpFactorId(null);
+                      setTotpVerifyCode('');
+                    } catch (e) {
+                      setTotpError((e as Error).message || 'Invalid code, try again');
+                      setTotpVerifyCode('');
+                    }
+                    setTotpLoading(false);
+                  }}
+                  disabled={totpVerifyCode.length !== 6 || totpLoading}
+                  className="flex-1 py-3.5 text-base bg-accent text-bg rounded-md font-medium cursor-pointer press-scale transition-all disabled:opacity-40 disabled:cursor-not-allowed min-h-[48px]"
+                >
+                  {totpLoading ? 'Verifying...' : 'Verify & Enable'}
+                </button>
               </div>
             </div>
-            <button
-              onClick={async () => {
-                setTotpLoading(true);
-                try {
-                  if (totpStatus === 'enabled') {
-                    const { data } = await supabase.auth.mfa.listFactors();
-                    if (data?.totp?.[0]) {
-                      await supabase.auth.mfa.unenroll({ factorId: data.totp[0].id });
-                      setTotpStatus('disabled');
+          ) : (
+            /* Status display + enroll/remove button */
+            <div className={rowClass}>
+              <div>
+                <div className="text-base text-text-p">TOTP Status</div>
+                <div className={`text-sm mt-1 ${totpStatus === 'enabled' ? 'text-success' : 'text-text-t'}`}>
+                  {totpStatus === 'checking' ? 'Checking...' : totpStatus === 'enabled' ? 'Enabled' : 'Not enrolled'}
+                </div>
+              </div>
+              <button
+                onClick={async () => {
+                  setTotpLoading(true);
+                  setTotpError('');
+                  try {
+                    if (totpStatus === 'enabled') {
+                      const { data } = await supabase.auth.mfa.listFactors();
+                      if (data?.totp?.[0]) {
+                        await supabase.auth.mfa.unenroll({ factorId: data.totp[0].id });
+                        setTotpStatus('disabled');
+                      }
+                    } else {
+                      const { data, error: enrollErr } = await supabase.auth.mfa.enroll({ factorType: 'totp' });
+                      if (enrollErr) throw enrollErr;
+                      setTotpQr(data.totp.qr_code);
+                      setTotpSecret(data.totp.secret);
+                      setTotpFactorId(data.id);
                     }
-                  } else {
-                    await supabase.auth.mfa.enroll({ factorType: 'totp' });
-                    setTotpStatus('enabled');
+                  } catch (e) {
+                    console.error('TOTP action failed:', e);
                   }
-                } catch (e) {
-                  console.error('TOTP action failed:', e);
-                }
-                setTotpLoading(false);
-              }}
-              disabled={totpLoading || totpStatus === 'checking'}
-              className="text-base text-accent active:text-accent-dim transition-colors cursor-pointer press-scale min-h-[44px] px-2 disabled:opacity-40"
-            >
-              {totpLoading ? '...' : totpStatus === 'enabled' ? 'Remove' : 'Enroll'}
-            </button>
-          </div>
+                  setTotpLoading(false);
+                }}
+                disabled={totpLoading || totpStatus === 'checking'}
+                className="text-base text-accent active:text-accent-dim transition-colors cursor-pointer press-scale min-h-[44px] px-2 disabled:opacity-40"
+              >
+                {totpLoading ? '...' : totpStatus === 'enabled' ? 'Remove' : 'Enroll'}
+              </button>
+            </div>
+          )}
         </div>
       </section>
 
