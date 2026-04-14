@@ -65,6 +65,19 @@ function AppContent() {
     return () => window.removeEventListener('keydown', handler);
   }, [setSearchOpen]);
 
+  // Prevent browser back/forward swipe gestures (edge swipe)
+  useEffect(() => {
+    const edgeWidth = 30;
+    const onTouchStart = (e: TouchEvent) => {
+      const x = e.touches[0].clientX;
+      if (x < edgeWidth || x > window.innerWidth - edgeWidth) {
+        e.preventDefault();
+      }
+    };
+    document.addEventListener('touchstart', onTouchStart, { passive: false });
+    return () => document.removeEventListener('touchstart', onTouchStart);
+  }, []);
+
   return (
     <Suspense
       fallback={
