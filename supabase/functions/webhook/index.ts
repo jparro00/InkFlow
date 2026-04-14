@@ -3,6 +3,33 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // Webhook doesn't use CORS — Meta POSTs directly, no browser involved
 const headers = { "Content-Type": "application/json" };
 
+// ── Broadcast helper ─────────────────────────────────────────────────────────
+// Notify the client of new data via Supabase Realtime Broadcast (pure pub/sub,
+// no replication slots). Uses the REST API so no WebSocket is needed.
+async function broadcast(
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  userId: string,
+  event: string,
+  payload: Record<string, unknown>,
+) {
+  try {
+    await fetch(`${supabaseUrl}/realtime/v1/api/broadcast`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: serviceRoleKey,
+        Authorization: `Bearer ${serviceRoleKey}`,
+      },
+      body: JSON.stringify({
+        messages: [{ topic: `realtime:user-${userId}`, event, payload }],
+      }),
+    });
+  } catch {
+    // Best effort — message is already in DB regardless
+  }
+}
+
 async function verifySignature(body: string, signature: string | null, secret: string): Promise<boolean> {
   if (!signature) return false;
   const enc = new TextEncoder();
@@ -90,6 +117,14 @@ Deno.serve(async (req: Request) => {
               ...(profilePic !== null ? { profile_pic: profilePic } : {}),
               updated_at: new Date().toISOString(),
             });
+
+            await broadcast(
+              Deno.env.get("SUPABASE_URL")!,
+              Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+              ownerUserId,
+              "profile-updated",
+              { psid },
+            );
           }
         }
       }
@@ -173,6 +208,15 @@ Deno.serve(async (req: Request) => {
               .delete()
               .in("mid", midsToDelete);
           }
+
+          // Notify client of the new message via Broadcast
+          await broadcast(
+            Deno.env.get("SUPABASE_URL")!,
+            Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+            ownerUserId,
+            "new-message",
+            { conversation_id: conversationId, mid },
+          );
         }
 
         // Delivery and read receipts — we don't store these for now
