@@ -8,7 +8,6 @@ import { useUIStore } from '../../stores/uiStore';
 import { useMessageStore, isBusinessMessage } from '../../stores/messageStore';
 import { useClientStore } from '../../stores/clientStore';
 import type { GraphMessage } from '../../services/messageService';
-import { sendMarkSeen } from '../../services/messageService';
 import CreateClientForm from '../client/CreateClientForm';
 import type { ClientChannel } from '../../types';
 
@@ -132,12 +131,6 @@ export default function ConversationDrawer() {
 
     fetchMessages(selectedConversationId);
     markRead(selectedConversationId);
-
-    // Tell FB/IG we've seen the messages
-    const c = useMessageStore.getState().conversations.find((cv) => cv.id === selectedConversationId);
-    if (c) {
-      sendMarkSeen(c.platform, c.participantPsid).catch(() => {});
-    }
 
     return () => {
       clearCurrentMessages();

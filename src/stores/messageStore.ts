@@ -82,13 +82,23 @@ export const useMessageStore = create<MessageStore>()(
             // Refresh conversations list from DB
             await get().fetchConversations();
             // If the affected conversation is currently open, refresh its messages
-            // and send a read receipt back to Meta/simulator
+            // and mark as read (which also sends read receipt + broadcasts to other devices)
             if (openId && payload?.conversation_id === openId) {
               await get().fetchMessages(openId);
-              const c = get().conversations.find((cv) => cv.id === openId);
-              if (c) {
-                sendMarkSeen(c.platform, c.participantPsid).catch(console.error);
-              }
+              get().markRead(openId);
+            }
+          })
+          .on('broadcast', { event: 'conversation-read' }, ({ payload }) => {
+            // Another device marked a conversation as read — update local state
+            if (payload?.conversation_id && payload?.last_read_mid) {
+              set((s) => ({
+                readMids: { ...s.readMids, [payload.conversation_id as string]: payload.last_read_mid as string },
+                conversations: s.conversations.map((c) =>
+                  c.id === payload.conversation_id
+                    ? { ...c, lastMessageFromClient: false, unreadCount: 0 }
+                    : c
+                ),
+              }));
             }
           })
           .on('broadcast', { event: 'profile-updated' }, async () => {
@@ -134,6 +144,21 @@ export const useMessageStore = create<MessageStore>()(
 
         if (lastMid) {
           markConversationRead(conversationId, lastMid).catch(console.error);
+        }
+
+        // Send read receipt to Meta/simulator
+        if (convo) {
+          sendMarkSeen(convo.platform, convo.participantPsid).catch(console.error);
+        }
+
+        // Broadcast to other devices so they update read state too
+        const ch = get()._realtimeChannel;
+        if (ch && lastMid) {
+          ch.send({
+            type: 'broadcast',
+            event: 'conversation-read',
+            payload: { conversation_id: conversationId, last_read_mid: lastMid },
+          });
         }
       },
 
