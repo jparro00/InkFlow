@@ -3,8 +3,16 @@ import Modal, { useModalDismiss } from '../common/Modal';
 import { useClientStore } from '../../stores/clientStore';
 import type { ClientChannel } from '../../types';
 
+export interface CreateClientInitialData {
+  name?: string;
+  psid?: string;
+  channel?: ClientChannel;
+}
+
 interface CreateClientFormProps {
   onClose: () => void;
+  initialData?: CreateClientInitialData;
+  onCreated?: (clientId: string) => void;
 }
 
 const channels: ClientChannel[] = ['Phone', 'Instagram', 'Facebook'];
@@ -13,25 +21,27 @@ const inputClass = "w-full bg-input border border-border/60 rounded-md px-4 py-3
 const labelClass = "text-sm text-text-t uppercase tracking-wider mb-2 block font-medium";
 
 /** Inner content — rendered inside Modal so useModalDismiss() has access to context. */
-function CreateClientFormContent() {
+function CreateClientFormContent({ initialData, onCreated }: { initialData?: CreateClientInitialData; onCreated?: (clientId: string) => void }) {
   const addClient = useClientStore((s) => s.addClient);
   const dismiss = useModalDismiss();
 
-  const [name, setName] = useState('');
+  const [name, setName] = useState(initialData?.name ?? '');
   const [phone, setPhone] = useState('');
-  const [channel, setChannel] = useState<ClientChannel | ''>('');
+  const [channel, setChannel] = useState<ClientChannel | ''>(initialData?.channel ?? '');
 
   const isValid = name.trim().length > 0;
 
   const handleSave = async () => {
     if (!isValid) return;
     try {
-      await addClient({
+      const created = await addClient({
         name: name.trim(),
         phone: phone || undefined,
         channel: channel || undefined,
+        psid: initialData?.psid || undefined,
         tags: [],
       });
+      onCreated?.(created.id);
     } catch (e) {
       console.error('Failed to create client:', e);
     }
@@ -101,10 +111,10 @@ function CreateClientFormContent() {
   );
 }
 
-export default function CreateClientForm({ onClose }: CreateClientFormProps) {
+export default function CreateClientForm({ onClose, initialData, onCreated }: CreateClientFormProps) {
   return (
     <Modal title="New Client" onClose={onClose} width="lg:max-w-[520px]">
-      <CreateClientFormContent />
+      <CreateClientFormContent initialData={initialData} onCreated={onCreated} />
     </Modal>
   );
 }

@@ -13,6 +13,8 @@ interface ClientStore {
   deleteClient: (id: string) => Promise<void>;
   addNote: (clientId: string, text: string) => Promise<void>;
   searchClients: (query: string) => Client[];
+  findByPsid: (psid: string) => Client | undefined;
+  linkPsidToClient: (clientId: string, psid: string) => Promise<void>;
 }
 
 export const useClientStore = create<ClientStore>((set, get) => ({
@@ -114,6 +116,24 @@ export const useClientStore = create<ClientStore>((set, get) => ({
         clients: s.clients.map((c) =>
           c.id === clientId ? { ...c, notes: client.notes } : c
         ),
+      }));
+      throw e;
+    }
+  },
+
+  findByPsid: (psid) => get().clients.find((c) => c.psid === psid),
+
+  linkPsidToClient: async (clientId, psid) => {
+    // Optimistic update
+    set((s) => ({
+      clients: s.clients.map((c) => (c.id === clientId ? { ...c, psid } : c)),
+    }));
+    try {
+      await clientService.updateClient(clientId, { psid });
+    } catch (e) {
+      // Roll back
+      set((s) => ({
+        clients: s.clients.map((c) => (c.id === clientId ? { ...c, psid: undefined } : c)),
       }));
       throw e;
     }

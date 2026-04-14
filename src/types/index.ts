@@ -8,6 +8,7 @@ export interface Client {
   phone?: string;
   instagram?: string;
   facebook_id?: string;
+  psid?: string;
   email?: string;
   dob?: string;
   channel?: ClientChannel;

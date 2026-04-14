@@ -16,6 +16,7 @@ function toClient(row: ClientRow): Client {
     phone: row.phone ?? undefined,
     instagram: row.instagram ?? undefined,
     facebook_id: row.facebook_id ?? undefined,
+    psid: row.psid ?? undefined,
     email: row.email ?? undefined,
     dob: row.dob ?? undefined,
     channel: row.channel ?? undefined,
@@ -43,6 +44,7 @@ export async function createClient(
     phone: client.phone ?? null,
     instagram: client.instagram ?? null,
     facebook_id: client.facebook_id ?? null,
+    psid: client.psid ?? null,
     email: client.email ?? null,
     dob: client.dob ?? null,
     channel: client.channel ?? null,
@@ -71,6 +73,7 @@ export async function updateClient(
   if (updates.phone !== undefined) payload.phone = updates.phone ?? null;
   if (updates.instagram !== undefined) payload.instagram = updates.instagram ?? null;
   if (updates.facebook_id !== undefined) payload.facebook_id = updates.facebook_id ?? null;
+  if (updates.psid !== undefined) payload.psid = updates.psid ?? null;
   if (updates.email !== undefined) payload.email = updates.email ?? null;
   if (updates.dob !== undefined) payload.dob = updates.dob ?? null;
   if (updates.channel !== undefined) payload.channel = updates.channel ?? null;
@@ -83,6 +86,17 @@ export async function updateClient(
     .eq('id', id);
 
   if (error) throw error;
+}
+
+export async function findClientByPsid(psid: string): Promise<Client | null> {
+  const { data, error } = await supabase
+    .from('clients')
+    .select('*')
+    .eq('psid', psid)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data ? toClient(data) : null;
 }
 
 export async function deleteClient(id: string): Promise<void> {

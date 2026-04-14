@@ -13,6 +13,7 @@ export interface Database {
           phone: string | null;
           instagram: string | null;
           facebook_id: string | null;
+          psid: string | null;
           email: string | null;
           dob: string | null;
           channel: 'Facebook' | 'Instagram' | 'Phone' | null;
@@ -28,6 +29,7 @@ export interface Database {
           phone?: string | null;
           instagram?: string | null;
           facebook_id?: string | null;
+          psid?: string | null;
           email?: string | null;
           dob?: string | null;
           channel?: 'Facebook' | 'Instagram' | 'Phone' | null;
@@ -43,6 +45,7 @@ export interface Database {
           phone?: string | null;
           instagram?: string | null;
           facebook_id?: string | null;
+          psid?: string | null;
           email?: string | null;
           dob?: string | null;
           channel?: 'Facebook' | 'Instagram' | 'Phone' | null;
