@@ -45,6 +45,9 @@ interface MessageStore {
   startRealtime: () => Promise<void>;
   stopRealtime: () => void;
   _realtimeChannel: ReturnType<typeof supabase.channel> | null;
+  _pollInterval: ReturnType<typeof setInterval> | null;
+  _handleNewMessage: (row: DBMessageRow) => void;
+  _startPolling: () => void;
 
   // Chat detail state
   currentMessages: GraphMessage[];
@@ -74,76 +77,23 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
   error: null,
   readMids: {},
   _realtimeChannel: null,
+  _pollInterval: null,
 
   startRealtime: async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    // Try Supabase Realtime first
     const channel = supabase
       .channel('inkbloop-realtime')
-      // New message inserted by the webhook (RLS handles row-level security)
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
         table: 'messages',
       }, (payload) => {
         const row = payload.new as DBMessageRow;
-        const isFromClient = !row.is_echo;
-
-        const newMsg: GraphMessage = {
-          id: row.mid,
-          created_time: row.created_at,
-          from: { id: row.sender_id, name: row.sender_name || '' },
-          to: { data: [{ id: row.recipient_id, name: '' }] },
-          message: row.text || undefined,
-          attachments: row.attachments?.length
-            ? { data: row.attachments }
-            : undefined,
-        };
-
-        const isOpen = row.conversation_id === get().currentConversationId;
-
-        // Update conversation list in-place
-        set((s) => {
-          const exists = s.conversations.some(c => c.id === row.conversation_id);
-          if (!exists) {
-            // Unknown conversation — trigger a full refresh
-            get().fetchConversations();
-            return {};
-          }
-          return {
-            conversations: s.conversations.map(c => {
-              if (c.id !== row.conversation_id) return c;
-              const unreadCount = isFromClient && !isOpen ? c.unreadCount + 1 : 0;
-              return {
-                ...c,
-                lastMessage: row.text || (row.attachments?.length ? 'Sent an image' : c.lastMessage),
-                lastMessageTime: row.created_at,
-                lastMessageFromClient: isFromClient,
-                lastMid: row.mid,
-                unreadCount,
-              };
-            }),
-          };
-        });
-
-        // Append to open conversation (skip our own echoes — already added optimistically)
-        if (isOpen && !row.is_echo) {
-          const alreadyPresent = get().currentMessages.some(m => m.id === row.mid);
-          if (!alreadyPresent) {
-            set((s) => ({
-              currentMessages: [...s.currentMessages, newMsg],
-              messageCache: {
-                ...s.messageCache,
-                [row.conversation_id]: [...(s.messageCache[row.conversation_id] ?? []), newMsg],
-              },
-            }));
-            get().markRead(row.conversation_id);
-          }
-        }
+        get()._handleNewMessage(row);
       })
-      // Profile picture inserted or updated via profile_update webhook.
-      // INSERT fires for new contacts; UPDATE fires when the avatar changes.
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
@@ -151,8 +101,6 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
       }, (payload) => {
         const row = (payload.new ?? {}) as ParticipantProfileRow;
         if (!row.psid) return;
-        // Invalidate the in-memory profile cache so the next fetchConversations
-        // call fetches fresh data from the Graph API instead of returning stale pic
         invalidateProfileCache(row.psid);
         set((s) => ({
           conversations: s.conversations.map(c =>
@@ -167,16 +115,89 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
         }));
       })
       .subscribe((status, err) => {
-        console.log('[Realtime] subscription status:', status, err ?? '');
+        if (status === 'SUBSCRIBED') {
+          console.log('[Realtime] connected');
+          // Stop polling if Realtime is working
+          const pollId = get()._pollInterval;
+          if (pollId) { clearInterval(pollId); set({ _pollInterval: null }); }
+        } else if (status === 'TIMED_OUT' || status === 'CHANNEL_ERROR') {
+          console.warn('[Realtime] failed, falling back to polling:', err ?? status);
+          get()._startPolling();
+        }
       });
 
     set({ _realtimeChannel: channel });
   },
 
+  _handleNewMessage: (row: DBMessageRow) => {
+    const isFromClient = !row.is_echo;
+
+    const newMsg: GraphMessage = {
+      id: row.mid,
+      created_time: row.created_at,
+      from: { id: row.sender_id, name: row.sender_name || '' },
+      to: { data: [{ id: row.recipient_id, name: '' }] },
+      message: row.text || undefined,
+      attachments: row.attachments?.length
+        ? { data: row.attachments }
+        : undefined,
+    };
+
+    const isOpen = row.conversation_id === get().currentConversationId;
+
+    set((s) => {
+      const exists = s.conversations.some(c => c.id === row.conversation_id);
+      if (!exists) {
+        get().fetchConversations();
+        return {};
+      }
+      return {
+        conversations: s.conversations.map(c => {
+          if (c.id !== row.conversation_id) return c;
+          const unreadCount = isFromClient && !isOpen ? c.unreadCount + 1 : 0;
+          return {
+            ...c,
+            lastMessage: row.text || (row.attachments?.length ? 'Sent an image' : c.lastMessage),
+            lastMessageTime: row.created_at,
+            lastMessageFromClient: isFromClient,
+            lastMid: row.mid,
+            unreadCount,
+          };
+        }),
+      };
+    });
+
+    if (isOpen && !row.is_echo) {
+      const alreadyPresent = get().currentMessages.some(m => m.id === row.mid);
+      if (!alreadyPresent) {
+        set((s) => ({
+          currentMessages: [...s.currentMessages, newMsg],
+          messageCache: {
+            ...s.messageCache,
+            [row.conversation_id]: [...(s.messageCache[row.conversation_id] ?? []), newMsg],
+          },
+        }));
+        get().markRead(row.conversation_id);
+      }
+    }
+  },
+
+  _startPolling: () => {
+    if (get()._pollInterval) return;
+    const id = setInterval(() => {
+      get().fetchConversations();
+      const openId = get().currentConversationId;
+      if (openId) get().fetchMessages(openId);
+    }, 3000);
+    set({ _pollInterval: id });
+  },
+
   stopRealtime: () => {
     const ch = get()._realtimeChannel;
     if (ch) supabase.removeChannel(ch);
-    set({ _realtimeChannel: null });
+    const pollId = get()._pollInterval;
+    if (pollId) clearInterval(pollId);
+    set({ _realtimeChannel: null, _pollInterval: null });
   },
 
   fetchConversations: async () => {
