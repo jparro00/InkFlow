@@ -463,6 +463,76 @@ export interface Database {
           },
         ];
       };
+      device_trusts: {
+        Row: {
+          id: string;
+          user_id: string;
+          device_id: string;
+          device_name: string | null;
+          created_at: string;
+          last_used: string;
+        };
+        Insert: {
+          id?: string;
+          user_id?: string;
+          device_id: string;
+          device_name?: string | null;
+          created_at?: string;
+          last_used?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          device_id?: string;
+          device_name?: string | null;
+          created_at?: string;
+          last_used?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'device_trusts_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      verification_codes: {
+        Row: {
+          id: string;
+          user_id: string;
+          code: string;
+          expires_at: string;
+          used: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id?: string;
+          code: string;
+          expires_at: string;
+          used?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          code?: string;
+          expires_at?: string;
+          used?: boolean;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'verification_codes_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
