@@ -281,7 +281,12 @@ export const useMessageStore = create<MessageStore>()(
           }));
 
           // Store in Supabase and update conversation list
-          storeOutgoingMessage(result.messageId, conversationId, recipientPsid, platform, text).catch(console.error);
+          storeOutgoingMessage(result.messageId, conversationId, recipientPsid, platform, text).then(() => {
+            const ch = get()._realtimeChannel;
+            if (ch) {
+              ch.send({ type: 'broadcast', event: 'new-message', payload: { conversation_id: conversationId, mid: result.messageId } });
+            }
+          }).catch(console.error);
 
           set((s) => {
             const { [conversationId]: _, ...restDrafts } = s.drafts;
@@ -329,7 +334,12 @@ export const useMessageStore = create<MessageStore>()(
                 : c
             )),
           }));
-          storeOutgoingMessage(result.messageId, conversationId, recipientPsid, platform, undefined, [{ type: 'image', payload: { url: imageUrl } }]).catch(console.error);
+          storeOutgoingMessage(result.messageId, conversationId, recipientPsid, platform, undefined, [{ type: 'image', payload: { url: imageUrl } }]).then(() => {
+            const ch = get()._realtimeChannel;
+            if (ch) {
+              ch.send({ type: 'broadcast', event: 'new-message', payload: { conversation_id: conversationId, mid: result.messageId } });
+            }
+          }).catch(console.error);
           markConversationRead(conversationId, result.messageId).catch(console.error);
         } catch (e) {
           set((s) => ({
