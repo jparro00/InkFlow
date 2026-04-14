@@ -469,12 +469,9 @@ async function submitNewContact() {
 
   const profile = await res.json();
 
-  // Sync local state (WebSocket will also fire for other tabs)
-  profiles.push(profile);
-  conversations.push({ id: null, platform: profile.platform, participant: profile, updatedTime: Date.now(), readWatermark: null, messages: [] });
-
+  // Local state is synced via the WebSocket contact_created broadcast —
+  // don't push here or it doubles up for the tab that created it.
   toggleNewContact();
-  renderContacts();
   selectContact(profile.psid);
 }
 

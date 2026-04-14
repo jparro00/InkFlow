@@ -49,14 +49,15 @@ export interface ConversationSummary {
   unreadCount: number;
 }
 
-const profileCache = new Map<string, GraphProfile>();
+const profileCache = new Map<string, { profile: GraphProfile; fetchedAt: number }>();
+const PROFILE_CACHE_TTL_MS = 30_000; // 30 seconds — keeps the API fast but lets avatar updates propagate
 
 export async function fetchProfile(psid: string): Promise<GraphProfile> {
   const cached = profileCache.get(psid);
-  if (cached) return cached;
+  if (cached && Date.now() - cached.fetchedAt < PROFILE_CACHE_TTL_MS) return cached.profile;
 
   const data = await graphGet(`${psid}?fields=first_name,last_name,name,profile_pic`) as GraphProfile;
-  profileCache.set(psid, data);
+  profileCache.set(psid, { profile: data, fetchedAt: Date.now() });
   return data;
 }
 
