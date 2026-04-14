@@ -398,6 +398,43 @@ export async function storeOutgoingMessage(
   }
 }
 
+/** Resolve the real Graph API conversation ID for a given internal conversationId.
+ *  Checks the conversation_map cache first; falls back to a full conversation-list
+ *  scan and writes the result to the cache so future calls are instant. */
+async function resolveGraphConvId(conversationId: string, platform: string): Promise<string | null> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  // Check cache
+  const { data: cached } = await supabase
+    .from('conversation_map')
+    .select('graph_conversation_id')
+    .eq('conversation_id', conversationId)
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (cached?.graph_conversation_id) return cached.graph_conversation_id;
+
+  // Cache miss — scan the conversations list from Graph API
+  const ownerId = platform === 'instagram' ? IG_USER_ID : PAGE_ID;
+  const clientPsid = conversationId.startsWith('t_') ? conversationId.slice(2) : conversationId;
+
+  const convList = await graphGet(`${ownerId}/conversations`) as { data: GraphConversation[] };
+  const match = (convList.data ?? []).find(c =>
+    c.participants.data.some(p => p.id === clientPsid)
+  );
+  if (!match) return null;
+
+  // Write to cache
+  await supabase.from('conversation_map').upsert({
+    conversation_id: conversationId,
+    graph_conversation_id: match.id,
+    user_id: user.id,
+  });
+
+  return match.id;
+}
+
 /** Fetch older messages from Graph API using cursor pagination. */
 export async function fetchOlderMessages(conversationId: string, beforeCursor: string | null): Promise<{ messages: GraphMessage[]; nextCursor: string | null }> {
   // Get platform from DB
@@ -410,31 +447,20 @@ export async function fetchOlderMessages(conversationId: string, beforeCursor: s
   if (!dbRows?.length) return { messages: [], nextCursor: null };
 
   const platform = dbRows[0].platform;
-  const clientPsid = conversationId.startsWith('t_') ? conversationId.slice(2) : conversationId;
-  const ownerId = platform === 'instagram' ? IG_USER_ID : PAGE_ID;
 
   try {
-    // Find the real Graph API conversation ID
-    const convList = await graphGet(`${ownerId}/conversations`) as { data: GraphConversation[] };
-    let graphConvId: string | null = null;
-    for (const conv of convList.data ?? []) {
-      if (conv.participants.data.some(p => p.id === clientPsid)) {
-        graphConvId = conv.id;
-        break;
-      }
-    }
+    const graphConvId = await resolveGraphConvId(conversationId, platform);
     if (!graphConvId) return { messages: [], nextCursor: null };
 
-    // On first call (no cursor), do a bootstrap fetch to get the cursor that points
-    // to just before the most-recent 20 messages (which are already in the DB).
-    // Then use that cursor to fetch the actual older page.
+    // On first call (no cursor), bootstrap by fetching the most-recent page to
+    // get the cursor pointing just before the DB window, then fetch that older page.
     let cursor = beforeCursor;
     if (!cursor) {
       const bootstrap = await graphGet(`${graphConvId}?fields=messages&limit=20`) as {
         messages?: { paging?: { cursors?: { before?: string | null } } };
       };
       cursor = bootstrap.messages?.paging?.cursors?.before ?? null;
-      if (!cursor) return { messages: [], nextCursor: null }; // ≤20 messages total, nothing older
+      if (!cursor) return { messages: [], nextCursor: null }; // ≤20 messages total
     }
 
     // Fetch the page of older messages
