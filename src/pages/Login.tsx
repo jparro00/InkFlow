@@ -38,7 +38,6 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [factorId, setFactorId] = useState('');
   const [challengeId, setChallengeId] = useState('');
-  const [codeSent, setCodeSent] = useState(false);
 
   const checkDeviceTrust = async (): Promise<boolean> => {
     const deviceId = getOrCreateDeviceId();
@@ -65,7 +64,6 @@ export default function LoginPage() {
 
     const res = await supabase.functions.invoke('send-verification');
     if (res.error) throw new Error(res.error.message || 'Failed to send code');
-    setCodeSent(true);
   };
 
   const proceedAfterAuth = async () => {
