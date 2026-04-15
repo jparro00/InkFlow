@@ -12,6 +12,9 @@ import {
   fetchReadStates,
   markConversationRead,
   sendMarkSeen,
+  fetchSingleMessage,
+  fetchAllParticipantProfiles,
+  fetchParticipantProfile,
 } from '../services/messageService';
 import type { ConversationSummary, GraphMessage } from '../services/messageService';
 
@@ -72,20 +75,78 @@ export const useMessageStore = create<MessageStore>()(
         const channel = supabase
           .channel(`user-${session.user.id}`)
           .on('broadcast', { event: 'new-message' }, async ({ payload }) => {
+            const conversationId = payload?.conversation_id as string | undefined;
+            const mid = payload?.mid as string | undefined;
+            if (!conversationId || !mid) return;
+
             const openId = get().currentConversationId;
+
             // If the message is for the currently-open conversation, update
-            // readMids BEFORE fetching conversations so the list shows it as read
-            if (openId && payload?.conversation_id === openId && payload?.mid) {
+            // readMids BEFORE updating so the list shows it as read
+            if (openId && conversationId === openId) {
               set((s) => ({
-                readMids: { ...s.readMids, [openId]: payload.mid as string },
+                readMids: { ...s.readMids, [openId]: mid },
               }));
-              markConversationRead(openId, payload.mid as string).catch(console.error);
+              markConversationRead(openId, mid).catch(console.error);
             }
-            // Refresh conversations list from DB (force bypass staleness guard)
-            await get().fetchConversations(true);
+
+            // Fetch ONLY the single new message (not the entire messages table)
+            const msg = await fetchSingleMessage(mid);
+
+            if (!msg) {
+              // Message not found (race condition / replication delay) — fall back
+              await get().fetchConversations(true);
+            } else {
+              const existingConvo = get().conversations.find(c => c.id === conversationId);
+
+              if (existingConvo) {
+                // Existing conversation — update inline (1 row instead of full table)
+                const isOpenAndRead = openId === conversationId;
+                const lastMessage = msg.text || (msg.has_attachments ? 'Sent an image' : undefined);
+
+                set((s) => ({
+                  conversations: sortByRecent(s.conversations.map(c =>
+                    c.id === conversationId
+                      ? {
+                          ...c,
+                          lastMessage,
+                          lastMessageTime: msg.created_at,
+                          lastMessageFromClient: !msg.is_echo && !isOpenAndRead,
+                          lastMid: msg.mid,
+                          unreadCount: isOpenAndRead ? 0 : (msg.is_echo ? 0 : c.unreadCount + 1),
+                        }
+                      : c
+                  )),
+                }));
+              } else {
+                // New conversation — fetch participant profile to build entry
+                const clientPsid = msg.is_echo ? msg.recipient_id : msg.sender_id;
+                const profile = await fetchParticipantProfile(clientPsid);
+                const lastMessage = msg.text || (msg.has_attachments ? 'Sent an image' : undefined);
+                const isOpenAndRead = openId === conversationId;
+
+                const newConvo: ConversationSummary = {
+                  id: conversationId,
+                  platform: msg.platform as 'instagram' | 'messenger',
+                  participantName: profile?.name || msg.sender_name || clientPsid,
+                  participantPsid: clientPsid,
+                  profilePic: profile?.profilePic || undefined,
+                  lastMessage,
+                  lastMessageTime: msg.created_at,
+                  lastMessageFromClient: !msg.is_echo && !isOpenAndRead,
+                  lastMid: msg.mid,
+                  unreadCount: isOpenAndRead ? 0 : (msg.is_echo ? 0 : 1),
+                };
+
+                set((s) => ({
+                  conversations: sortByRecent([...s.conversations, newConvo]),
+                }));
+              }
+            }
+
             // If the affected conversation is currently open, refresh its messages
             // and mark as read (which also sends read receipt + broadcasts to other devices)
-            if (openId && payload?.conversation_id === openId) {
+            if (openId && conversationId === openId) {
               await get().fetchMessages(openId);
               get().markRead(openId);
             }
@@ -104,8 +165,21 @@ export const useMessageStore = create<MessageStore>()(
             }
           })
           .on('broadcast', { event: 'profile-updated' }, async () => {
-            // Profile changed — refresh conversations to pick up new name/pic
-            await get().fetchConversations(true);
+            // Fetch only profiles (tiny query) instead of the entire messages table
+            const profiles = await fetchAllParticipantProfiles();
+            if (profiles.size === 0) return;
+
+            set((s) => ({
+              conversations: s.conversations.map(c => {
+                const profile = profiles.get(c.participantPsid);
+                if (!profile) return c;
+                return {
+                  ...c,
+                  participantName: profile.name || c.participantName,
+                  profilePic: profile.profilePic || undefined,
+                };
+              }),
+            }));
           })
           .subscribe();
 

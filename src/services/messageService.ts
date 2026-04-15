@@ -255,6 +255,82 @@ export async function fetchReadStates(): Promise<Record<string, string>> {
   return map;
 }
 
+// ── Incremental Broadcast Updates ──────────────────────────────────────────
+
+/** Data returned by fetchSingleMessage for incremental conversation updates. */
+export interface BroadcastMessageData {
+  mid: string;
+  conversation_id: string;
+  sender_id: string;
+  sender_name: string | null;
+  recipient_id: string;
+  platform: string;
+  text: string | null;
+  has_attachments: boolean;
+  is_echo: boolean;
+  created_at: string;
+}
+
+/** Fetch a single message by mid (for incremental broadcast updates).
+ *  Returns a minimal object — attachments are reduced to a boolean flag
+ *  since callers only need to know if an attachment exists. */
+export async function fetchSingleMessage(mid: string): Promise<BroadcastMessageData | null> {
+  const { data } = await supabase
+    .from('messages')
+    .select('mid, conversation_id, sender_id, sender_name, recipient_id, platform, text, attachments, is_echo, created_at')
+    .eq('mid', mid)
+    .maybeSingle();
+
+  if (!data) return null;
+
+  return {
+    mid: data.mid,
+    conversation_id: data.conversation_id,
+    sender_id: data.sender_id,
+    sender_name: data.sender_name,
+    recipient_id: data.recipient_id,
+    platform: data.platform,
+    text: data.text,
+    has_attachments: !!data.attachments,
+    is_echo: data.is_echo,
+    created_at: data.created_at,
+  };
+}
+
+/** Fetch all participant profiles for the current user (for profile-updated broadcasts). */
+export async function fetchAllParticipantProfiles(): Promise<Map<string, { name: string | null; profilePic: string | null }>> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const user = session?.user;
+  if (!user) return new Map();
+
+  const { data } = await supabase
+    .from('participant_profiles')
+    .select('psid, name, profile_pic')
+    .eq('user_id', user.id);
+
+  const map = new Map<string, { name: string | null; profilePic: string | null }>();
+  for (const p of data ?? []) {
+    map.set(p.psid, { name: p.name, profilePic: p.profile_pic });
+  }
+  return map;
+}
+
+/** Fetch a single participant profile by psid (for new conversations via broadcast). */
+export async function fetchParticipantProfile(psid: string): Promise<{ name: string | null; profilePic: string | null } | null> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const user = session?.user;
+  if (!user) return null;
+
+  const { data } = await supabase
+    .from('participant_profiles')
+    .select('name, profile_pic')
+    .eq('psid', psid)
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  return data ? { name: data.name, profilePic: data.profile_pic } : null;
+}
+
 // ── Graph API (legacy, used for send + load older) ──────────────────────────
 
 export async function fetchAllConversations(): Promise<ConversationSummary[]> {
