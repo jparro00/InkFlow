@@ -143,6 +143,18 @@ export default function BookingForm() {
 
   const handleSave = async (andExportCalendar = false) => {
     const dateTime = new Date(`${form.date}T${form.time}`);
+
+    // Trigger .ics download synchronously — before any await — so iOS
+    // Safari treats it as a user-initiated action (no permission prompt).
+    // We have all the data we need from the form already.
+    if (andExportCalendar) {
+      const clientName = clients.find((c) => c.id === form.client_id)?.name ?? 'Walk-in';
+      exportBookingToCalendar(
+        { id: 'new', created_at: '', client_id: form.client_id || null, date: dateTime.toISOString(), duration: form.duration, type: form.type, status: form.status } as Booking,
+        clientName,
+      );
+    }
+
     const data: Omit<Booking, 'id' | 'created_at'> = {
       client_id: form.client_id || null,
       date: dateTime.toISOString(),
@@ -155,20 +167,12 @@ export default function BookingForm() {
     };
 
     try {
-      let savedBooking: Booking;
       if (editingBookingId) {
         await updateBooking(editingBookingId, data);
-        savedBooking = { id: editingBookingId, created_at: '', ...data } as Booking;
       } else {
-        savedBooking = await addBooking(data);
-        remapBookingImages(tempBookingId.current, savedBooking.id);
+        const newBooking = await addBooking(data);
+        remapBookingImages(tempBookingId.current, newBooking.id);
       }
-
-      if (andExportCalendar) {
-        const clientName = clients.find((c) => c.id === form.client_id)?.name ?? 'Walk-in';
-        exportBookingToCalendar(savedBooking, clientName);
-      }
-
       closeBookingForm();
     } catch (e) {
       console.error('Failed to save booking:', e);
