@@ -408,7 +408,7 @@ export default function BookingForm() {
                 const dateTime = new Date(`${form.date}T${form.time}`);
                 const clientName = clients.find((c) => c.id === form.client_id)?.name ?? 'Walk-in';
                 exportBookingToCalendar(
-                  { id: 'draft', created_at: '', client_id: form.client_id || null, date: dateTime.toISOString(), duration: form.duration, type: form.type, status: form.status } as Booking,
+                  { id: crypto.randomUUID(), created_at: '', client_id: form.client_id || null, date: dateTime.toISOString(), duration: form.duration, type: form.type, status: form.status } as Booking,
                   clientName,
                 );
               }}
