@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { format } from 'date-fns';
-import { Edit, Trash2, User, Camera, FileText } from 'lucide-react';
+import { Edit, Trash2, User, Camera, FileText, CalendarPlus } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import { useUIStore } from '../../stores/uiStore';
 import { useBookingStore } from '../../stores/bookingStore';
@@ -13,6 +13,7 @@ import ImageThumbnailGrid from './ImageThumbnailGrid';
 import ImageViewer from './ImageViewer';
 import Modal from '../common/Modal';
 import { useNavigate } from 'react-router-dom';
+import { exportBookingToCalendar } from '../../utils/calendar';
 
 export default function BookingDrawer() {
   const navigate = useNavigate();
@@ -77,6 +78,13 @@ export default function BookingDrawer() {
           >
             <Trash2 size={15} />
             <span>Delete</span>
+          </button>
+          <button
+            onClick={() => exportBookingToCalendar(booking, client?.name ?? 'Walk-in')}
+            className="flex items-center justify-center w-10 h-10 rounded-md border border-border/60 text-text-s active:text-accent transition-colors cursor-pointer press-scale ml-auto"
+            title="Add to Calendar"
+          >
+            <CalendarPlus size={17} />
           </button>
         </div>
 
