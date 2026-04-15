@@ -16,7 +16,7 @@ import { useImageStore } from '../../stores/imageStore';
 import { useBookingImages } from '../../hooks/useBookingImages';
 import type { Booking, BookingType, BookingStatus } from '../../types';
 import { getTypeColor } from '../../types';
-import { exportBookingToCalendar } from '../../utils/calendar';
+import { createCalendarBlobUrl, calendarFilename } from '../../utils/calendar';
 
 // Flip to false to hide the "Save & Add to Calendar" button
 const ENABLE_SAVE_AND_CALENDAR = true;
@@ -141,7 +141,7 @@ export default function BookingForm() {
     ? clients.filter((c) => c.name.toLowerCase().includes(clientSearch.toLowerCase()))
     : clients;
 
-  const handleSave = async (andExportCalendar = false) => {
+  const handleSave = async () => {
     const dateTime = new Date(`${form.date}T${form.time}`);
     const data: Omit<Booking, 'id' | 'created_at'> = {
       client_id: form.client_id || null,
@@ -153,25 +153,6 @@ export default function BookingForm() {
       rescheduled: form.rescheduled || undefined,
       notes: form.notes || undefined,
     };
-
-    if (andExportCalendar) {
-      // iOS Safari hands off to Calendar on .ics download, which can
-      // interrupt any JS that hasn't run yet. So: save (fire-and-forget,
-      // addBooking is optimistic), close form, trigger .ics LAST.
-      // Everything is synchronous — no awaits — to avoid both the
-      // permission prompt and the interrupted-save problem.
-      addBooking(data).then((newBooking) => {
-        remapBookingImages(tempBookingId.current, newBooking.id);
-      }).catch(console.error);
-      closeBookingForm();
-
-      const clientName = clients.find((c) => c.id === form.client_id)?.name ?? 'Walk-in';
-      exportBookingToCalendar(
-        { id: 'new', created_at: '', ...data } as Booking,
-        clientName,
-      );
-      return;
-    }
 
     try {
       if (editingBookingId) {
@@ -187,6 +168,26 @@ export default function BookingForm() {
   };
 
   const isValid = form.date && form.client_id;
+
+  // Keep a live blob URL for the .ics file, rebuilt whenever form fields change.
+  // The "Save & Add to Calendar" button is a native <a> element pointing at this
+  // URL — the user's physical tap triggers the download (no programmatic .click(),
+  // no iOS permission prompt). The onClick handler fires the DB save alongside it.
+  const [calendarBlobUrl, setCalendarBlobUrl] = useState('');
+  useEffect(() => {
+    if (!ENABLE_SAVE_AND_CALENDAR || editingBookingId || !form.date || !form.time) {
+      setCalendarBlobUrl('');
+      return;
+    }
+    const dateTime = new Date(`${form.date}T${form.time}`);
+    const clientName = clients.find((c) => c.id === form.client_id)?.name ?? 'Walk-in';
+    const url = createCalendarBlobUrl(
+      { id: 'cal', created_at: '', client_id: form.client_id || null, date: dateTime.toISOString(), duration: form.duration, type: form.type, status: form.status } as Booking,
+      clientName,
+    );
+    setCalendarBlobUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [form.date, form.time, form.client_id, form.duration, form.type, form.status, clients, editingBookingId]);
 
   const inputClass = "w-full bg-input border border-border/60 rounded-md px-4 py-3.5 text-base text-text-p placeholder:text-text-t focus:outline-none focus:border-accent/40 transition-colors min-h-[48px]";
   const missingInputClass = "w-full bg-input border-2 border-danger/60 rounded-md px-4 py-3.5 text-base text-text-p placeholder:text-text-t focus:outline-none focus:border-danger/40 transition-colors min-h-[48px]";
@@ -421,17 +422,41 @@ export default function BookingForm() {
           >
             Cancel
           </button>
-          {!editingBookingId && ENABLE_SAVE_AND_CALENDAR && (
-            <button
-              onClick={() => handleSave(true)}
-              disabled={!isValid}
-              className="w-full lg:w-auto px-6 py-4 lg:py-2.5 text-base bg-surface border border-accent/60 text-accent rounded-md font-medium cursor-pointer press-scale transition-all disabled:opacity-40 disabled:cursor-not-allowed min-h-[52px]"
+          {!editingBookingId && ENABLE_SAVE_AND_CALENDAR && calendarBlobUrl && (
+            <a
+              href={calendarBlobUrl}
+              download={calendarFilename(
+                clients.find((c) => c.id === form.client_id)?.name ?? 'walk-in',
+                form.type,
+              )}
+              onClick={(e) => {
+                if (!isValid) { e.preventDefault(); return; }
+                // Fire save alongside the native anchor download.
+                // addBooking does an optimistic Zustand update (synchronous)
+                // then persists to Supabase in the background.
+                const dateTime = new Date(`${form.date}T${form.time}`);
+                const data: Omit<Booking, 'id' | 'created_at'> = {
+                  client_id: form.client_id || null,
+                  date: dateTime.toISOString(),
+                  duration: form.duration,
+                  type: form.type,
+                  estimate: form.estimate ? parseFloat(form.estimate) : undefined,
+                  status: form.status,
+                  rescheduled: form.rescheduled || undefined,
+                  notes: form.notes || undefined,
+                };
+                addBooking(data)
+                  .then((nb) => remapBookingImages(tempBookingId.current, nb.id))
+                  .catch(console.error);
+                closeBookingForm();
+              }}
+              className={`w-full lg:w-auto px-6 py-4 lg:py-2.5 text-base bg-surface border border-accent/60 text-accent rounded-md font-medium press-scale transition-all min-h-[52px] text-center block no-underline ${!isValid ? 'opacity-40 pointer-events-none' : 'cursor-pointer'}`}
             >
               Save & Add to Calendar
-            </button>
+            </a>
           )}
           <button
-            onClick={() => handleSave()}
+            onClick={handleSave}
             disabled={!isValid}
             className="w-full lg:w-auto px-6 py-4 lg:py-2.5 text-base bg-accent text-bg rounded-md font-medium cursor-pointer press-scale transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-glow active:shadow-glow-strong min-h-[52px]"
           >
