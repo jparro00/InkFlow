@@ -16,6 +16,10 @@ import { useImageStore } from '../../stores/imageStore';
 import { useBookingImages } from '../../hooks/useBookingImages';
 import type { Booking, BookingType, BookingStatus } from '../../types';
 import { getTypeColor } from '../../types';
+import { exportBookingToCalendar } from '../../utils/calendar';
+
+// Flip to false to hide the "Save & Add to Calendar" button
+const ENABLE_SAVE_AND_CALENDAR = true;
 
 const bookingTypes: BookingType[] = ['Regular', 'Touch Up', 'Consultation', 'Full Day'];
 
@@ -137,7 +141,7 @@ export default function BookingForm() {
     ? clients.filter((c) => c.name.toLowerCase().includes(clientSearch.toLowerCase()))
     : clients;
 
-  const handleSave = async () => {
+  const handleSave = async (andExportCalendar = false) => {
     const dateTime = new Date(`${form.date}T${form.time}`);
     const data: Omit<Booking, 'id' | 'created_at'> = {
       client_id: form.client_id || null,
@@ -151,12 +155,20 @@ export default function BookingForm() {
     };
 
     try {
+      let savedBooking: Booking;
       if (editingBookingId) {
         await updateBooking(editingBookingId, data);
+        savedBooking = { id: editingBookingId, created_at: '', ...data } as Booking;
       } else {
-        const newBooking = await addBooking(data);
-        remapBookingImages(tempBookingId.current, newBooking.id);
+        savedBooking = await addBooking(data);
+        remapBookingImages(tempBookingId.current, savedBooking.id);
       }
+
+      if (andExportCalendar) {
+        const clientName = clients.find((c) => c.id === form.client_id)?.name ?? 'Walk-in';
+        exportBookingToCalendar(savedBooking, clientName);
+      }
+
       closeBookingForm();
     } catch (e) {
       console.error('Failed to save booking:', e);
@@ -398,8 +410,17 @@ export default function BookingForm() {
           >
             Cancel
           </button>
+          {!editingBookingId && ENABLE_SAVE_AND_CALENDAR && (
+            <button
+              onClick={() => handleSave(true)}
+              disabled={!isValid}
+              className="w-full lg:w-auto px-6 py-4 lg:py-2.5 text-base bg-surface border border-accent/60 text-accent rounded-md font-medium cursor-pointer press-scale transition-all disabled:opacity-40 disabled:cursor-not-allowed min-h-[52px]"
+            >
+              Save & Add to Calendar
+            </button>
+          )}
           <button
-            onClick={handleSave}
+            onClick={() => handleSave()}
             disabled={!isValid}
             className="w-full lg:w-auto px-6 py-4 lg:py-2.5 text-base bg-accent text-bg rounded-md font-medium cursor-pointer press-scale transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-glow active:shadow-glow-strong min-h-[52px]"
           >
