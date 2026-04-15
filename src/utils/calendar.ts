@@ -28,27 +28,16 @@ function generateICS(booking: Booking, clientName: string): string {
   ].join('\r\n');
 }
 
-/** Generate and trigger download of a .ics file for a booking (programmatic). */
+/** Generate and trigger download of a .ics file for a booking. */
 export function exportBookingToCalendar(booking: Booking, clientName: string): void {
   const ics = generateICS(booking, clientName);
   const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = calendarFilename(clientName, booking.type);
+  a.download = `${clientName.replace(/\s+/g, '-').toLowerCase()}-${booking.type.replace(/\s+/g, '-').toLowerCase()}.ics`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-}
-
-/** Create a blob URL for a booking's .ics file. Caller must revoke when done. */
-export function createCalendarBlobUrl(booking: Booking, clientName: string): string {
-  const ics = generateICS(booking, clientName);
-  const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
-  return URL.createObjectURL(blob);
-}
-
-export function calendarFilename(clientName: string, bookingType: string): string {
-  return `${clientName.replace(/\s+/g, '-').toLowerCase()}-${bookingType.replace(/\s+/g, '-').toLowerCase()}.ics`;
 }

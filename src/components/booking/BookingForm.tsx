@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { format } from 'date-fns';
-import { UserPlus } from 'lucide-react';
+import { UserPlus, CalendarPlus } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import Modal from '../common/Modal';
 import CreateClientForm from '../client/CreateClientForm';
@@ -16,10 +16,10 @@ import { useImageStore } from '../../stores/imageStore';
 import { useBookingImages } from '../../hooks/useBookingImages';
 import type { Booking, BookingType, BookingStatus } from '../../types';
 import { getTypeColor } from '../../types';
-import { createCalendarBlobUrl, calendarFilename } from '../../utils/calendar';
+import { exportBookingToCalendar } from '../../utils/calendar';
 
-// Flip to false to hide the "Save & Add to Calendar" button
-const ENABLE_SAVE_AND_CALENDAR = true;
+// Flip to false to hide the "Add to iOS" calendar button
+const ENABLE_IOS_CALENDAR = true;
 
 const bookingTypes: BookingType[] = ['Regular', 'Touch Up', 'Consultation', 'Full Day'];
 
@@ -168,26 +168,6 @@ export default function BookingForm() {
   };
 
   const isValid = form.date && form.client_id;
-
-  // Keep a live blob URL for the .ics file, rebuilt whenever form fields change.
-  // The "Save & Add to Calendar" button is a native <a> element pointing at this
-  // URL — the user's physical tap triggers the download (no programmatic .click(),
-  // no iOS permission prompt). The onClick handler fires the DB save alongside it.
-  const [calendarBlobUrl, setCalendarBlobUrl] = useState('');
-  useEffect(() => {
-    if (!ENABLE_SAVE_AND_CALENDAR || editingBookingId || !form.date || !form.time) {
-      setCalendarBlobUrl('');
-      return;
-    }
-    const dateTime = new Date(`${form.date}T${form.time}`);
-    const clientName = clients.find((c) => c.id === form.client_id)?.name ?? 'Walk-in';
-    const url = createCalendarBlobUrl(
-      { id: 'cal', created_at: '', client_id: form.client_id || null, date: dateTime.toISOString(), duration: form.duration, type: form.type, status: form.status } as Booking,
-      clientName,
-    );
-    setCalendarBlobUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [form.date, form.time, form.client_id, form.duration, form.type, form.status, clients, editingBookingId]);
 
   const inputClass = "w-full bg-input border border-border/60 rounded-md px-4 py-3.5 text-base text-text-p placeholder:text-text-t focus:outline-none focus:border-accent/40 transition-colors min-h-[48px]";
   const missingInputClass = "w-full bg-input border-2 border-danger/60 rounded-md px-4 py-3.5 text-base text-text-p placeholder:text-text-t focus:outline-none focus:border-danger/40 transition-colors min-h-[48px]";
@@ -414,7 +394,7 @@ export default function BookingForm() {
           <ImagePicker onFiles={addImages} />
         </div>
 
-        {/* Save */}
+        {/* Add to iOS / Save */}
         <div className="flex flex-col lg:flex-row lg:justify-end gap-3 pt-4 border-t border-border/40 sticky bottom-0 bg-elevated pb-2">
           <button
             onClick={closeBookingForm}
@@ -422,43 +402,22 @@ export default function BookingForm() {
           >
             Cancel
           </button>
-          {!editingBookingId && ENABLE_SAVE_AND_CALENDAR && calendarBlobUrl && (
-            <a
-              href={calendarBlobUrl}
-              download={calendarFilename(
-                clients.find((c) => c.id === form.client_id)?.name ?? 'walk-in',
-                form.type,
-              )}
-              onClick={(e) => {
-                if (!isValid) { e.preventDefault(); return; }
+          {ENABLE_IOS_CALENDAR && (
+            <button
+              onClick={() => {
                 const dateTime = new Date(`${form.date}T${form.time}`);
-                const data: Omit<Booking, 'id' | 'created_at'> = {
-                  client_id: form.client_id || null,
-                  date: dateTime.toISOString(),
-                  duration: form.duration,
-                  type: form.type,
-                  estimate: form.estimate ? parseFloat(form.estimate) : undefined,
-                  status: form.status,
-                  rescheduled: form.rescheduled || undefined,
-                  notes: form.notes || undefined,
-                };
-                // Persist to localStorage synchronously BEFORE the native
-                // anchor download triggers. In PWA mode, iOS kills the app
-                // when handing off to Calendar — the addBooking API call may
-                // never complete. On next launch, DataLoader retries this.
-                localStorage.setItem('inkbloop-pending-booking', JSON.stringify(data));
-                addBooking(data)
-                  .then((nb) => {
-                    remapBookingImages(tempBookingId.current, nb.id);
-                    localStorage.removeItem('inkbloop-pending-booking');
-                  })
-                  .catch(console.error);
-                closeBookingForm();
+                const clientName = clients.find((c) => c.id === form.client_id)?.name ?? 'Walk-in';
+                exportBookingToCalendar(
+                  { id: 'draft', created_at: '', client_id: form.client_id || null, date: dateTime.toISOString(), duration: form.duration, type: form.type, status: form.status } as Booking,
+                  clientName,
+                );
               }}
-              className={`w-full lg:w-auto px-6 py-4 lg:py-2.5 text-base bg-surface border border-accent/60 text-accent rounded-md font-medium press-scale transition-all min-h-[52px] text-center block no-underline ${!isValid ? 'opacity-40 pointer-events-none' : 'cursor-pointer'}`}
+              disabled={!isValid}
+              className="w-full lg:w-auto flex items-center justify-center gap-2 px-6 py-4 lg:py-2.5 text-base bg-surface border border-accent/60 text-accent rounded-md font-medium cursor-pointer press-scale transition-all disabled:opacity-40 disabled:cursor-not-allowed min-h-[52px]"
             >
-              Save & Add to Calendar
-            </a>
+              <CalendarPlus size={18} />
+              Add to iOS
+            </button>
           )}
           <button
             onClick={handleSave}

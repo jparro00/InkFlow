@@ -40,7 +40,6 @@ function DataLoader({ children }: { children: React.ReactNode }) {
   const { session } = useAuth();
   const fetchClients = useClientStore((s) => s.fetchClients);
   const fetchBookings = useBookingStore((s) => s.fetchBookings);
-  const addBooking = useBookingStore((s) => s.addBooking);
   const fetchImages = useImageStore((s) => s.fetchImages);
   const fetchDocuments = useDocumentStore((s) => s.fetchDocuments);
   const fetchConversations = useMessageStore((s) => s.fetchConversations);
@@ -49,21 +48,6 @@ function DataLoader({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!session) return;
-
-    // Retry any booking save that was interrupted (e.g., PWA killed
-    // during calendar export before the API call completed).
-    const pendingRaw = localStorage.getItem('inkbloop-pending-booking');
-    if (pendingRaw) {
-      try {
-        const data = JSON.parse(pendingRaw);
-        addBooking(data)
-          .then(() => localStorage.removeItem('inkbloop-pending-booking'))
-          .catch(() => localStorage.removeItem('inkbloop-pending-booking'));
-      } catch {
-        localStorage.removeItem('inkbloop-pending-booking');
-      }
-    }
-
     fetchClients();
     fetchBookings();
     fetchImages();
@@ -79,7 +63,7 @@ function DataLoader({ children }: { children: React.ReactNode }) {
     import('./pages/Settings');
     import('./pages/Theme');
     return () => stopRealtime();
-  }, [session, fetchClients, fetchBookings, addBooking, fetchImages, fetchDocuments, fetchConversations, startRealtime, stopRealtime]);
+  }, [session, fetchClients, fetchBookings, fetchImages, fetchDocuments, fetchConversations, startRealtime, stopRealtime]);
 
   return <>{children}</>;
 }
