@@ -55,6 +55,14 @@ function DataLoader({ children }: { children: React.ReactNode }) {
     // Messages tab mount — prevents the 1-2s WebSocket teardown/re-setup on
     // each tab switch.
     startRealtime();
+    // Prefetch all lazy-loaded route chunks so tab switches are instant.
+    // Without this, the first visit to each tab on PWA/mobile stalls 3-5s
+    // while the browser downloads the JS chunk over the network.
+    import('./pages/Clients');
+    import('./pages/ClientDetail');
+    import('./pages/Messages');
+    import('./pages/Settings');
+    import('./pages/Theme');
     return () => stopRealtime();
   }, [session, fetchClients, fetchBookings, fetchImages, fetchDocuments, startRealtime, stopRealtime]);
 
