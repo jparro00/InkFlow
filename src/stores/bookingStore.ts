@@ -12,7 +12,7 @@ interface BookingStore {
   getBookingsForClient: (clientId: string) => Booking[];
   getBookingsForDate: (date: Date) => Booking[];
   getBookingsForMonth: (year: number, month: number) => Booking[];
-  addBooking: (booking: Omit<Booking, 'id' | 'created_at'>) => Promise<Booking>;
+  addBooking: (booking: Omit<Booking, 'id' | 'created_at'>, id?: string) => Promise<Booking>;
   updateBooking: (id: string, data: Partial<Booking>) => Promise<void>;
   deleteBooking: (id: string) => Promise<void>;
   searchBookings: (query: string, clients: { id: string; name: string }[]) => Booking[];
@@ -50,23 +50,23 @@ export const useBookingStore = create<BookingStore>()(persist((set, get) => ({
       return d.getFullYear() === year && d.getMonth() === month;
     }),
 
-  addBooking: async (data) => {
-    const tempId = crypto.randomUUID();
+  addBooking: async (data, id) => {
+    const bookingId = id ?? crypto.randomUUID();
     const optimistic: Booking = {
       ...data,
-      id: tempId,
+      id: bookingId,
       created_at: new Date().toISOString(),
     };
     set((s) => ({ bookings: [...s.bookings, optimistic] }));
 
     try {
-      const real = await bookingService.createBooking(data);
+      const real = await bookingService.createBooking(data, bookingId);
       set((s) => ({
-        bookings: s.bookings.map((b) => (b.id === tempId ? real : b)),
+        bookings: s.bookings.map((b) => (b.id === bookingId ? real : b)),
       }));
       return real;
     } catch (e) {
-      set((s) => ({ bookings: s.bookings.filter((b) => b.id !== tempId) }));
+      set((s) => ({ bookings: s.bookings.filter((b) => b.id !== bookingId) }));
       throw e;
     }
   },

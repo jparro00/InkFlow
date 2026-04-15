@@ -34,9 +34,11 @@ export async function fetchBookings(): Promise<Booking[]> {
 }
 
 export async function createBooking(
-  booking: Omit<Booking, 'id' | 'created_at'>
+  booking: Omit<Booking, 'id' | 'created_at'>,
+  id?: string
 ): Promise<Booking> {
   const row: BookingInsert = {
+    ...(id ? { id } : {}),
     client_id: booking.client_id ?? null,
     date: booking.date,
     duration: booking.duration,
