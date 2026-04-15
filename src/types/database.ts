@@ -243,6 +243,27 @@ export interface Database {
           },
         ];
       };
+      feedback: {
+        Row: {
+          id: string;
+          user_id: string;
+          feedback: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          feedback: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          feedback?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       age_verification_logs: {
         Row: {
           id: string;
