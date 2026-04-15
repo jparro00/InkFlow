@@ -9,7 +9,6 @@ import { useMessageStore, isBusinessMessage } from '../../stores/messageStore';
 import { useClientStore } from '../../stores/clientStore';
 import type { GraphMessage } from '../../services/messageService';
 import CreateClientForm from '../client/CreateClientForm';
-import type { ClientChannel } from '../../types';
 
 function MessageBubble({ msg }: { msg: GraphMessage }) {
   const isBusiness = isBusinessMessage(msg) || msg.from.id === '__self__';
@@ -402,7 +401,6 @@ export default function ConversationDrawer() {
               ...(convo.platform === 'instagram'
                 ? { instagram: convo.participantPsid }
                 : { facebook: convo.participantPsid }),
-              channel: (convo.platform === 'instagram' ? 'Instagram' : 'Facebook') as ClientChannel,
             }}
             onCreated={() => setShowCreateForm(false)}
           />
