@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { format, isSameDay, isToday } from 'date-fns';
-import { Clock, Check } from 'lucide-react';
+import { Clock, Check, ChevronUp, ChevronDown } from 'lucide-react';
 import { useBookingStore } from '../../stores/bookingStore';
 import { useClientStore } from '../../stores/clientStore';
 import { getTypeColor, getTypeColorAlpha } from '../../types';
@@ -8,6 +8,7 @@ import { getTypeColor, getTypeColorAlpha } from '../../types';
 const HOUR_H = 32;
 const VISIBLE_HEIGHT = 280;
 const TOTAL_HOURS = 24;
+const MINUTES = [0, 15, 30, 45];
 
 interface TimePickerProps {
   value: string;
@@ -16,13 +17,24 @@ interface TimePickerProps {
   duration: number;
   bookingType?: string;
   editingBookingId?: string;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export default function TimePicker({ value, onChange, date, duration, bookingType, editingBookingId }: TimePickerProps) {
+function to12(h24: number): { hour12: number; period: 'AM' | 'PM' } {
+  const period: 'AM' | 'PM' = h24 >= 12 ? 'PM' : 'AM';
+  const hour12 = h24 === 0 ? 12 : h24 > 12 ? h24 - 12 : h24;
+  return { hour12, period };
+}
+
+function to24(hour12: number, period: 'AM' | 'PM'): number {
+  if (period === 'AM') return hour12 === 12 ? 0 : hour12;
+  return hour12 === 12 ? 12 : hour12 + 12;
+}
+
+export default function TimePicker({ value, onChange, date, duration, bookingType, editingBookingId, onOpenChange }: TimePickerProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const timeInputRef = useRef<HTMLInputElement>(null);
 
   const allBookings = useBookingStore((s) => s.bookings);
   const getClient = useClientStore((s) => s.getClient);
@@ -41,49 +53,40 @@ export default function TimePicker({ value, onChange, date, duration, bookingTyp
 
   const [selHour, selMin] = value ? value.split(':').map(Number) : [10, 0];
   const selStart = selHour + selMin / 60;
+  const { hour12, period } = to12(selHour);
 
-  // The preview block's TOP EDGE is fixed at a point in the visible area.
-  // We place it 1/3 down so there's context above.
   const previewOffset = Math.round(VISIBLE_HEIGHT / 3);
   const topPadding = previewOffset;
   const bottomPadding = VISIBLE_HEIGHT - previewOffset;
   const totalScrollHeight = TOTAL_HOURS * HOUR_H + topPadding + bottomPadding;
 
-  // Convert time to scroll position (top edge of preview = selected time)
-  const timeToScroll = useCallback((hour: number) => {
-    return hour * HOUR_H;
-  }, []);
+  const timeToScroll = useCallback((hour: number) => hour * HOUR_H, []);
 
-  // Convert scroll position to time
   const scrollToTime = useCallback((scrollTop: number) => {
     const hourFloat = scrollTop / HOUR_H;
-    // Snap to 15 minutes, clamp to 0:00 - 23:45
     const totalMins = Math.max(0, Math.min(23 * 60 + 45, Math.round(hourFloat * 4) * 15));
     return { hour: Math.floor(totalMins / 60), min: totalMins % 60 };
   }, []);
 
-  // Set initial scroll position when opening, and scroll picker into view
+  const setOpenAndNotify = useCallback((next: boolean) => {
+    setOpen(next);
+    onOpenChange?.(next);
+  }, [onOpenChange]);
+
+  // Set initial scroll position when opening
   useEffect(() => {
     if (open && scrollRef.current) {
       scrollRef.current.scrollTop = timeToScroll(selStart);
     }
-    if (open && containerRef.current) {
-      // Delay slightly so the expanded picker is in the DOM
-      requestAnimationFrame(() => {
-        containerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      });
-    }
   }, [open]);
 
-  // Sync scroll position when value changes from external input
-  const syncScrollToValue = useCallback((time: string) => {
+  // Sync scroll when value changes from the tappable selector
+  const syncScrollToValue = useCallback((h24: number, m: number) => {
     if (!scrollRef.current) return;
-    const [h, m] = time.split(':').map(Number);
-    const targetScroll = timeToScroll(h + m / 60);
-    scrollRef.current.scrollTop = targetScroll;
+    scrollRef.current.scrollTop = timeToScroll(h24 + m / 60);
   }, [timeToScroll]);
 
-  // Update time on scroll
+  // Update time on timeline scroll
   const isInputDriven = useRef(false);
   const handleScroll = useCallback(() => {
     if (!scrollRef.current || isInputDriven.current) return;
@@ -91,45 +94,38 @@ export default function TimePicker({ value, onChange, date, duration, bookingTyp
     onChange(`${String(hour).padStart(2, '0')}:${String(min).padStart(2, '0')}`);
   }, [scrollToTime, onChange]);
 
-  // Parse typed time input (e.g. "2:30 pm", "14:00", "230p")
-  const parseTimeInput = useCallback((raw: string): string | null => {
-    const s = raw.trim().toLowerCase();
-    // Try HH:MM or H:MM with optional am/pm
-    const match = s.match(/^(\d{1,2}):?(\d{2})?\s*(a|p|am|pm)?$/);
-    if (!match) return null;
-    let h = parseInt(match[1], 10);
-    const m = match[2] ? parseInt(match[2], 10) : 0;
-    const period = match[3];
-    if (period) {
-      if (period.startsWith('p') && h < 12) h += 12;
-      if (period.startsWith('a') && h === 12) h = 0;
-    }
-    if (h < 0 || h > 23 || m < 0 || m > 59) return null;
-    // Snap to nearest 15 min
-    const snapped = Math.round(m / 15) * 15;
-    const finalM = snapped === 60 ? 0 : snapped;
-    const finalH = snapped === 60 ? (h + 1) % 24 : h;
-    return `${String(finalH).padStart(2, '0')}:${String(finalM).padStart(2, '0')}`;
-  }, []);
+  // Tap-based time change helpers
+  const setTime = useCallback((h24: number, m: number) => {
+    const clamped = Math.max(0, Math.min(23, h24));
+    const time = `${String(clamped).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    onChange(time);
+    isInputDriven.current = true;
+    syncScrollToValue(clamped, m);
+    requestAnimationFrame(() => { isInputDriven.current = false; });
+  }, [onChange, syncScrollToValue]);
 
-  const handleTimeInputConfirm = useCallback((rawValue: string) => {
-    const parsed = parseTimeInput(rawValue);
-    if (parsed) {
-      onChange(parsed);
-      if (open) {
-        isInputDriven.current = true;
-        syncScrollToValue(parsed);
-        requestAnimationFrame(() => { isInputDriven.current = false; });
-      }
-    }
-  }, [parseTimeInput, onChange, open, syncScrollToValue]);
+  const cycleHour = useCallback((dir: 1 | -1) => {
+    const next12 = ((hour12 - 1 + dir + 12) % 12) + 1;
+    setTime(to24(next12, period), selMin);
+  }, [hour12, period, selMin, setTime]);
+
+  const cycleMinute = useCallback((dir: 1 | -1) => {
+    const idx = MINUTES.indexOf(selMin);
+    const nextIdx = (idx + dir + MINUTES.length) % MINUTES.length;
+    setTime(to24(hour12, period), MINUTES[nextIdx]);
+  }, [hour12, period, selMin, setTime]);
+
+  const togglePeriod = useCallback(() => {
+    const newPeriod = period === 'AM' ? 'PM' : 'AM';
+    setTime(to24(hour12, newPeriod), selMin);
+  }, [hour12, period, selMin, setTime]);
 
   // Close on outside click
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent | TouchEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
+        setOpenAndNotify(false);
       }
     };
     document.addEventListener('mousedown', handler);
@@ -138,38 +134,47 @@ export default function TimePicker({ value, onChange, date, duration, bookingTyp
       document.removeEventListener('mousedown', handler);
       document.removeEventListener('touchstart', handler);
     };
-  }, [open]);
+  }, [open, setOpenAndNotify]);
 
   const displayText = value
     ? format(new Date(2026, 0, 1, selHour, selMin), 'h:mm a')
     : 'Select time';
 
+  const spinnerBtn = "w-8 h-8 flex items-center justify-center rounded-md text-text-t active:text-text-p active:bg-surface transition-colors cursor-pointer press-scale";
+
   return (
     <div ref={containerRef}>
-      {/* Trigger — editable input when open, button when closed */}
+      {/* Trigger row */}
       <div className="flex items-center gap-2">
         {open ? (
-          <div className="flex-1 relative">
-            <Clock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-t shrink-0 pointer-events-none" />
-            <input
-              ref={timeInputRef}
-              type="text"
-              defaultValue={displayText}
-              onBlur={(e) => handleTimeInputConfirm(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  handleTimeInputConfirm((e.target as HTMLInputElement).value);
-                  (e.target as HTMLInputElement).blur();
-                }
-              }}
-              className="w-full bg-input border border-accent/40 rounded-md pl-11 pr-4 text-left text-base text-text-p focus:outline-none transition-colors"
-              style={{ height: 48 }}
-            />
+          <div className="flex-1 flex items-center gap-1 bg-input border border-accent/40 rounded-md px-3" style={{ height: 48 }}>
+            <Clock size={16} className="text-text-t shrink-0 mr-1" />
+            {/* Hour spinner */}
+            <div className="flex flex-col items-center">
+              <button type="button" onClick={() => cycleHour(1)} className={spinnerBtn}><ChevronUp size={14} /></button>
+              <span className="text-lg font-medium text-text-p w-8 text-center tabular-nums">{hour12}</span>
+              <button type="button" onClick={() => cycleHour(-1)} className={spinnerBtn}><ChevronDown size={14} /></button>
+            </div>
+            <span className="text-lg text-text-t font-medium">:</span>
+            {/* Minute spinner */}
+            <div className="flex flex-col items-center">
+              <button type="button" onClick={() => cycleMinute(1)} className={spinnerBtn}><ChevronUp size={14} /></button>
+              <span className="text-lg font-medium text-text-p w-8 text-center tabular-nums">{String(selMin).padStart(2, '0')}</span>
+              <button type="button" onClick={() => cycleMinute(-1)} className={spinnerBtn}><ChevronDown size={14} /></button>
+            </div>
+            {/* AM/PM toggle */}
+            <button
+              type="button"
+              onClick={togglePeriod}
+              className="ml-1 px-2.5 py-1 rounded-md text-sm font-medium bg-accent/10 text-accent active:bg-accent/20 transition-colors cursor-pointer press-scale"
+            >
+              {period}
+            </button>
           </div>
         ) : (
           <button
             type="button"
-            onClick={() => setOpen(true)}
+            onClick={() => setOpenAndNotify(true)}
             className={`flex-1 bg-input border border-border/60 rounded-md px-4 text-left text-base flex items-center gap-3 transition-colors cursor-pointer ${value ? 'text-text-p' : 'text-text-t'}`}
             style={{ height: 48 }}
           >
@@ -180,7 +185,7 @@ export default function TimePicker({ value, onChange, date, duration, bookingTyp
         {open && (
           <button
             type="button"
-            onClick={() => setOpen(false)}
+            onClick={() => setOpenAndNotify(false)}
             className="w-12 h-12 rounded-md bg-accent text-bg flex items-center justify-center cursor-pointer press-scale shadow-glow active:shadow-glow-strong shrink-0"
           >
             <Check size={18} />
@@ -191,14 +196,13 @@ export default function TimePicker({ value, onChange, date, duration, bookingTyp
       {/* Expanded scroll picker */}
       {open && (
         <div className="mt-2 bg-elevated border border-accent/20 rounded-lg shadow-glow overflow-hidden relative">
-          {/* Date label */}
           {selectedDate && (
             <div className="text-center text-sm text-text-s font-medium py-2 border-b border-border/30">
               {format(selectedDate, 'EEEE, MMM d')}
             </div>
           )}
 
-          {/* Fixed preview block — top edge aligns with selected time */}
+          {/* Fixed preview block */}
           {(() => {
             const bType = (bookingType || 'Regular') as import('../../types').BookingType;
             const previewColor = getTypeColor(bType);
@@ -228,7 +232,6 @@ export default function TimePicker({ value, onChange, date, duration, bookingTyp
             onScroll={handleScroll}
           >
             <div className="relative" style={{ height: totalScrollHeight }}>
-              {/* Hour grid */}
               {Array.from({ length: TOTAL_HOURS }, (_, i) => i).map((hour) => (
                 <div
                   key={hour}
@@ -242,7 +245,6 @@ export default function TimePicker({ value, onChange, date, duration, bookingTyp
                 </div>
               ))}
 
-              {/* Current time red line */}
               {selectedDate && isToday(selectedDate) && (() => {
                 const now = new Date();
                 const currentHour = now.getHours() + now.getMinutes() / 60;
@@ -255,7 +257,6 @@ export default function TimePicker({ value, onChange, date, duration, bookingTyp
                 );
               })()}
 
-              {/* Existing bookings */}
               {dayBookings.map((booking) => {
                 const d = new Date(booking.date);
                 const startHour = d.getHours() + d.getMinutes() / 60;

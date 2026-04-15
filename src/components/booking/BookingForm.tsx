@@ -53,6 +53,7 @@ export default function BookingForm() {
   const [missingFields, setMissingFields] = useState<Set<string>>(new Set());
 
   const tempBookingId = useRef(crypto.randomUUID());
+  const timeScrollTargetRef = useRef<HTMLDivElement>(null);
   const imageBookingId = editingBookingId ?? tempBookingId.current;
   const { thumbnails, addImages, removeImage, getOriginalUrl } = useBookingImages(imageBookingId);
   const remapBookingImages = useImageStore((s) => s.remapBookingImages);
@@ -216,7 +217,7 @@ export default function BookingForm() {
         </div>
 
         {/* Morning / Evening */}
-        <div className="flex gap-3">
+        <div ref={timeScrollTargetRef} className="flex gap-3">
           {['Morning', 'Evening'].map((slot) => {
             const time = slot === 'Morning'
               ? (localStorage.getItem('inkbloop-morning-time') ?? '10:00')
@@ -266,6 +267,13 @@ export default function BookingForm() {
             duration={form.duration}
             bookingType={form.type}
             editingBookingId={editingBookingId ?? undefined}
+            onOpenChange={(isOpen) => {
+              if (isOpen && timeScrollTargetRef.current) {
+                requestAnimationFrame(() => {
+                  timeScrollTargetRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                });
+              }
+            }}
           />
         </div>
 
