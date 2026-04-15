@@ -45,32 +45,31 @@ export default function FeedbackPage() {
   };
 
   return (
-    <div className="h-full flex flex-col px-5 pt-2 pb-4">
+    <div className="px-5 pt-2 pb-4">
       {submitted ? (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="text-2xl mb-2">Thanks for the feedback!</div>
-            <button
-              onClick={() => setSubmitted(false)}
-              className="mt-4 text-sm text-accent cursor-pointer press-scale"
-            >
-              Send more
-            </button>
-          </div>
+        <div className="text-center pt-16">
+          <div className="text-2xl mb-2">Thanks for the feedback!</div>
+          <button
+            onClick={() => setSubmitted(false)}
+            className="mt-4 text-sm text-accent cursor-pointer press-scale"
+          >
+            Send more
+          </button>
         </div>
       ) : (
         <>
           <textarea
             ref={textareaRef}
+            autoFocus
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="What's on your mind?"
-            className="flex-1 w-full bg-input border border-border/60 rounded-md px-4 py-3.5 text-base text-text-p placeholder:text-text-t focus:outline-none focus:border-accent/40 transition-colors resize-none min-h-[120px] max-h-[40vh]"
+            className="w-full h-32 bg-input border border-border/60 rounded-md px-4 py-3.5 text-base text-text-p placeholder:text-text-t focus:outline-none focus:border-accent/40 transition-colors resize-none"
           />
           <button
             onClick={handleSubmit}
             disabled={!text.trim() || submitting}
-            className="mt-3 w-full px-6 py-4 text-base bg-accent text-bg rounded-md font-medium cursor-pointer press-scale transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-glow active:shadow-glow-strong min-h-[52px] shrink-0"
+            className="mt-3 w-full px-6 py-4 text-base bg-accent text-bg rounded-md font-medium cursor-pointer press-scale transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-glow active:shadow-glow-strong min-h-[52px]"
           >
             {submitting ? 'Sending...' : 'Submit'}
           </button>
