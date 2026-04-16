@@ -178,6 +178,85 @@ async function routeBooking(
     return;
   }
 
+  // Search — always show results as cards, never auto-open
+  if (intent.action === 'search') {
+    // If user tapped a booking card from search results, open it
+    if (resolved.booking_id) {
+      executeBookingOpen({ booking_id: resolved.booking_id as string });
+      return;
+    }
+
+    // Resolve client first if mentioned
+    if (intent.entities.client_name && !resolved.client_id) {
+      const clients = useClientStore.getState().clients;
+      const result = resolveClient(intent.entities.client_name, clients);
+
+      switch (result.type) {
+        case 'exact':
+        case 'single':
+          resolved.client_id = result.client.id;
+          break;
+        case 'multiple':
+          store.replaceLastLoading({
+            text: `Which ${intent.entities.client_name}?`,
+            selections: {
+              type: 'client',
+              items: result.clients,
+              mode: 'single',
+              context: 'ambiguous_client',
+            },
+          });
+          return;
+        case 'none':
+          showNoMatch(intent.entities.client_name!, result.suggestions);
+          return;
+      }
+    }
+
+    // Find bookings matching the hints
+    const bookings = useBookingStore.getState().bookings;
+    const bookingResult = resolveBooking(
+      {
+        client_id: resolved.client_id as string | undefined,
+        date: intent.entities.date,
+        type: intent.entities.type,
+      },
+      bookings
+    );
+
+    const clientName = intent.entities.client_name || '';
+
+    switch (bookingResult.type) {
+      case 'exact':
+        store.replaceLastLoading({
+          text: `Found 1 booking${clientName ? ` for ${clientName}` : ''}:`,
+          selections: {
+            type: 'booking',
+            items: [bookingResult.booking],
+            mode: 'single',
+            context: 'ambiguous_booking',
+          },
+        });
+        return;
+      case 'multiple':
+        store.replaceLastLoading({
+          text: `Found ${bookingResult.bookings.length} bookings${clientName ? ` for ${clientName}` : ''}:`,
+          selections: {
+            type: 'booking',
+            items: bookingResult.bookings,
+            mode: 'single',
+            context: 'ambiguous_booking',
+          },
+        });
+        return;
+      case 'none':
+        store.replaceLastLoading({
+          text: `No upcoming bookings found${clientName ? ` for ${clientName}` : ''}.`,
+        });
+        return;
+    }
+  }
+
   if (intent.action === 'open' || intent.action === 'edit') {
     // For open/edit, we need to find the booking.
     // Client is just one way to narrow down — not required.

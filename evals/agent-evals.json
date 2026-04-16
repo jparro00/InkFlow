@@ -104,13 +104,31 @@
       "expected_outcome": "BookingDrawer opens for the Friday booking"
     },
     {
-      "id": "booking-open-question",
-      "category": "booking/open",
+      "id": "booking-search-by-client",
+      "category": "booking/search",
       "prompt": "do I have an appointment for cindy",
-      "context": "Two clients match 'cindy' (Cindy Liu, Cindy Park). Must NOT route to client agent.",
-      "expected_parse": { "agent": "booking", "action": "open", "entities": { "client_name": "cindy" } },
-      "resolution": "Multiple matches on 'cindy' → shows client disambiguation cards → after tap, looks for bookings for that client",
-      "expected_outcome": "Agent panel shows 'Which cindy?' with client cards. After tap, shows booking(s) or 'No matching booking found.'"
+      "context": "Two clients match 'cindy'. Must NOT route to client agent.",
+      "expected_parse": { "agent": "booking", "action": "search", "entities": { "client_name": "cindy" } },
+      "resolution": "Multiple matches on 'cindy' → shows client disambiguation cards → after tap, shows booking cards (never auto-opens)",
+      "expected_outcome": "Agent panel shows 'Which cindy?' with client cards. After tap, shows booking(s) as cards or 'No upcoming bookings found for cindy.'"
+    },
+    {
+      "id": "booking-search-by-date",
+      "category": "booking/search",
+      "prompt": "any bookings on friday",
+      "context": "3 bookings exist on Friday",
+      "expected_parse": { "agent": "booking", "action": "search", "entities": { "date": "next friday ISO" } },
+      "resolution": "No client → filter bookings by date → show all as cards",
+      "expected_outcome": "Agent panel shows 'Found 3 bookings:' with booking cards"
+    },
+    {
+      "id": "booking-search-is-booked",
+      "category": "booking/search",
+      "prompt": "is sarah booked this week",
+      "context": "Sarah Kim has 1 booking this week",
+      "expected_parse": { "agent": "booking", "action": "search", "entities": { "client_name": "sarah" } },
+      "resolution": "Single match on 'sarah' → finds 1 booking → shows as card",
+      "expected_outcome": "Agent panel shows 'Found 1 booking for sarah:' with booking card"
     },
 
     {

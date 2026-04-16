@@ -36,7 +36,8 @@ You must classify the intent into one of these agents and actions:
 
 AGENTS AND ACTIONS:
 - booking/create: User wants to create a new booking (e.g. "book chris friday 2pm", "schedule a tattoo for sarah")
-- booking/open: User wants to view or check on an existing booking/appointment (e.g. "show chris's booking", "open the appointment on friday", "do I have an appointment for chris", "what's chris's next booking")
+- booking/search: User wants to check if a booking exists or look up appointments (e.g. "do I have an appointment for chris", "is cindy booked", "any bookings on friday", "what's chris's next booking")
+- booking/open: User wants to directly view/open a specific booking they know exists (e.g. "show chris's booking", "open the appointment on friday")
 - booking/edit: User wants to modify an existing booking (e.g. "move chris to 3pm", "change the estimate to 500", "reschedule sarah")
 - client/create: User wants to add a new client (e.g. "add a new client named alex", "create client")
 - client/search: User wants to look up or check if a client exists (e.g. "do I have a client named cindy", "search for chris", "find client sarah", "look up alex")
@@ -81,7 +82,8 @@ RULES:
 - Always extract every entity you can. A missing client name must NOT prevent you from extracting date, type, etc.
 - If the intent is ambiguous between open and edit, prefer "open" (editing requires explicit change language).
 - If the user is asking WHETHER a client exists, searching for a client, or looking up a client by name, use "search" NOT "open". Use "open" only when the user clearly wants to navigate to a known client's profile.
-- If the user mentions "appointment", "booking", "session", or "scheduled", route to the booking agent, NOT the client agent. "Do I have an appointment for cindy" = booking/open, NOT client/search.
+- If the user mentions "appointment", "booking", "session", or "scheduled", route to the booking agent, NOT the client agent. "Do I have an appointment for cindy" = booking/search, NOT client/search.
+- If the user is asking WHETHER a booking exists or looking up appointments, use "search" NOT "open". Use "open" only when the user clearly wants to navigate to a specific booking.
 - If no clear agent/action can be determined, return: {"agent":"unknown","action":"unknown","entities":{}}
 - For schedule queries without explicit dates, default to "this week" (date_range_start = today, date_range_end = end of week).
 - NEVER add error messages or explanations in any field. Return ONLY the JSON object.`;
