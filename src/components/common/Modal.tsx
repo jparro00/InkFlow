@@ -345,33 +345,22 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
     };
   }, []);
 
-  // Keyboard handling for iOS PWA.
+  // Keyboard handling for iOS PWA. The deep iOS behavior: when keyboard
+  // opens, iOS scrolls the layout viewport up to reveal the focused input.
+  // `position: fixed` anchors to the layout viewport, so fixed elements
+  // move off-screen with the scroll. The body scroll lock doesn't fully
+  // prevent this in PWA mode — it's a native behavior below JS.
   //
-  // Root cause: when user focuses an input near the bottom of the screen,
-  // iOS scrolls the layout viewport up to reveal the input above where the
-  // keyboard will appear. `position: fixed` anchors to the layout viewport,
-  // so fixed elements move off-screen with that scroll. Even with body
-  // scroll lock, this scroll happens in a privileged render layer before
-  // our JS can react, causing a visible jump at the top.
-  //
-  // Fix: preempt iOS. As soon as the input is focused (before iOS runs its
-  // "should I scroll?" calculation), shrink the sheet to the keyboard-open
-  // size. iOS then sees the input is already above the keyboard zone and
-  // decides no scroll is needed. Top stays visually stationary at 16px.
-  //
-  // `visualViewport.resize` is still used as the source of truth for the
-  // exact keyboard height once it's open. `offsetTop` tracking is kept as
-  // a safety net in case iOS still decides to scroll on some devices.
+  // Fix: track `visualViewport.offsetTop` (how much the layout scrolled)
+  // and add it to the sheet's `top` so the sheet stays in the visible area.
+  // We update SYNCHRONOUSLY on both `resize` and `scroll` events (no RAF,
+  // which adds a one-frame delay that caused jumping in prior attempts).
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
     const mq = window.matchMedia('(max-width: 1023px)');
 
-    // Rough estimate for iPhone keyboard height as a fraction of viewport.
-    // Real keyboard is 40–50% depending on device. We use 45% for pre-shrink.
-    const ESTIMATED_KEYBOARD_RATIO = 0.45;
-
-    const applySize = (heightPx: number, offsetTopPx: number) => {
+    const update = () => {
       const el = sheetRef.current;
       if (!el) return;
       if (!mq.matches) {
@@ -380,41 +369,21 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
         el.style.height = '';
         return;
       }
-      el.style.top = `${offsetTopPx + 16}px`;
+      el.style.top = `${vv.offsetTop + 16}px`;
       el.style.bottom = 'auto';
-      el.style.height = `${heightPx - 32}px`;
+      el.style.height = `${vv.height - 32}px`;
     };
 
-    const updateFromViewport = () => {
-      applySize(vv.height, vv.offsetTop);
-    };
-
-    const onFocusIn = (e: FocusEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (!target || !sheetRef.current?.contains(target)) return;
-      const isField =
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.isContentEditable;
-      if (!isField) return;
-      // Pre-shrink the sheet to keyboard-open size BEFORE iOS decides
-      // whether to scroll. Input is now above the keyboard zone; no scroll.
-      const estimatedHeight = window.innerHeight * (1 - ESTIMATED_KEYBOARD_RATIO);
-      applySize(estimatedHeight, 0);
-    };
-
-    vv.addEventListener('resize', updateFromViewport);
-    vv.addEventListener('scroll', updateFromViewport);
-    mq.addEventListener('change', updateFromViewport);
-    window.addEventListener('orientationchange', updateFromViewport);
-    document.addEventListener('focusin', onFocusIn);
-    updateFromViewport();
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    mq.addEventListener('change', update);
+    window.addEventListener('orientationchange', update);
+    update();
     return () => {
-      vv.removeEventListener('resize', updateFromViewport);
-      vv.removeEventListener('scroll', updateFromViewport);
-      mq.removeEventListener('change', updateFromViewport);
-      window.removeEventListener('orientationchange', updateFromViewport);
-      document.removeEventListener('focusin', onFocusIn);
+      vv.removeEventListener('resize', update);
+      vv.removeEventListener('scroll', update);
+      mq.removeEventListener('change', update);
+      window.removeEventListener('orientationchange', update);
     };
   }, []);
 
