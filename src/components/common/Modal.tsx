@@ -345,44 +345,36 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
     };
   }, []);
 
-  // Keyboard handling: `interactive-widget=resizes-content` (iOS 17.2+/Chrome)
-  // handles this natively, but we also need a JS fallback for older iOS.
-  // We position the sheet directly on the DOM based on visualViewport so
-  // updates are synchronous (no React state lag that caused prior jumping).
+  // Keyboard handling fallback for iOS < 17.2 (older devices without
+  // `interactive-widget=resizes-content` support). We only resize the sheet's
+  // height based on the visual viewport — we deliberately do NOT track
+  // `vv.offsetTop`, because iOS emits transient non-zero offsetTop values
+  // during the keyboard animation which cause the top to jump. The body
+  // scroll lock (below) prevents the layout viewport from actually scrolling,
+  // so `top: 16` stays visually at 16px without any JS help.
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
     const mq = window.matchMedia('(max-width: 1023px)');
 
-    let rafId = 0;
     const update = () => {
-      cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(() => {
-        const el = sheetRef.current;
-        if (!el) return;
-        if (!mq.matches) {
-          el.style.top = '';
-          el.style.bottom = '';
-          el.style.height = '';
-          return;
-        }
-        // Anchor to visual viewport: top tracks offsetTop (in case iOS scrolls
-        // the layout to reveal the input), height matches the visible area.
-        el.style.top = `${vv.offsetTop + 16}px`;
-        el.style.bottom = 'auto';
-        el.style.height = `${vv.height - 32}px`;
-      });
+      const el = sheetRef.current;
+      if (!el) return;
+      if (!mq.matches) {
+        el.style.bottom = '';
+        el.style.height = '';
+        return;
+      }
+      el.style.bottom = 'auto';
+      el.style.height = `${vv.height - 32}px`;
     };
 
     vv.addEventListener('resize', update);
-    vv.addEventListener('scroll', update);
     mq.addEventListener('change', update);
     window.addEventListener('orientationchange', update);
     update();
     return () => {
-      cancelAnimationFrame(rafId);
       vv.removeEventListener('resize', update);
-      vv.removeEventListener('scroll', update);
       mq.removeEventListener('change', update);
       window.removeEventListener('orientationchange', update);
     };
