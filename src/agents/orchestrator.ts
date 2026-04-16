@@ -380,7 +380,7 @@ async function routeBooking(
       const changes = {
         date: intent.entities.date,
         duration: intent.entities.duration,
-        type: intent.entities.type as 'Regular' | 'Touch Up' | 'Consultation' | 'Full Day' | undefined,
+        type: intent.entities.type as 'Regular' | 'Touch Up' | 'Consultation' | 'Full Day' | 'Cover Up' | undefined,
         timeSlot: intent.entities.timeSlot,
         estimate: intent.entities.estimate,
         notes: intent.entities.notes,

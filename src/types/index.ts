@@ -27,7 +27,7 @@ export interface ClientNote {
   text: string;
 }
 
-export type BookingType = 'Regular' | 'Touch Up' | 'Consultation' | 'Full Day';
+export type BookingType = 'Regular' | 'Touch Up' | 'Consultation' | 'Full Day' | 'Cover Up';
 export type BookingStatus = 'Confirmed' | 'Tentative' | 'Completed' | 'Cancelled' | 'No-show';
 
 const typeColorVar: Record<BookingType, string> = {
@@ -35,6 +35,7 @@ const typeColorVar: Record<BookingType, string> = {
   'Touch Up': '--color-type-touchup',
   Consultation: '--color-type-consult',
   'Full Day': '--color-type-fullday',
+  'Cover Up': '--color-type-coverup',
 };
 
 const typeColorFallback: Record<BookingType, string> = {
@@ -42,6 +43,7 @@ const typeColorFallback: Record<BookingType, string> = {
   'Touch Up': '#F67100',
   Consultation: '#FE84FF',
   'Full Day': '#FF00AC',
+  'Cover Up': '#1E90FF',
 };
 
 function readCssColor(varName: string, fallback: string): string {

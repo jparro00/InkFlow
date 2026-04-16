@@ -35,6 +35,8 @@ export function parseQuickBooking(text: string): ParsedBooking {
     result.type = 'Touch Up';
   } else if (lower.includes('full day') || lower.includes('fullday')) {
     result.type = 'Full Day';
+  } else if (lower.includes('cover up') || lower.includes('coverup') || lower.includes('cover-up')) {
+    result.type = 'Cover Up';
   } else {
     result.type = 'Regular';
   }

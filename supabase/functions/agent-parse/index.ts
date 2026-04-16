@@ -30,7 +30,7 @@ const SYSTEM_PROMPT = `You are an intent parser for a tattoo studio management a
 
 TODAY: {today} ({dayOfWeek}). Current year: {year}.
 
-BOOKING_TYPES: "Regular", "Touch Up", "Consultation", "Full Day"
+BOOKING_TYPES: "Regular", "Touch Up", "Consultation", "Full Day", "Cover Up"
 
 You must classify the intent into one of these agents and actions:
 
@@ -227,7 +227,7 @@ Deno.serve(async (req: Request) => {
     // Validate booking type if present
     if (
       parsed.entities.type &&
-      !["Regular", "Touch Up", "Consultation", "Full Day"].includes(
+      !["Regular", "Touch Up", "Consultation", "Full Day", "Cover Up"].includes(
         parsed.entities.type
       )
     ) {

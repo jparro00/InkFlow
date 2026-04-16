@@ -47,7 +47,7 @@ Today: ${now.toISOString().split('T')[0]} (${now.toLocaleDateString('en-US', { w
 
 Clients: ${clientList.map((c) => `${c.id}="${c.name}"`).join(', ')}
 
-Types: "Regular", "Touch Up", "Consultation", "Full Day"
+Types: "Regular", "Touch Up", "Consultation", "Full Day", "Cover Up"
 
 JSON fields (omit any you can't determine, NEVER add error messages):
 - client_id: match to an ID above (fuzzy first-name match OK). If no match, omit this field entirely.
@@ -96,7 +96,7 @@ CRITICAL: Always extract every field you can. A missing client match must NOT pr
     if (typeof parsed.duration === 'number' && DURATION_PATTERN.test(text)) {
       result.duration = parsed.duration;
     }
-    if (parsed.type && ['Regular', 'Touch Up', 'Consultation', 'Full Day'].includes(parsed.type)) {
+    if (parsed.type && ['Regular', 'Touch Up', 'Consultation', 'Full Day', 'Cover Up'].includes(parsed.type)) {
       result.type = parsed.type;
     }
     if (typeof parsed.estimate === 'number') result.estimate = parsed.estimate;

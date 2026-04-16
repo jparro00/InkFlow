@@ -21,13 +21,14 @@ import { exportBookingToCalendar } from '../../utils/calendar';
 // Flip to false to hide the "Add to iOS" calendar button
 const ENABLE_IOS_CALENDAR = true;
 
-const bookingTypes: BookingType[] = ['Regular', 'Touch Up', 'Consultation', 'Full Day'];
+const bookingTypes: BookingType[] = ['Regular', 'Touch Up', 'Consultation', 'Full Day', 'Cover Up'];
 
 const typeDuration: Record<BookingType, number> = {
   Regular: 3,
   'Touch Up': 1,
   Consultation: 1,
   'Full Day': 3,
+  'Cover Up': 3,
 };
 
 const defaultForm = {

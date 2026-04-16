@@ -30,6 +30,7 @@
   --color-type-touchup: #F67100;
   --color-type-consult: #FE84FF;
   --color-type-fullday: #FF00AC;
+  --color-type-coverup: #1E90FF;
 
   /* Overlay colors */
   --color-overlay: rgba(0, 0, 0, 0.60);

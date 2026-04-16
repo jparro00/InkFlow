@@ -62,7 +62,7 @@ export default function AgentPanel() {
 
   return (
     <Modal
-      title="InkBloop Agent"
+      title="Inklet - AI Assistant"
       onClose={closePanel}
       width="lg:max-w-[520px]"
       fullScreenMobile={true}

@@ -134,6 +134,7 @@ const defaults = {
   'Touch Up': '#F67100',
   Consultation: '#FE84FF',
   'Full Day': '#FF00AC',
+  'Cover Up': '#1E90FF',
 };
 
 type ColorKey = keyof typeof defaults;
@@ -154,6 +155,7 @@ const cssMap: Record<ColorKey, string> = {
   'Touch Up': '--color-type-touchup',
   Consultation: '--color-type-consult',
   'Full Day': '--color-type-fullday',
+  'Cover Up': '--color-type-coverup',
 };
 
 /** Read the live CSS variable value for each color, falling back to defaults. */
@@ -287,7 +289,7 @@ export default function ThemePage() {
           </div>
 
           <div className="text-xs text-text-t mb-2">Booking types</div>
-          {renderSwatchGroup(['Regular', 'Touch Up', 'Consultation', 'Full Day'])}
+          {renderSwatchGroup(['Regular', 'Touch Up', 'Consultation', 'Full Day', 'Cover Up'])}
         </section>
 
         {/* Components */}
@@ -347,7 +349,7 @@ export default function ThemePage() {
           <div className="mb-5">
             <div className="text-xs text-text-t mb-2">Booking cards</div>
             <div className="space-y-2">
-              {(['Regular', 'Touch Up', 'Consultation', 'Full Day'] as const).map((type) => (
+              {(['Regular', 'Touch Up', 'Consultation', 'Full Day', 'Cover Up'] as const).map((type) => (
                 <div
                   key={type}
                   className="p-3 rounded-lg border border-border/30 flex items-center gap-3"
@@ -355,7 +357,7 @@ export default function ThemePage() {
                 >
                   <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: colors[type] }} />
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm text-text-p font-medium">{type === 'Regular' ? 'Sarah Mitchell' : type === 'Touch Up' ? 'Jake Donovan' : type === 'Consultation' ? 'Alyssa Chen' : 'Tyler Brooks'}</div>
+                    <div className="text-sm text-text-p font-medium">{type === 'Regular' ? 'Sarah Mitchell' : type === 'Touch Up' ? 'Jake Donovan' : type === 'Consultation' ? 'Alyssa Chen' : type === 'Full Day' ? 'Tyler Brooks' : 'Morgan Blake'}</div>
                     <div className="text-xs text-text-s">{type} &middot; 3h</div>
                   </div>
                 </div>
