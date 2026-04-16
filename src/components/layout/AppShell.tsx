@@ -37,7 +37,7 @@ export default function AppShell() {
 
       {/* Main content — full width on mobile, offset on desktop */}
       <div
-        className={`flex-1 flex flex-col pb-[116px] lg:pb-0 transition-all duration-300 overflow-hidden ${
+        className={`flex-1 flex flex-col pb-[104px] lg:pb-0 transition-all duration-300 overflow-hidden ${
           sidebarCollapsed ? 'lg:ml-[72px]' : 'lg:ml-[240px]'
         }`}
       >
@@ -81,7 +81,7 @@ export default function AppShell() {
       {/* Quick Booking FAB */}
       <button
         onClick={() => setQuickBookingOpen(true)}
-        className="fixed bottom-[116px] right-5 lg:bottom-8 lg:right-8 w-14 h-14 bg-accent text-bg rounded-xl shadow-lg shadow-glow flex items-center justify-center z-30 cursor-pointer press-scale transition-transform active:shadow-glow-strong"
+        className="fixed bottom-[104px] right-5 lg:bottom-8 lg:right-8 w-14 h-14 bg-accent text-bg rounded-xl shadow-lg shadow-glow flex items-center justify-center z-30 cursor-pointer press-scale transition-transform active:shadow-glow-strong"
         title="Quick Booking"
       >
         <Pen size={20} />

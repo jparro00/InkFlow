@@ -101,7 +101,7 @@ export default function CalendarPage() {
       {todayHandler && (
         <button
           onClick={todayHandler}
-          className="fixed bottom-[116px] left-5 lg:left-auto lg:bottom-8 px-4 py-2.5 bg-elevated border border-border/60 text-text-p text-md font-medium rounded-md shadow-md cursor-pointer press-scale transition-all z-30"
+          className="fixed bottom-[104px] left-5 lg:left-auto lg:bottom-8 px-4 py-2.5 bg-elevated border border-border/60 text-text-p text-md font-medium rounded-md shadow-md cursor-pointer press-scale transition-all z-30"
         >
           Today
         </button>
