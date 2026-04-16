@@ -96,8 +96,9 @@ export async function processInput(text: string) {
       return;
     }
 
-    // Stash intent and start resolving
+    // Stash intent and original text for potential follow-up AI calls
     store.setPending(intent);
+    store.updatePendingResolved('originalText', text);
     await routeIntent(intent);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -388,6 +389,49 @@ async function routeClient(
   if (intent.action === 'open') {
     executeClientOpen({ client_id: resolved.client_id as string });
   } else if (intent.action === 'edit') {
+    // Use a second AI call to compute the actual changes from the user's
+    // natural language request + the client's current data. This handles
+    // contextual edits like "change the last name to have two t's" where
+    // the first AI call can't compute the value without knowing the current data.
+    const client = useClientStore.getState().clients.find(
+      (c) => c.id === resolved.client_id
+    );
+    if (!client) {
+      store.replaceLastLoading({ text: 'Client not found.' });
+      return;
+    }
+
+    const originalText = resolved.originalText as string | undefined;
+    if (originalText) {
+      try {
+        const { data, error } = await supabase.functions.invoke('agent-resolve-edit', {
+          body: {
+            text: originalText,
+            client: {
+              name: client.name,
+              phone: client.phone || '',
+              tags: client.tags || [],
+            },
+          },
+        });
+
+        if (!error && data && !data.error) {
+          executeClientEdit({
+            client_id: resolved.client_id as string,
+            changes: {
+              name: data.name,
+              phone: data.phone,
+              tags: data.tags,
+            },
+          });
+          return;
+        }
+      } catch (err) {
+        console.error('agent-resolve-edit error:', err);
+      }
+    }
+
+    // Fallback: use raw entities from the first parse
     executeClientEdit({
       client_id: resolved.client_id as string,
       changes: {
