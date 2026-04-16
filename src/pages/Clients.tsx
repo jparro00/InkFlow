@@ -13,8 +13,10 @@ export default function ClientsPage() {
   const [search, setSearch] = useState('');
   const { setHeaderLeft, setHeaderRight, setCreateClientFormOpen } = useUIStore();
 
+  const sorted = [...clients].sort((a, b) => a.name.localeCompare(b.name));
+
   const filtered = search
-    ? clients.filter((c) => {
+    ? sorted.filter((c) => {
         const q = search.toLowerCase();
         return (
           c.name.toLowerCase().includes(q) ||
@@ -23,7 +25,7 @@ export default function ClientsPage() {
           (c.facebook && linkedProfiles[c.facebook]?.name?.toLowerCase().includes(q))
         );
       })
-    : clients;
+    : sorted;
 
   const getStats = (clientId: string) => {
     const clientBookings = bookings.filter((b) => b.client_id === clientId);

@@ -84,7 +84,7 @@ export default function AppShell() {
         className="fixed bottom-[116px] right-5 lg:bottom-8 lg:right-8 w-[84px] h-[84px] bg-accent text-bg rounded-2xl shadow-lg shadow-glow flex items-center justify-center z-30 cursor-pointer press-scale transition-transform active:shadow-glow-strong"
         title="Quick Booking"
       >
-        <Bot size={30} />
+        <Bot size={60} />
       </button>
 
       <MobileTabBar />
