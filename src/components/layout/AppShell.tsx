@@ -78,13 +78,16 @@ export default function AppShell() {
         {editingClient && <ClientForm client={editingClient} onClose={() => setEditingClientId(null)} />}
       </AnimatePresence>
 
-      {/* Quick Booking FAB */}
+      {/* Quick Booking FAB — chip style */}
       <button
         onClick={() => setQuickBookingOpen(true)}
-        className="fixed bottom-[116px] right-5 lg:bottom-8 lg:right-8 w-[84px] h-[84px] bg-accent text-bg rounded-2xl shadow-lg shadow-glow flex items-center justify-center z-30 cursor-pointer press-scale transition-transform active:shadow-glow-strong"
+        className="fixed bottom-[116px] right-5 lg:bottom-8 lg:right-8 w-[84px] h-[84px] bg-accent text-bg rounded-md shadow-lg shadow-glow flex items-center justify-center z-30 cursor-pointer press-scale transition-transform active:shadow-glow-strong border border-white/15"
+        style={{
+          clipPath: 'polygon(12% 0%, 88% 0%, 100% 12%, 100% 88%, 88% 100%, 12% 100%, 0% 88%, 0% 12%)',
+        }}
         title="Quick Booking"
       >
-        <Bot size={60} />
+        <Bot size={40} />
       </button>
 
       <MobileTabBar />
