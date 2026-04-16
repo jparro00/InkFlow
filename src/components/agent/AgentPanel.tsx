@@ -89,9 +89,9 @@ export default function AgentPanel() {
             <button
               onClick={handleSubmit}
               disabled={!input.trim() || isProcessing}
-              className="w-12 h-12 bg-accent text-bg rounded-xl flex items-center justify-center shrink-0 cursor-pointer press-scale transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-glow active:shadow-glow-strong"
+              className="w-14 h-14 bg-accent text-bg rounded-xl flex items-center justify-center shrink-0 cursor-pointer press-scale transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-glow active:shadow-glow-strong"
             >
-              <Send size={18} />
+              <Send size={22} />
             </button>
           </div>
         </div>

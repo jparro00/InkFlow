@@ -19,6 +19,53 @@ import type { AgentIntent, DraftTemplate } from './types';
  * 4. Once resolved → hands off to the appropriate sub-agent executor
  */
 
+/**
+ * Build a descriptive error message from a Supabase FunctionsError.
+ *
+ * Three shapes to handle:
+ * - FunctionsHttpError: edge function returned a non-2xx — has a `context`
+ *   Response we can read the body from (usually has a JSON `error` field)
+ * - FunctionsRelayError: relay couldn't reach the function
+ * - FunctionsFetchError: the fetch itself failed (network/CORS/offline) —
+ *   no context, just the fetch error. The default message is the unhelpful
+ *   "Failed to send a request to the Edge Function". We surface what we can:
+ *   online status, error name, cause, and the function URL.
+ */
+async function describeFunctionError(error: unknown): Promise<string> {
+  const e = error as Error & { context?: Response; cause?: unknown; name?: string };
+
+  // HTTP error from the function — read the response body
+  const ctx = e.context;
+  if (ctx && typeof ctx.json === 'function') {
+    try {
+      const body = await ctx.clone().json();
+      const msg = body?.error || JSON.stringify(body);
+      return `HTTP ${ctx.status}: ${msg}`;
+    } catch {
+      try {
+        const txt = await ctx.text();
+        return `HTTP ${ctx.status}: ${txt || '(empty body)'}`;
+      } catch {
+        return `HTTP ${ctx.status} (couldn't read body)`;
+      }
+    }
+  }
+
+  // Network/fetch failure — enrich with whatever we can find
+  const parts: string[] = [];
+  parts.push(e.name || 'Error');
+  parts.push(e.message || String(error));
+  if (typeof navigator !== 'undefined' && 'onLine' in navigator && !navigator.onLine) {
+    parts.push('(device appears offline)');
+  }
+  if (e.cause) {
+    const causeMsg =
+      e.cause instanceof Error ? `${e.cause.name}: ${e.cause.message}` : String(e.cause);
+    parts.push(`cause: ${causeMsg}`);
+  }
+  return parts.join(' — ');
+}
+
 /** Show a no-match message with fuzzy suggestions + search prompt */
 function showNoMatch(query: string, suggestions: import('../types').Client[]) {
   const store = useAgentStore.getState();
@@ -57,20 +104,7 @@ export async function processInput(text: string) {
     });
 
     if (error) {
-      // Extract the actual error body from the FunctionsHttpError
-      let errMsg = '';
-      try {
-        // Supabase FunctionsHttpError has a .context (Response) we can read
-        const ctx = (error as { context?: Response }).context;
-        if (ctx && typeof ctx.json === 'function') {
-          const body = await ctx.json();
-          errMsg = body?.error || JSON.stringify(body);
-        } else {
-          errMsg = (error as Error).message || String(error);
-        }
-      } catch {
-        errMsg = (error as Error).message || String(error);
-      }
+      const errMsg = await describeFunctionError(error);
       console.error('Agent parse error:', errMsg, error);
       store.replaceLastLoading({
         text: `Error: ${errMsg}`,
