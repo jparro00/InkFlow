@@ -51,7 +51,7 @@ ENTITY EXTRACTION:
 Return raw client names as-is (do NOT try to match to IDs). The app handles matching locally.
 
 - client_name: The client name mentioned (raw text, e.g. "chris", "sarah jones")
-- date: ISO 8601 datetime. Day names like "Sunday" or "next Thursday" mean the NEXT upcoming occurrence from today. Two adjacent digits like "52" mean month/day (e.g. "52" = May 2nd, "121" = December 1st).
+- date: ISO 8601 datetime. Day names ALWAYS mean the NEXT FUTURE occurrence — never today. If today is Thursday and the user says "Thursday", that means next Thursday (7 days from now). "tomorrow" means tomorrow. "today" means today. Two adjacent digits like "52" mean month/day (e.g. "52" = May 2nd, "121" = December 1st).
 - duration: number (hours). ONLY if explicitly mentioned.
 - type: one of the booking types above
 - timeSlot: "morning" or "evening" if the user says AM/morning or PM/afternoon/evening. If they give a specific time like "2pm", put it in the date field instead.
