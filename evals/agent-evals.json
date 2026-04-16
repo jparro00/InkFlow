@@ -103,6 +103,15 @@
       "resolution": "No client name → skip client resolution → filter bookings by date → one match → auto-opens",
       "expected_outcome": "BookingDrawer opens for the Friday booking"
     },
+    {
+      "id": "booking-open-question",
+      "category": "booking/open",
+      "prompt": "do I have an appointment for cindy",
+      "context": "Two clients match 'cindy' (Cindy Liu, Cindy Park). Must NOT route to client agent.",
+      "expected_parse": { "agent": "booking", "action": "open", "entities": { "client_name": "cindy" } },
+      "resolution": "Multiple matches on 'cindy' → shows client disambiguation cards → after tap, looks for bookings for that client",
+      "expected_outcome": "Agent panel shows 'Which cindy?' with client cards. After tap, shows booking(s) or 'No matching booking found.'"
+    },
 
     {
       "id": "booking-edit-reschedule",
