@@ -345,13 +345,16 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
     };
   }, []);
 
-  // Keyboard handling fallback for iOS < 17.2 (older devices without
-  // `interactive-widget=resizes-content` support). We only resize the sheet's
-  // height based on the visual viewport — we deliberately do NOT track
-  // `vv.offsetTop`, because iOS emits transient non-zero offsetTop values
-  // during the keyboard animation which cause the top to jump. The body
-  // scroll lock (below) prevents the layout viewport from actually scrolling,
-  // so `top: 16` stays visually at 16px without any JS help.
+  // Keyboard handling for iOS PWA. The deep iOS behavior: when keyboard
+  // opens, iOS scrolls the layout viewport up to reveal the focused input.
+  // `position: fixed` anchors to the layout viewport, so fixed elements
+  // move off-screen with the scroll. The body scroll lock doesn't fully
+  // prevent this in PWA mode — it's a native behavior below JS.
+  //
+  // Fix: track `visualViewport.offsetTop` (how much the layout scrolled)
+  // and add it to the sheet's `top` so the sheet stays in the visible area.
+  // We update SYNCHRONOUSLY on both `resize` and `scroll` events (no RAF,
+  // which adds a one-frame delay that caused jumping in prior attempts).
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
@@ -361,20 +364,24 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
       const el = sheetRef.current;
       if (!el) return;
       if (!mq.matches) {
+        el.style.top = '';
         el.style.bottom = '';
         el.style.height = '';
         return;
       }
+      el.style.top = `${vv.offsetTop + 16}px`;
       el.style.bottom = 'auto';
       el.style.height = `${vv.height - 32}px`;
     };
 
     vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
     mq.addEventListener('change', update);
     window.addEventListener('orientationchange', update);
     update();
     return () => {
       vv.removeEventListener('resize', update);
+      vv.removeEventListener('scroll', update);
       mq.removeEventListener('change', update);
       window.removeEventListener('orientationchange', update);
     };
