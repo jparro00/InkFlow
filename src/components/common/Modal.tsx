@@ -353,8 +353,10 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
     };
   }, []);
 
-  // Anchor the sheet to the visual viewport on mobile so the keyboard
-  // shrinks the modal instead of pushing it off-screen (iOS Safari/PWA).
+  // Shrink the sheet from the bottom as the keyboard opens.
+  // Top stays pinned at 16px — we lock document scroll below so iOS can't
+  // push the modal up, which would otherwise cause `visualViewport.offsetTop`
+  // to jump around during the keyboard animation.
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
@@ -364,17 +366,17 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
         setVvAnchor(null);
         return;
       }
-      const bottom = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-      setVvAnchor({ top: vv.offsetTop, bottom });
+      // Use only vv.height — ignore offsetTop since scroll is locked and any
+      // transient offsetTop values would cause the sheet to jump.
+      const bottom = Math.max(0, window.innerHeight - vv.height);
+      setVvAnchor({ top: 0, bottom });
     };
     vv.addEventListener('resize', update);
-    vv.addEventListener('scroll', update);
     window.addEventListener('resize', update);
     mq.addEventListener('change', update);
     update();
     return () => {
       vv.removeEventListener('resize', update);
-      vv.removeEventListener('scroll', update);
       window.removeEventListener('resize', update);
       mq.removeEventListener('change', update);
     };
@@ -521,14 +523,14 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
       />
 
       {/* Sheet — dragY is the sole controller of y position.
-          On mobile, `vvAnchor` pins top/bottom to the visual viewport so the
-          sheet shrinks when the keyboard is open and stays visible even when
-          iOS scrolls the layout viewport. */}
+          On mobile, `vvAnchor.bottom` shrinks the sheet from the bottom as
+          the keyboard opens. The top stays anchored at 16px so there's no
+          jumping during the keyboard animation. */}
       <motion.div
         ref={sheetRef}
         style={
           vvAnchor
-            ? { y: dragY, top: vvAnchor.top + 16, bottom: vvAnchor.bottom }
+            ? { y: dragY, bottom: vvAnchor.bottom }
             : { y: dragY }
         }
         className={`fixed top-4 left-0 right-0 bottom-0 lg:inset-auto lg:top-1/2 lg:left-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2 ${width} bg-elevated shadow-lg z-50 flex flex-col overflow-hidden ${
