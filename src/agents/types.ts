@@ -36,7 +36,7 @@ export type ClientResolution =
   | { type: 'exact'; client: Client }
   | { type: 'single'; client: Client }
   | { type: 'multiple'; clients: Client[] }
-  | { type: 'none'; query: string };
+  | { type: 'none'; query: string; suggestions: Client[] };
 
 export type BookingResolution =
   | { type: 'exact'; booking: Booking }

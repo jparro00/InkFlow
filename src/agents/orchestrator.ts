@@ -19,6 +19,32 @@ import type { AgentIntent, DraftTemplate } from './types';
  * 4. Once resolved → hands off to the appropriate sub-agent executor
  */
 
+/** Show a no-match message with fuzzy suggestions + search prompt */
+function showNoMatch(query: string, suggestions: import('../types').Client[]) {
+  const store = useAgentStore.getState();
+  if (suggestions.length > 0) {
+    store.replaceLastLoading({
+      text: `No exact match for "${query}". Did you mean:`,
+      selections: {
+        type: 'client',
+        items: suggestions,
+        mode: 'single',
+        context: 'no_match',
+      },
+    });
+  } else {
+    store.replaceLastLoading({
+      text: `No client named "${query}". Try a different name.`,
+      selections: {
+        type: 'client',
+        items: useClientStore.getState().clients.slice(0, 8),
+        mode: 'single',
+        context: 'no_match',
+      },
+    });
+  }
+}
+
 export async function processInput(text: string) {
   const store = useAgentStore.getState();
 
@@ -133,15 +159,7 @@ async function routeBooking(
           });
           return; // Wait for selection
         case 'none':
-          store.replaceLastLoading({
-            text: `No client named "${intent.entities.client_name}".`,
-            selections: {
-              type: 'client',
-              items: useClientStore.getState().clients,
-              mode: 'single',
-              context: 'no_match',
-            },
-          });
+          showNoMatch(intent.entities.client_name!, result.suggestions);
           return; // Wait for selection or create
       }
     }
@@ -183,15 +201,7 @@ async function routeBooking(
           });
           return;
         case 'none':
-          store.replaceLastLoading({
-            text: `No client named "${intent.entities.client_name}". Who did you mean?`,
-            selections: {
-              type: 'client',
-              items: useClientStore.getState().clients,
-              mode: 'single',
-              context: 'no_match',
-            },
-          });
+          showNoMatch(intent.entities.client_name!, result.suggestions);
           return;
       }
     }
@@ -292,15 +302,7 @@ async function routeClient(
         });
         return;
       case 'none':
-        store.replaceLastLoading({
-          text: `No client named "${nameQuery}".`,
-          selections: {
-            type: 'client',
-            items: useClientStore.getState().clients,
-            mode: 'single',
-            context: 'no_match',
-          },
-        });
+        showNoMatch(nameQuery, result.suggestions);
         return;
     }
   }
@@ -375,15 +377,7 @@ async function routeMessaging(
         });
         return;
       case 'none':
-        store.replaceLastLoading({
-          text: `No client named "${nameQuery}".`,
-          selections: {
-            type: 'client',
-            items: useClientStore.getState().clients,
-            mode: 'single',
-            context: 'no_match',
-          },
-        });
+        showNoMatch(nameQuery, result.suggestions);
         return;
     }
   }

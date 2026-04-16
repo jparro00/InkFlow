@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react';
-import { Check, Loader2, UserPlus } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Check, Loader2, UserPlus, Search } from 'lucide-react';
 import { useAgentStore } from '../../stores/agentStore';
+import { useClientStore } from '../../stores/clientStore';
 import { handleSelection } from '../../agents/orchestrator';
 import ClientCard from './ClientCard';
 import BookingCard from './BookingCard';
@@ -122,14 +123,28 @@ function SelectionCards({
   selections: NonNullable<AgentMessage['selections']>;
   onCreateClient: () => void;
 }) {
+  const [search, setSearch] = useState('');
+  const allClients = useClientStore((s) => s.clients);
+
   const onSelect = (id: string) => {
     handleSelection(selections.type, id);
   };
 
+  // For no_match: show suggestions, then a search field to find anyone
+  const isNoMatch = selections.context === 'no_match' && selections.type === 'client';
+  const suggestions = selections.items as Client[];
+
+  // Search results: filter all clients by search query
+  const searchResults = search.length >= 1
+    ? allClients.filter((c) =>
+        c.name.toLowerCase().includes(search.toLowerCase())
+      ).slice(0, 8)
+    : [];
+
   return (
     <div className="w-full space-y-1.5 max-h-[50vh] overflow-y-auto">
       {/* "Create new client" button for no_match context */}
-      {selections.context === 'no_match' && (
+      {isNoMatch && (
         <button
           onClick={onCreateClient}
           className="w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg bg-accent/8 border border-accent/30 active:bg-accent/15 transition-colors cursor-pointer press-scale"
@@ -143,7 +158,47 @@ function SelectionCards({
         </button>
       )}
 
-      {selections.type === 'client' &&
+      {/* Fuzzy suggestions for no_match */}
+      {isNoMatch && suggestions.length > 0 && !search && (
+        suggestions.map((client) => (
+          <ClientCard
+            key={client.id}
+            client={client}
+            onSelect={onSelect}
+          />
+        ))
+      )}
+
+      {/* Search input for no_match — find any client */}
+      {isNoMatch && (
+        <div className="relative mt-1">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-t" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search all clients..."
+            className="w-full bg-input border border-border/60 rounded-lg pl-9 pr-3 py-2.5 text-[14px] text-text-p placeholder:text-text-t focus:outline-none focus:border-accent/40 transition-colors"
+          />
+        </div>
+      )}
+
+      {/* Search results */}
+      {isNoMatch && search && searchResults.length > 0 && (
+        searchResults.map((client) => (
+          <ClientCard
+            key={client.id}
+            client={client}
+            onSelect={onSelect}
+          />
+        ))
+      )}
+      {isNoMatch && search && searchResults.length === 0 && (
+        <div className="text-[13px] text-text-t text-center py-2">No clients match "{search}"</div>
+      )}
+
+      {/* Non-no_match client selections (disambiguation) */}
+      {selections.type === 'client' && !isNoMatch &&
         (selections.items as Client[]).map((client) => (
           <ClientCard
             key={client.id}

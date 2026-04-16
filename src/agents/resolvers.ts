@@ -9,11 +9,12 @@ import type { ClientResolution, BookingResolution, ConversationResolution } from
  * 1. Exact full-name match (case-insensitive) → exact
  * 2. Single partial/first-name match → single
  * 3. Multiple partial matches → multiple (disambiguation needed)
- * 4. No matches → none
+ * 4. Fuzzy matches (typos, voice-to-text errors) → none with suggestions
+ * 5. No matches at all → none with empty suggestions
  */
 export function resolveClient(query: string, clients: Client[]): ClientResolution {
   if (!query || !query.trim()) {
-    return { type: 'none', query: query || '' };
+    return { type: 'none', query: query || '', suggestions: [] };
   }
 
   const q = query.trim().toLowerCase();
@@ -39,8 +40,79 @@ export function resolveClient(query: string, clients: Client[]): ClientResolutio
     return { type: 'multiple', clients: partials };
   }
 
-  // 4. No match
-  return { type: 'none', query };
+  // 4. Fuzzy matching — handles typos, voice-to-text errors, phonetic mismatches
+  const queryWords = q.split(/\s+/);
+  const fuzzy = clients
+    .map((c) => ({ client: c, score: fuzzyScore(q, queryWords, c.name.toLowerCase()) }))
+    .filter((r) => r.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5)
+    .map((r) => r.client);
+
+  return { type: 'none', query, suggestions: fuzzy };
+}
+
+/**
+ * Compute a fuzzy match score between a query and a client name.
+ * Returns 0 for no meaningful match, higher = better match.
+ *
+ * Handles:
+ * - First name exact match with different last name ("cindy lou" → "cindy liu")
+ * - Close edit distance on individual words ("sara" → "sarah")
+ * - Partial word matches ("chris" → "christina")
+ */
+function fuzzyScore(_query: string, queryWords: string[], name: string): number {
+  const nameWords = name.split(/\s+/);
+  let score = 0;
+
+  // Check each query word against each name word
+  for (const qw of queryWords) {
+    let bestWordScore = 0;
+    for (const nw of nameWords) {
+      // Exact word match
+      if (qw === nw) {
+        bestWordScore = Math.max(bestWordScore, 10);
+        continue;
+      }
+      // Prefix match (query word is start of name word or vice versa)
+      if (nw.startsWith(qw) || qw.startsWith(nw)) {
+        const overlap = Math.min(qw.length, nw.length);
+        bestWordScore = Math.max(bestWordScore, 5 + overlap);
+        continue;
+      }
+      // Edit distance — only count if close enough (distance ≤ 2 for short words, ≤ 3 for longer)
+      const maxDist = Math.max(qw.length, nw.length) <= 4 ? 1 : 2;
+      const dist = editDistance(qw, nw);
+      if (dist <= maxDist) {
+        bestWordScore = Math.max(bestWordScore, 6 - dist);
+      }
+    }
+    score += bestWordScore;
+  }
+
+  // Bonus if first name matches exactly (strongest signal for voice-to-text)
+  if (queryWords[0] && nameWords[0] && queryWords[0] === nameWords[0]) {
+    score += 5;
+  }
+
+  return score;
+}
+
+/** Levenshtein edit distance */
+function editDistance(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[m][n];
 }
 
 /**
