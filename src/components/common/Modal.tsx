@@ -263,10 +263,14 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
   const collapsedRef = useRef(false);
   const [traceTrigger, setTraceTrigger] = useState(0);
   const [xTraceTrigger, setXTraceTrigger] = useState(0);
-  // How much of the layout viewport is covered at the bottom by the keyboard
-  // (or any other UI chrome). We use this to shrink the sheet instead of
-  // letting iOS push the whole fixed element off-screen to reveal a focused input.
-  const [keyboardInset, setKeyboardInset] = useState(0);
+  // Visual viewport anchoring for mobile keyboard handling.
+  // On iOS (Safari + PWA), focusing an input makes the browser scroll the
+  // layout viewport to keep the input visible, which pushes `fixed` elements
+  // off-screen. We anchor the sheet to the visual viewport instead:
+  //   top = visualViewport.offsetTop + 16  (keep the 16px gap at top)
+  //   bottom = how much of the layout viewport is below the visual viewport
+  // On desktop we skip this and let the Tailwind classes handle positioning.
+  const [vvAnchor, setVvAnchor] = useState<{ top: number; bottom: number } | null>(null);
 
   const setModalCollapsed = useUIStore((s) => s.setModalCollapsed);
 
@@ -349,25 +353,45 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
     };
   }, []);
 
-  // Track the visual viewport to know how much space the keyboard takes.
-  // When a textarea/input inside the sheet is focused, iOS Safari tries to
-  // scroll the page to keep it visible — which on a `fixed` modal looks like
-  // the whole thing slides up off-screen. By applying the keyboard height as
-  // a `bottom` offset, we shrink the sheet to fit above the keyboard so the
-  // top stays visible and iOS has no reason to scroll.
+  // Anchor the sheet to the visual viewport on mobile so the keyboard
+  // shrinks the modal instead of pushing it off-screen (iOS Safari/PWA).
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
+    const mq = window.matchMedia('(max-width: 1023px)');
     const update = () => {
-      const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-      setKeyboardInset(inset);
+      if (!mq.matches) {
+        setVvAnchor(null);
+        return;
+      }
+      const bottom = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      setVvAnchor({ top: vv.offsetTop, bottom });
     };
     vv.addEventListener('resize', update);
     vv.addEventListener('scroll', update);
+    window.addEventListener('resize', update);
+    mq.addEventListener('change', update);
     update();
     return () => {
       vv.removeEventListener('resize', update);
       vv.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+      mq.removeEventListener('change', update);
+    };
+  }, []);
+
+  // Prevent the document from scrolling while the modal is open — otherwise
+  // iOS will still scroll the page under the modal when an input is focused.
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtml = html.style.overflow;
+    const prevBody = body.style.overflow;
+    html.style.overflow = 'hidden';
+    body.style.overflow = 'hidden';
+    return () => {
+      html.style.overflow = prevHtml;
+      body.style.overflow = prevBody;
     };
   }, []);
 
@@ -497,11 +521,16 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
       />
 
       {/* Sheet — dragY is the sole controller of y position.
-          `bottom: keyboardInset` shrinks the sheet when the keyboard is open
-          so the top stays visible instead of scrolling off-screen on iOS. */}
+          On mobile, `vvAnchor` pins top/bottom to the visual viewport so the
+          sheet shrinks when the keyboard is open and stays visible even when
+          iOS scrolls the layout viewport. */}
       <motion.div
         ref={sheetRef}
-        style={{ y: dragY, bottom: keyboardInset }}
+        style={
+          vvAnchor
+            ? { y: dragY, top: vvAnchor.top + 16, bottom: vvAnchor.bottom }
+            : { y: dragY }
+        }
         className={`fixed top-4 left-0 right-0 bottom-0 lg:inset-auto lg:top-1/2 lg:left-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2 ${width} bg-elevated shadow-lg z-50 flex flex-col overflow-hidden ${
           fullScreenMobile
             ? 'rounded-t-[28px] lg:rounded-xl lg:h-auto lg:max-h-[85vh]'
