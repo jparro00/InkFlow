@@ -382,18 +382,43 @@ export default function Modal({ title, header, onClose, children, width = 'lg:ma
     };
   }, []);
 
-  // Prevent the document from scrolling while the modal is open — otherwise
-  // iOS will still scroll the page under the modal when an input is focused.
+  // Lock the body so iOS cannot scroll the layout viewport while the modal
+  // is open. Without this, focusing an input inside the modal causes iOS to
+  // scroll the page up to "reveal" the input, pushing our fixed sheet off
+  // the top of the screen. Plain `overflow: hidden` isn't enough on iOS —
+  // we have to pin the body with `position: fixed` to really block it.
   useEffect(() => {
-    const html = document.documentElement;
     const body = document.body;
-    const prevHtml = html.style.overflow;
-    const prevBody = body.style.overflow;
-    html.style.overflow = 'hidden';
+    const html = document.documentElement;
+    const scrollY = window.scrollY;
+
+    const prev = {
+      bodyPosition: body.style.position,
+      bodyTop: body.style.top,
+      bodyLeft: body.style.left,
+      bodyRight: body.style.right,
+      bodyWidth: body.style.width,
+      bodyOverflow: body.style.overflow,
+      htmlOverflow: html.style.overflow,
+    };
+
+    body.style.position = 'fixed';
+    body.style.top = `-${scrollY}px`;
+    body.style.left = '0';
+    body.style.right = '0';
+    body.style.width = '100%';
     body.style.overflow = 'hidden';
+    html.style.overflow = 'hidden';
+
     return () => {
-      html.style.overflow = prevHtml;
-      body.style.overflow = prevBody;
+      body.style.position = prev.bodyPosition;
+      body.style.top = prev.bodyTop;
+      body.style.left = prev.bodyLeft;
+      body.style.right = prev.bodyRight;
+      body.style.width = prev.bodyWidth;
+      body.style.overflow = prev.bodyOverflow;
+      html.style.overflow = prev.htmlOverflow;
+      window.scrollTo(0, scrollY);
     };
   }, []);
 
