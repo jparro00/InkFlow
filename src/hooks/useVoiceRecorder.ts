@@ -304,13 +304,21 @@ export function useVoiceRecorder({ onTranscript }: Options) {
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch (err) {
+      // Map DOMException names to friendlier user-facing messages. Without
+      // this, raw browser strings like "The object can not be found here."
+      // (Firefox's NotFoundError phrasing) get shown to users.
+      const name = err instanceof Error ? err.name : '';
       const msg =
-        err instanceof Error && err.name === 'NotAllowedError'
+        name === 'NotAllowedError'
           ? 'Mic access blocked — enable in browser settings'
-          : err instanceof Error
-            ? err.message
-            : 'Microphone unavailable';
-      agentStore.logTrace('voice_error', { stage: 'permission', message: msg });
+          : name === 'NotFoundError' || name === 'OverconstrainedError'
+            ? 'No microphone found — check your audio input device'
+            : name === 'NotReadableError'
+              ? 'Microphone is in use by another app'
+              : err instanceof Error
+                ? err.message
+                : 'Microphone unavailable';
+      agentStore.logTrace('voice_error', { stage: 'permission', name, message: msg });
       setState({ kind: 'error', message: msg });
       setTimeout(() => setState({ kind: 'idle' }), 2000);
       return;
