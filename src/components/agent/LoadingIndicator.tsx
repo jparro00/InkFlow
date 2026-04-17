@@ -66,11 +66,12 @@ function cookieRadii(N: number, peak: number, valley: number): number[] {
   });
 }
 
-// Order: 6-cookie → 4-cookie → 7-cookie → 9-cookie → back to 6-cookie
+// Order: 6-cookie → 4-cookie → 7-cookie → 6-cookie → 9-cookie → back to 6-cookie
 const SHAPES: string[] = [
   makePath(cookieRadii(6, 40, 34)),    // 6-sided cookie
   makePath(cookieRadii(4, 40, 30)),    // 4-sided cookie
   makePath(cookieRadii(7, 40, 36)),    // 7-sided cookie
+  makePath(cookieRadii(6, 40, 34)),    // 6-sided cookie
   makePath(cookieRadii(9, 40, 37)),    // 9-sided cookie
 ];
 
