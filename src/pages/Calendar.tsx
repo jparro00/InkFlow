@@ -97,11 +97,15 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {/* Shared Today button — same position across all views */}
+      {/* Shared Today button — same position across all views.
+          Mobile: fixed to viewport so it floats above the tab bar.
+          Desktop: absolute inside this Calendar wrapper (which lives inside
+          the sidebar-offset main content area), so it anchors past the
+          sidebar instead of being hidden behind it. */}
       {todayHandler && (
         <button
           onClick={todayHandler}
-          className="fixed bottom-[116px] left-5 lg:left-8 lg:bottom-8 px-4 py-2.5 bg-elevated border border-border/60 text-text-p text-md font-medium rounded-md shadow-md cursor-pointer press-scale transition-all z-30"
+          className="fixed lg:absolute bottom-[116px] left-5 lg:left-8 lg:bottom-8 px-4 py-2.5 bg-elevated border border-border/60 text-text-p text-md font-medium rounded-md shadow-md cursor-pointer press-scale transition-all z-30"
         >
           Today
         </button>

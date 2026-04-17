@@ -228,8 +228,11 @@ export default function MonthView() {
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden">
-      {/* Fixed day headers */}
-      <div className="grid grid-cols-7 px-3 shrink-0">
+      {/* Fixed day headers — width-capped on desktop so the grid below it
+          doesn't stretch into huge cells on wide screens. max-w-5xl matches
+          the scroll container's cap; both must stay in sync so headers and
+          day columns line up. */}
+      <div className="grid grid-cols-7 px-3 shrink-0 lg:max-w-5xl lg:w-full lg:mx-auto">
         {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
           <div key={i} className="py-2 text-center text-md text-text-t font-medium">
             {d}
@@ -237,8 +240,9 @@ export default function MonthView() {
         ))}
       </div>
 
-      {/* Scrollable months */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 pb-4">
+      {/* Scrollable months — same desktop cap as the header so each cell
+          ends up ~140-150px wide rather than 200+px on wide monitors. */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 pb-4 lg:max-w-5xl lg:w-full lg:mx-auto">
         <div ref={topSentinelRef} className="h-1" />
 
         {months.map((month) => {
@@ -297,8 +301,10 @@ export default function MonthView() {
                         </span>
                       </div>
 
-                      {/* Event badges */}
-                      <div className="w-full flex flex-col gap-[2px] overflow-hidden">
+                      {/* Event badges — 2px gap on mobile (pills are tiny),
+                          wider gap on desktop so the larger BookingCard-style
+                          entries have breathing room. */}
+                      <div className="w-full flex flex-col gap-[2px] lg:gap-1.5 overflow-hidden">
                         {dayBookings.slice(0, 3).map((b) => {
                           const client = getClient(b.client_id ?? '');
                           const name = client?.display_name || client?.name || 'Walk-in';
@@ -318,20 +324,22 @@ export default function MonthView() {
                               {/* Desktop BookingCard-style card (matches agent's
                                   scheduling search results): colored side strip +
                                   client/type on top line, time on second line.
-                                  hidden on mobile so it does not render there. */}
+                                  hidden on mobile so it does not render there.
+                                  Sizing mirrors BookingCard (bg-surface/60,
+                                  text-[15px]/[13px], w-1 strip, rounded-lg). */}
                               <div
-                                className="hidden lg:flex items-center gap-1.5 px-1.5 py-1 rounded-md bg-surface/40 border border-border/30 overflow-hidden"
+                                className="hidden lg:flex items-center gap-2 px-3 py-2 rounded-lg bg-surface/60 border border-border/40 overflow-hidden"
                                 style={b.rescheduled ? { outline: '1px solid var(--color-danger)', outlineOffset: -1 } : {}}
                               >
                                 <div
-                                  className="w-0.5 self-stretch rounded-full shrink-0"
+                                  className="w-1 self-stretch rounded-full shrink-0"
                                   style={{ backgroundColor: getTypeColor(b.type) }}
                                 />
                                 <div className="min-w-0 flex-1 text-left">
-                                  <div className="text-[12px] text-text-p truncate leading-tight">
+                                  <div className="text-[15px] text-text-p truncate leading-tight">
                                     {name} · {b.type}
                                   </div>
-                                  <div className="text-[10px] text-text-t truncate leading-tight">
+                                  <div className="text-[13px] text-text-t truncate leading-tight">
                                     {format(new Date(b.date), 'h:mm a')} · {b.duration}h
                                   </div>
                                 </div>
@@ -340,7 +348,7 @@ export default function MonthView() {
                           );
                         })}
                         {dayBookings.length > 3 && (
-                          <div className="text-[12px] text-text-t text-center">
+                          <div className="text-[12px] lg:text-[13px] text-text-t text-center lg:text-left lg:px-3">
                             {dayBookings.length - 3} more
                           </div>
                         )}
