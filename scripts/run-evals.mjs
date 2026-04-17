@@ -120,8 +120,14 @@ function checkEntities(actual, expected) {
   const failures = [];
 
   for (const [key, expectedVal] of Object.entries(expected)) {
-    // Skip date fields — they depend on "today" and we can't assert exact ISO values
-    if (key === 'date' || key === 'date_range_start' || key === 'date_range_end') {
+    // Skip date fields — they depend on "today" and we can't assert exact ISO values.
+    // `dob` is included because month-only prompts ("april 15") can't pin a specific year.
+    if (
+      key === 'date' ||
+      key === 'date_range_start' ||
+      key === 'date_range_end' ||
+      key === 'dob'
+    ) {
       // Just check the field was extracted (present and non-empty)
       if (expectedVal && !actual[key]) {
         failures.push(`${key}: expected a value, got nothing`);

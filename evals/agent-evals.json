@@ -34,10 +34,10 @@
       "id": "booking-create-no-match",
       "category": "booking/create",
       "prompt": "book sandy for next tuesday",
-      "context": "No client named Sandy exists",
+      "context": "No client named Sandy exists. Compound flow: tapping Create New Client should preserve the booking intent and resume into BookingForm after client is created.",
       "expected_parse": { "agent": "booking", "action": "create", "entities": { "client_name": "sandy", "date": "next tuesday ISO" } },
-      "resolution": "No match on 'sandy' → shows no-match UI with fuzzy suggestions + create option",
-      "expected_outcome": "Agent panel shows 'No exact match for sandy' with Create New Client button, fuzzy suggestions, and search field"
+      "resolution": "No match on 'sandy' → shows no-match UI with 'Create new client' + fuzzy suggestions. Booking intent is stashed in pendingIntent.",
+      "expected_outcome": "Agent panel shows 'No exact match for sandy' with Create New Client button. Tapping it opens CreateClientForm with name pre-filled. After save, AppShell.onCreated fires and resumes agent flow → BookingForm opens with the new client_id + original date=next tuesday. Zero re-typing."
     },
     {
       "id": "booking-create-fuzzy",
@@ -518,6 +518,154 @@
       "expected_parse": { "agent": "client", "action": "search", "entities": { "client_name": "martinez" } },
       "resolution": "Search → shows results as cards, never auto-navigates",
       "expected_outcome": "Agent panel shows search results (or no-match with suggestions)"
+    },
+
+    {
+      "id": "booking-delete-by-client-and-date",
+      "category": "booking/delete",
+      "prompt": "delete chris's friday appointment",
+      "context": "Chris Martin and Christina Reyes both match 'chris'. One of them has a Friday booking.",
+      "expected_parse": { "agent": "booking", "action": "delete", "entities": { "client_name": "chris", "date": "friday ISO" } },
+      "resolution": "Multiple matches on 'chris' → disambiguation → filter bookings by client+date → one match → confirm_delete_booking card",
+      "expected_outcome": "After disambiguation, panel shows a confirm card with red 'Delete' and neutral 'Cancel' buttons. Tapping Delete removes the booking via bookingStore.deleteBooking and shows a toast."
+    },
+    {
+      "id": "booking-delete-cancel-phrasing",
+      "category": "booking/delete",
+      "prompt": "cancel sarah's booking",
+      "context": "Sarah Kim has 1 upcoming booking. 'cancel' is a delete synonym.",
+      "expected_parse": { "agent": "booking", "action": "delete", "entities": { "client_name": "sarah" } },
+      "resolution": "Single match on 'sarah' → resolves client → finds 1 booking → confirm_delete_booking card",
+      "expected_outcome": "Panel shows confirm card. Tapping Delete removes Sarah's booking and shows a toast."
+    },
+    {
+      "id": "booking-delete-remove-phrasing",
+      "category": "booking/delete",
+      "prompt": "remove the appointment on friday",
+      "context": "One booking exists on Friday. No client name — filter by date only.",
+      "expected_parse": { "agent": "booking", "action": "delete", "entities": { "date": "friday ISO" } },
+      "resolution": "No client → filter bookings by date → one match → confirm_delete_booking card",
+      "expected_outcome": "Panel shows confirm card for the Friday booking. Tapping Delete removes it."
+    },
+    {
+      "id": "booking-delete-multiple-match",
+      "category": "booking/delete",
+      "prompt": "cancel alex's booking",
+      "context": "Alex Torres has 2 upcoming bookings.",
+      "expected_parse": { "agent": "booking", "action": "delete", "entities": { "client_name": "alex" } },
+      "resolution": "Single match on 'alex' → finds 2 bookings → shows booking cards for selection → after tap, confirm_delete_booking card",
+      "expected_outcome": "Panel shows booking cards. After tap, confirm card appears. Tapping Delete removes the selected booking."
+    },
+
+    {
+      "id": "client-delete-single-match",
+      "category": "client/delete",
+      "prompt": "remove sarah from clients",
+      "context": "Sarah Kim exists, single match.",
+      "expected_parse": { "agent": "client", "action": "delete", "entities": { "client_name": "sarah" } },
+      "resolution": "Single match on 'sarah' → resolves client → confirm_delete_client card",
+      "expected_outcome": "Panel shows 'Delete Sarah Kim?' confirm card with warning that all of her bookings will also be removed. Tapping Delete calls clientStore.deleteClient."
+    },
+    {
+      "id": "client-delete-ambiguous",
+      "category": "client/delete",
+      "prompt": "delete chris",
+      "context": "Chris Martin and Christina Reyes both match 'chris'.",
+      "expected_parse": { "agent": "client", "action": "delete", "entities": { "client_name": "chris" } },
+      "resolution": "Multiple matches on 'chris' → disambiguation cards → after tap, confirm_delete_client card",
+      "expected_outcome": "Panel shows 'Which chris?' with two client cards. After tap, confirm card appears."
+    },
+    {
+      "id": "client-delete-no-match",
+      "category": "client/delete",
+      "prompt": "delete sandy",
+      "context": "No client named Sandy exists. Can't delete a non-existent client.",
+      "expected_parse": { "agent": "client", "action": "delete", "entities": { "client_name": "sandy" } },
+      "resolution": "No match on 'sandy' → shows no-match UI (no confirm card)",
+      "expected_outcome": "Panel shows 'No exact match for sandy' with fuzzy suggestions. No confirm card since no client was resolved."
+    },
+
+    {
+      "id": "client-edit-dob-iso",
+      "category": "client/edit",
+      "prompt": "change sarah's dob to 1990-04-15",
+      "context": "Sarah Kim exists, single match. Full ISO date provided.",
+      "expected_parse": { "agent": "client", "action": "edit", "entities": { "client_name": "sarah", "dob": "1990-04-15" } },
+      "resolution": "Single match on 'sarah' → resolves client → agent-parse extracts dob directly in first pass. Second agent-resolve-edit call may refine but isn't required for direct-value edits.",
+      "expected_outcome": "ClientForm opens with dob set to April 15, 1990, highlighted as 'AI updated'. User reviews and saves."
+    },
+    {
+      "id": "client-edit-birthday-natural",
+      "category": "client/edit",
+      "prompt": "update chris martin's birthday to april 15",
+      "context": "Chris Martin exists, exact match on full name. Month+day only — year must be inferred.",
+      "expected_parse": { "agent": "client", "action": "edit", "entities": { "client_name": "chris martin", "dob": "YYYY-04-15" } },
+      "resolution": "Exact match → resolves client → agent-parse extracts dob with any reasonable year (runner checks presence only, not exact year).",
+      "expected_outcome": "ClientForm opens with dob set to April 15 (some year), highlighted as 'AI updated'. User can edit the year if needed."
+    },
+    {
+      "id": "client-edit-bday-shorthand",
+      "category": "client/edit",
+      "prompt": "set alex's bday to may 2",
+      "context": "Alex Torres exists, single match. 'bday' is shorthand for birthday/dob.",
+      "expected_parse": { "agent": "client", "action": "edit", "entities": { "client_name": "alex", "dob": "YYYY-05-02" } },
+      "resolution": "Single match → resolves client → agent-parse extracts dob from 'bday' synonym → returns YYYY-05-02 (year runner-skipped).",
+      "expected_outcome": "ClientForm opens with dob set to May 2, highlighted as 'AI updated'."
+    },
+    {
+      "id": "client-edit-date-of-birth-full",
+      "category": "client/edit",
+      "prompt": "josh's date of birth is july 20 1985",
+      "context": "Josh Parrott exists. 'date of birth' is a dob synonym. Full date provided.",
+      "expected_parse": { "agent": "client", "action": "edit", "entities": { "client_name": "josh", "dob": "1985-07-20" } },
+      "resolution": "Single match on 'josh' → resolves → agent-parse extracts dob=1985-07-20.",
+      "expected_outcome": "ClientForm opens with dob set to July 20, 1985, highlighted as 'AI updated'."
+    },
+
+    {
+      "id": "booking-create-find-slot-morning",
+      "category": "booking/create",
+      "prompt": "book chris martin in the first available morning slot",
+      "context": "Chris Martin exists, exact match on full name. No date given — orchestrator should compute next open morning slot.",
+      "expected_parse": { "agent": "booking", "action": "create", "entities": { "client_name": "chris martin", "find_slot": "morning" } },
+      "resolution": "Exact match → resolves client → orchestrator calls findFirstAvailableSlot('morning') which iterates up to 60 days forward using scheduleConfig → sets date to computed ISO → BookingForm opens.",
+      "expected_outcome": "BookingForm opens with client=Chris Martin, date=next open morning slot (computed client-side), timeSlot=morning."
+    },
+    {
+      "id": "booking-create-find-slot-evening",
+      "category": "booking/create",
+      "prompt": "schedule sarah next open evening",
+      "context": "Sarah Kim exists, single match. No date — orchestrator finds next open evening slot.",
+      "expected_parse": { "agent": "booking", "action": "create", "entities": { "client_name": "sarah", "find_slot": "evening" } },
+      "resolution": "Single match → resolves → orchestrator calls findFirstAvailableSlot('evening') → BookingForm opens with computed date.",
+      "expected_outcome": "BookingForm opens with client=Sarah Kim, date=next open evening slot, timeSlot=evening."
+    },
+    {
+      "id": "booking-create-find-slot-any",
+      "category": "booking/create",
+      "prompt": "book alex next available",
+      "context": "Alex Torres exists. No date or time preference — any open slot.",
+      "expected_parse": { "agent": "booking", "action": "create", "entities": { "client_name": "alex", "find_slot": "any" } },
+      "resolution": "Single match → resolves → orchestrator calls findFirstAvailableSlot('any') → sets date to first open slot.",
+      "expected_outcome": "BookingForm opens with client=Alex Torres, date=first open slot of any kind."
+    },
+    {
+      "id": "booking-create-find-slot-soonest",
+      "category": "booking/create",
+      "prompt": "book josh for his next available appointment",
+      "context": "Josh Parrott exists. 'next available' without time preference → find_slot='any'.",
+      "expected_parse": { "agent": "booking", "action": "create", "entities": { "client_name": "josh", "find_slot": "any" } },
+      "resolution": "Single match on 'josh' → resolves → findFirstAvailableSlot('any') → BookingForm opens.",
+      "expected_outcome": "BookingForm opens with client=Josh Parrott, date=first available open slot."
+    },
+    {
+      "id": "booking-create-find-slot-no-override",
+      "category": "booking/create",
+      "prompt": "book sam friday at 2pm",
+      "context": "Explicit date given — find_slot must NOT be set (date takes precedence).",
+      "expected_parse": { "agent": "booking", "action": "create", "entities": { "client_name": "sam", "date": "friday 2pm ISO" } },
+      "resolution": "Explicit date → agent-parse should NOT set find_slot. If find_slot slips through, orchestrator preserves the explicit date anyway.",
+      "expected_outcome": "BookingForm opens with date=Friday 2pm. No slot-finding logic runs."
     }
   ]
 }
