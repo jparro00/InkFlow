@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send } from 'lucide-react';
+import { AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import Modal from '../common/Modal';
 import AgentMessages from './AgentMessages';
 import MicButton from './MicButton';
+import ListeningOrb from './ListeningOrb';
 import { useAgentStore } from '../../stores/agentStore';
 import { useUIStore } from '../../stores/uiStore';
 import { processInput } from '../../agents/orchestrator';
@@ -109,6 +111,16 @@ export default function AgentPanel() {
       fullScreenMobile={true}
       canCollapse={false}
     >
+      {/* Listening orb — floats above everything during recording */}
+      <AnimatePresence>
+        {voice.state.kind === 'recording' && (
+          <ListeningOrb
+            level={voice.state.level}
+            onStop={voice.stopManual}
+          />
+        )}
+      </AnimatePresence>
+
       <div className="flex flex-col -mx-5 -my-5 lg:-mx-6 lg:-my-5 h-full lg:h-[70vh]">
         {/* Messages area */}
         <AgentMessages />
