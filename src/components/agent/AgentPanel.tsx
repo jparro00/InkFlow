@@ -69,44 +69,19 @@ export default function AgentPanel() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Auto-start voice recording — but ONLY if permission is already granted.
-  //
-  // iOS is strict about which getUserMedia calls produce a persistent
-  // permission grant. A request fired from a setTimeout after the panel
-  // mounts is not within a direct user gesture, and iOS tends to respond to
-  // those with a *session-scoped* grant that gets discarded on hard-close.
-  // That matches the reported symptom (re-prompted every cold start, no
-  // Settings entry).
-  //
-  // So: on first-ever use, we don't auto-start. The user taps the mic
-  // button (direct gesture) → iOS grants persistently. Every subsequent
-  // panel open sees state='granted' and auto-starts silently.
+  // Auto-start voice recording as soon as the panel opens. Zero-friction:
+  // tap bot icon → immediately start listening. If permission hasn't been
+  // granted yet this will trigger the browser prompt. We accept that as a
+  // cost on shared multi-tenant hosts like *.vercel.app where iOS doesn't
+  // reliably persist PWA mic permissions — it's still better than ever
+  // showing a manual mic button as the cold-start UX. On custom domains
+  // (prod = inkbloop.com), permission persists normally and the prompt
+  // only fires once ever.
   useEffect(() => {
-    let cancelled = false;
-    const tryAutoStart = async () => {
-      let canAutoStart = true;
-      try {
-        if (navigator.permissions?.query) {
-          const result = await navigator.permissions.query({
-            name: 'microphone' as PermissionName,
-          });
-          // Only auto-start if we already have a real grant.
-          canAutoStart = result.state === 'granted';
-        }
-      } catch {
-        // Permissions API not supported — fall through and attempt auto-start.
-        canAutoStart = true;
-      }
-      if (cancelled || !canAutoStart) return;
-      const timer = setTimeout(() => {
-        if (!cancelled) voice.start();
-      }, 150);
-      return () => clearTimeout(timer);
-    };
-    void tryAutoStart();
-    return () => {
-      cancelled = true;
-    };
+    const timer = setTimeout(() => {
+      voice.start();
+    }, 150);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
