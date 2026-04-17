@@ -30,7 +30,7 @@ export default function ListeningOrb({ level, onStop }: ListeningOrbProps) {
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.9, y: -20 }}
       transition={{ duration: 0.35, ease: 'easeOut' }}
-      className="fixed top-4 left-1/2 -translate-x-1/2 z-[60] flex flex-col items-center pointer-events-none"
+      className="fixed top-24 left-1/2 -translate-x-1/2 z-[60] flex flex-col items-center pointer-events-none"
     >
       <button
         onClick={onStop}
