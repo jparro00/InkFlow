@@ -4,7 +4,7 @@ import type { ConversationSummary } from '../services/messageService';
 // --- AI Response Format ---
 
 export interface AgentIntent {
-  agent: 'booking' | 'client' | 'schedule' | 'messaging' | 'unknown';
+  agent: 'booking' | 'client' | 'schedule' | 'messaging' | 'feedback' | 'unknown';
   action: 'create' | 'open' | 'edit' | 'search' | 'query' | 'draft' | 'delete' | 'unknown';
   entities: {
     // Booking entities
@@ -29,6 +29,9 @@ export interface AgentIntent {
     booking_type?: string;
     // Messaging entities
     draft_context?: 'reminder' | 'followup' | 'reschedule';
+    // Feedback entities — verbatim feedback body, dropped into the tab's
+    // textarea for the user to review and submit themselves.
+    feedback_text?: string;
   };
 }
 
@@ -165,4 +168,8 @@ export interface ResolvedMessagingDraft {
   conversation_id: string;
   client_name: string;
   templates: DraftTemplate[];
+}
+
+export interface ResolvedFeedbackDraft {
+  text: string;
 }

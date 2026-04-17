@@ -48,6 +48,7 @@ AGENTS AND ACTIONS:
 - schedule/query: User wants information about their schedule (e.g. "how many tattoos this week", "am I free friday", "what's on my schedule tomorrow")
 - messaging/open: User wants to open a message thread (e.g. "message chris", "open chat with sarah")
 - messaging/draft: User wants to draft a message to a client (e.g. "send chris a reminder", "draft a follow-up for sarah")
+- feedback/draft: User is giving feedback ABOUT THE APP ITSELF (not a message to a client). The feedback tab collects notes for the developer. Triggers: explicit prefixes like "feedback:", "feedback -", "file feedback", "leave feedback", "send feedback", "tell jparr", "note to self", or complaints/suggestions clearly aimed at the app ("this page is slow", "the calendar is broken", "I wish I could drag bookings around"). Do NOT use this for drafting messages to a client — that's messaging/draft.
 
 ENTITY EXTRACTION:
 Return raw client names as-is (do NOT try to match to IDs). The app handles matching locally.
@@ -74,10 +75,11 @@ Return raw client names as-is (do NOT try to match to IDs). The app handles matc
 - date_range_end: ISO date for schedule queries
 - booking_type: filter schedule queries by type
 - draft_context: for messaging/draft — one of "reminder", "followup", "reschedule"
+- feedback_text: for feedback/draft — the VERBATIM feedback body as the user would want it to appear in the Feedback tab's textarea. Strip any leading trigger words like "feedback:" / "feedback -" / "tell jparr that" / "leave feedback" from the front, preserve the rest exactly as spoken/typed (keep punctuation, keep full sentences). If the user's whole input is the feedback (no prefix), use their entire input unchanged. Never rephrase, summarize, or "polish" their wording.
 
 RESPONSE FORMAT — return ONLY valid JSON, no markdown, no explanation:
 {
-  "agent": "booking" | "client" | "schedule" | "messaging",
+  "agent": "booking" | "client" | "schedule" | "messaging" | "feedback",
   "action": "create" | "open" | "edit" | "search" | "query" | "draft",
   "entities": { ... }
 }
@@ -220,7 +222,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // Validate agent and action
-    const validAgents = ["booking", "client", "schedule", "messaging", "unknown"];
+    const validAgents = ["booking", "client", "schedule", "messaging", "feedback", "unknown"];
     const validActions = ["create", "open", "edit", "search", "query", "draft", "delete", "unknown"];
 
     if (!validAgents.includes(parsed.agent)) parsed.agent = "unknown";
@@ -281,6 +283,18 @@ Deno.serve(async (req: Request) => {
       !["morning", "evening", "any"].includes(parsed.entities.find_slot)
     ) {
       delete parsed.entities.find_slot;
+    }
+
+    // Validate feedback_text — must be a reasonable-length string.
+    // Strip when missing/non-string/excessively long so the client can fall
+    // back to the raw original text.
+    if (
+      parsed.entities.feedback_text !== undefined &&
+      (typeof parsed.entities.feedback_text !== "string" ||
+        parsed.entities.feedback_text.length === 0 ||
+        parsed.entities.feedback_text.length > 5000)
+    ) {
+      delete parsed.entities.feedback_text;
     }
 
     return new Response(JSON.stringify(parsed), {

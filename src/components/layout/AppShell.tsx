@@ -30,6 +30,7 @@ export default function AppShell() {
     editingClientId,
     setEditingClientId,
     selectedConversationId,
+    confirmDialogOpen,
   } = useUIStore();
   const editingClient = useClientStore((s) => editingClientId ? s.clients.find((c) => c.id === editingClientId) : undefined);
   const agentPanelOpen = useAgentStore((s) => s.panelOpen);
@@ -144,14 +145,17 @@ export default function AppShell() {
         {editingClient && <ClientForm client={editingClient} onClose={() => setEditingClientId(null)} />}
       </AnimatePresence>
 
-      {/* Agent FAB */}
-      <button
-        onClick={openAgentPanel}
-        className="fixed bottom-[116px] right-5 lg:bottom-8 lg:right-8 w-[84px] h-[84px] bg-accent text-bg rounded-2xl shadow-lg shadow-glow flex items-center justify-center z-30 cursor-pointer press-scale transition-transform active:shadow-glow-strong"
-        title="Inklet - AI Assistant"
-      >
-        <Bot size={40} />
-      </button>
+      {/* Agent FAB — hidden during page-level confirm dialogs so the button
+          doesn't sit visually on top of a "Yes, delete" action. */}
+      {!confirmDialogOpen && (
+        <button
+          onClick={openAgentPanel}
+          className="fixed bottom-[116px] right-5 lg:bottom-8 lg:right-8 w-[84px] h-[84px] bg-accent text-bg rounded-2xl shadow-lg shadow-glow flex items-center justify-center z-30 cursor-pointer press-scale transition-transform active:shadow-glow-strong"
+          title="Inklet - AI Assistant"
+        >
+          <Bot size={40} />
+        </button>
+      )}
 
       <AgentFeedbackPrompt />
 

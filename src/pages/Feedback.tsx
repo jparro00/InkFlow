@@ -4,7 +4,12 @@ import { supabase } from '../lib/supabase';
 
 export default function FeedbackPage() {
   const { setHeaderLeft, setHeaderRight } = useUIStore();
-  const [text, setText] = useState('');
+  // Pull the agent-authored prefill (set by the feedback sub-agent before
+  // navigating here) as the initial value so the user lands on the tab with
+  // their dictated words already in the textarea, ready to review + submit.
+  const prefill = useUIStore((s) => s.prefillFeedbackText);
+  const setPrefillFeedbackText = useUIStore((s) => s.setPrefillFeedbackText);
+  const [text, setText] = useState(prefill ?? '');
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -15,11 +20,29 @@ export default function FeedbackPage() {
     return () => { setHeaderLeft(null); setHeaderRight(null); };
   }, [setHeaderLeft, setHeaderRight]);
 
+  // Consume the prefill exactly once on mount. If the user comes back to
+  // the tab without going through the agent, prefill is null and nothing
+  // happens. Clearing the store value prevents a stale dictation from
+  // reappearing on the next visit.
+  useEffect(() => {
+    if (prefill) {
+      setText(prefill);
+      setPrefillFeedbackText(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Auto-focus and open keyboard on mount
   useEffect(() => {
     // Small delay lets the page finish rendering so the keyboard
     // doesn't push layout around before the textarea is visible
-    const t = setTimeout(() => textareaRef.current?.focus(), 150);
+    const t = setTimeout(() => {
+      textareaRef.current?.focus();
+      // Place caret at end so the user can keep dictating/typing if the
+      // prefill covered most of what they wanted to say.
+      const el = textareaRef.current;
+      if (el) el.setSelectionRange(el.value.length, el.value.length);
+    }, 150);
     return () => clearTimeout(t);
   }, []);
 

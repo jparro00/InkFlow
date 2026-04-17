@@ -8,6 +8,7 @@ import { executeBookingCreate, executeBookingOpen, executeBookingEdit, executeBo
 import { executeClientCreate, executeClientOpen, executeClientEdit, executeClientDelete } from './clientAgent';
 import { executeScheduleQuery, findFirstAvailableSlot } from './scheduleAgent';
 import { executeMessagingOpen, executeMessagingDraft, buildTemplates, applyDraftTemplate } from './messagingAgent';
+import { executeFeedbackDraft } from './feedbackAgent';
 import type { AgentIntent, DraftTemplate } from './types';
 
 /**
@@ -299,6 +300,8 @@ async function routeIntent(intent: AgentIntent) {
       return routeSchedule(intent);
     case 'messaging':
       return routeMessaging(intent, resolved);
+    case 'feedback':
+      return routeFeedback(intent, resolved);
   }
 }
 
@@ -968,6 +971,38 @@ async function routeMessaging(
       templates,
     });
   }
+}
+
+// ─── Feedback Routing ──────────────────────────────────────────────
+
+async function routeFeedback(
+  intent: AgentIntent,
+  resolved: Record<string, unknown>
+) {
+  const store = useAgentStore.getState();
+
+  if (intent.action !== 'draft') {
+    store.replaceLastLoading({
+      text: "I can only draft feedback right now. Try something like \"feedback: the calendar feels slow on mobile\".",
+    });
+    return;
+  }
+
+  // Prefer the verbatim body the parser isolated; fall back to the raw
+  // input if the parser didn't extract one (happens on very short prompts).
+  const extracted = intent.entities.feedback_text?.trim();
+  const originalText = (resolved.originalText as string | undefined)?.trim();
+  const text = extracted && extracted.length > 0 ? extracted : originalText;
+
+  if (!text) {
+    store.replaceLastLoading({
+      text: "What feedback should I capture?",
+    });
+    return;
+  }
+
+  store.logTrace('sub_agent', { agent: 'feedback', action: 'draft', length: text.length });
+  executeFeedbackDraft({ text });
 }
 
 // ─── Selection Handler ──────────────────────────────────────────────

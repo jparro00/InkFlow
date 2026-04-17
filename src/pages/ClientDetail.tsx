@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Edit, Plus, MessageCircle, Camera, FileText, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -26,11 +26,18 @@ export default function ClientDetailPage() {
   const allDocuments = useDocumentStore((s) => s.documents);
   const clientDocuments = useMemo(() => allDocuments.filter((d) => d.client_id === id), [allDocuments, id]);
   const removeDocument = useDocumentStore((s) => s.removeDocument);
-  const { setSelectedBookingId, openBookingForm, setPrefillBookingData, setEditingClientId, addToast } = useUIStore();
+  const { setSelectedBookingId, openBookingForm, setPrefillBookingData, setEditingClientId, addToast, setConfirmDialogOpen } = useUIStore();
   const [tab, setTab] = useState<Tab>('overview');
   const [noteText, setNoteText] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // Tell the shell to hide the FAB while the delete confirm is visible so
+  // the bot button doesn't visually cover the "Yes, delete" action.
+  useEffect(() => {
+    setConfirmDialogOpen(confirmDelete);
+    return () => setConfirmDialogOpen(false);
+  }, [confirmDelete, setConfirmDialogOpen]);
 
   if (!client) {
     return (

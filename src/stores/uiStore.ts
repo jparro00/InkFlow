@@ -57,6 +57,14 @@ interface UIStore {
   modalCollapsed: boolean;
   setModalCollapsed: (collapsed: boolean) => void;
   blockedOpenTrigger: number;
+  // True while a page-level confirm dialog (e.g. "Delete client?") is open.
+  // The FAB hides in this state so it doesn't obscure the confirm button.
+  confirmDialogOpen: boolean;
+  setConfirmDialogOpen: (open: boolean) => void;
+  // Set by the feedback agent so the Feedback tab opens with the user's
+  // dictated text pre-populated for review.
+  prefillFeedbackText: string | null;
+  setPrefillFeedbackText: (text: string | null) => void;
 }
 
 export const useUIStore = create<UIStore>((set) => ({
@@ -162,4 +170,8 @@ export const useUIStore = create<UIStore>((set) => ({
   modalCollapsed: false,
   setModalCollapsed: (collapsed) => set({ modalCollapsed: collapsed }),
   blockedOpenTrigger: 0,
+  confirmDialogOpen: false,
+  setConfirmDialogOpen: (open) => set({ confirmDialogOpen: open }),
+  prefillFeedbackText: null,
+  setPrefillFeedbackText: (text) => set({ prefillFeedbackText: text }),
 }));
