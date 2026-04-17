@@ -29,7 +29,7 @@ interface AgentStore {
   // True when an exchange is in-flight and eligible for feedback once it
   // completes (panel closed, no modals open, not processing).
   traceActive: boolean;
-  // When set, the feedback prompt is shown above the FAB for 2s.
+  // When set, the feedback prompt is shown above the FAB for 3s.
   feedbackPrompt: FeedbackPromptState | null;
 
   // Actions
@@ -142,7 +142,7 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
   },
 
   // Called when the exchange is fully complete (all modals closed).
-  // Captures the current trace into feedbackPrompt for 2s display.
+  // Captures the current trace into feedbackPrompt for 3s display.
   showFeedbackPrompt: () =>
     set((s) => {
       if (!s.traceActive || s.trace.length === 0) {

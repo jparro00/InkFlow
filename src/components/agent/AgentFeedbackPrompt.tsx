@@ -4,10 +4,10 @@ import { ThumbsUp, ThumbsDown } from 'lucide-react';
 import { useAgentStore } from '../../stores/agentStore';
 import { supabase } from '../../lib/supabase';
 
-const VISIBLE_MS = 2000;
+const VISIBLE_MS = 3000;
 
 /**
- * Small prompt that appears above the agent FAB for 2s after an exchange
+ * Small prompt that appears above the agent FAB for 3s after an exchange
  * completes (all modals closed). Tapping thumbs-up/down records the rating
  * and the full trace of the exchange to `agent_feedback`. If the user
  * ignores it, the trace is discarded.
@@ -18,7 +18,7 @@ export default function AgentFeedbackPrompt() {
   const [submitting, setSubmitting] = useState(false);
   const submittedRef = useRef(false);
 
-  // Auto-dismiss after 2s
+  // Auto-dismiss after 3s
   useEffect(() => {
     if (!prompt) return;
     submittedRef.current = false;
