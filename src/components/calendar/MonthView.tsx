@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useCallback, useState } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useCallback, useState } from 'react';
 import {
   startOfMonth,
   endOfMonth,
@@ -278,7 +278,7 @@ export default function MonthView() {
                       key={day.toISOString()}
                       onClick={() => inMonth && handleDayClick(day)}
                       disabled={!inMonth}
-                      className={`flex flex-col items-start px-0.5 py-0.5 min-h-[64px] border-b border-border/15 transition-colors ${
+                      className={`flex flex-col items-start px-0.5 py-0.5 min-h-[64px] border-b border-border/15 transition-colors lg:aspect-square lg:min-h-0 lg:overflow-hidden lg:px-1 lg:py-1 ${
                         inMonth ? 'cursor-pointer active:bg-elevated/30' : 'opacity-0 pointer-events-none'
                       }`}
                     >
@@ -303,15 +303,40 @@ export default function MonthView() {
                           const client = getClient(b.client_id ?? '');
                           const name = client?.display_name || client?.name || 'Walk-in';
                           return (
-                            <div
-                              key={b.id}
-                              className="rounded-sm px-1 py-[1px] text-[12px] leading-tight overflow-hidden whitespace-nowrap"
-                              style={{ backgroundColor: getTypeColorAlpha(b.type, 0.09), ...(b.rescheduled ? { outline: '1px solid var(--color-danger)', outlineOffset: -1 } : {}) }}
-                            >
-                              <span style={{ color: getTypeColor(b.type), maskImage: 'linear-gradient(to right, black 70%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to right, black 70%, transparent 100%)', display: 'block' }}>
-                                {name}
-                              </span>
-                            </div>
+                            <Fragment key={b.id}>
+                              {/* Mobile compact pill — unchanged from original. Desktop
+                                  variant below is display:none here via lg:hidden, so
+                                  mobile paint/layout cost is identical to before. */}
+                              <div
+                                className="lg:hidden rounded-sm px-1 py-[1px] text-[12px] leading-tight overflow-hidden whitespace-nowrap"
+                                style={{ backgroundColor: getTypeColorAlpha(b.type, 0.09), ...(b.rescheduled ? { outline: '1px solid var(--color-danger)', outlineOffset: -1 } : {}) }}
+                              >
+                                <span style={{ color: getTypeColor(b.type), maskImage: 'linear-gradient(to right, black 70%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to right, black 70%, transparent 100%)', display: 'block' }}>
+                                  {name}
+                                </span>
+                              </div>
+                              {/* Desktop BookingCard-style card (matches agent's
+                                  scheduling search results): colored side strip +
+                                  client/type on top line, time on second line.
+                                  hidden on mobile so it does not render there. */}
+                              <div
+                                className="hidden lg:flex items-center gap-1.5 px-1.5 py-1 rounded-md bg-surface/40 border border-border/30 overflow-hidden"
+                                style={b.rescheduled ? { outline: '1px solid var(--color-danger)', outlineOffset: -1 } : {}}
+                              >
+                                <div
+                                  className="w-0.5 self-stretch rounded-full shrink-0"
+                                  style={{ backgroundColor: getTypeColor(b.type) }}
+                                />
+                                <div className="min-w-0 flex-1 text-left">
+                                  <div className="text-[12px] text-text-p truncate leading-tight">
+                                    {name} · {b.type}
+                                  </div>
+                                  <div className="text-[10px] text-text-t truncate leading-tight">
+                                    {format(new Date(b.date), 'h:mm a')} · {b.duration}h
+                                  </div>
+                                </div>
+                              </div>
+                            </Fragment>
                           );
                         })}
                         {dayBookings.length > 3 && (
