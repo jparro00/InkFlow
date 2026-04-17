@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useCallback, useState } from 'react';
 import {
   startOfMonth,
   endOfMonth,
@@ -29,12 +29,19 @@ function getMonthRange(center: Date, buffer: number) {
 }
 
 export default function MonthView() {
-  const { calendarDate, setCalendarDate, setCalendarView, openBookingForm, setTodayHandler, setScrollToCurrentMonth, setCalendarSearchOpen, setHeaderLeft, setHeaderRight } = useUIStore();
+  const { setCalendarDate, setCalendarView, openBookingForm, setTodayHandler, setScrollToCurrentMonth, setCalendarSearchOpen, setHeaderLeft, setHeaderRight } = useUIStore();
   const bookings = useBookingStore((s) => s.bookings);
   const getClient = useClientStore((s) => s.getClient);
 
-  const [months, setMonths] = useState(() => getMonthRange(calendarDate, MONTHS_BUFFER));
-  const [visibleYear, setVisibleYear] = useState(calendarDate.getFullYear());
+  // Always center the list on actual today at mount. `calendarDate` from
+  // the store can be stale: the user may have tapped an old booking, the
+  // agent may have navigated to a past date, or the PWA may have been
+  // backgrounded long enough for the store's initial `new Date()` (captured
+  // once at module load) to drift out of the current month. Rebuilding
+  // around a fresh `new Date()` on every mount guarantees today's month
+  // is always the scroll anchor.
+  const [months, setMonths] = useState(() => getMonthRange(new Date(), MONTHS_BUFFER));
+  const [visibleYear, setVisibleYear] = useState(() => new Date().getFullYear());
   const scrollRef = useRef<HTMLDivElement>(null);
   const currentMonthRef = useRef<HTMLDivElement>(null);
   const hasScrolled = useRef(false);
@@ -42,8 +49,12 @@ export default function MonthView() {
   const bottomSentinelRef = useRef<HTMLDivElement>(null);
   const monthRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
-  // Scroll to current month on mount
-  useEffect(() => {
+  // Scroll to today's month on mount. useLayoutEffect (not useEffect) so
+  // the scroll lands synchronously before paint — otherwise the
+  // IntersectionObserver below can fire for the still-visible top sentinel
+  // on the very first tick, prepending 6 more months and leaving the user
+  // 12 months in the past. (Observed bug — do not regress.)
+  useLayoutEffect(() => {
     if (!hasScrolled.current && currentMonthRef.current) {
       currentMonthRef.current.scrollIntoView({ block: 'start' });
       hasScrolled.current = true;
@@ -173,9 +184,17 @@ export default function MonthView() {
     setCalendarView('day');
   };
 
-  const isCurrentMonth = (month: Date) =>
-    month.getFullYear() === calendarDate.getFullYear() &&
-    month.getMonth() === calendarDate.getMonth();
+  // "Current month" means actual today's month, NOT calendarDate's month.
+  // This is what drives currentMonthRef and the initial scroll anchor —
+  // using calendarDate here is how the scroll used to land on a stale
+  // month when the store's date had drifted.
+  const isCurrentMonth = (month: Date) => {
+    const today = new Date();
+    return (
+      month.getFullYear() === today.getFullYear() &&
+      month.getMonth() === today.getMonth()
+    );
+  };
 
   // Register header buttons
   useEffect(() => {
