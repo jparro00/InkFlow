@@ -273,6 +273,33 @@ export function useVoiceRecorder({ onTranscript }: Options) {
       return;
     }
 
+    // Query current permission state (if supported) so we can log & short-circuit.
+    // This is informational only — getUserMedia still drives the actual prompt
+    // behavior. But it helps us understand why the prompt is firing.
+    let permState: string = 'unknown';
+    try {
+      if (navigator.permissions?.query) {
+        const result = await navigator.permissions.query({
+          name: 'microphone' as PermissionName,
+        });
+        permState = result.state; // 'granted' | 'denied' | 'prompt'
+      }
+    } catch {
+      // Some browsers don't support 'microphone' as a permission name — ignore
+    }
+    agentStore.logTrace('voice_permission_state', { permState });
+    // Also log to console for live debugging during dev
+    // eslint-disable-next-line no-console
+    console.log('[voice] permission state before getUserMedia:', permState);
+
+    if (permState === 'denied') {
+      const msg = 'Mic access blocked — enable in browser settings';
+      agentStore.logTrace('voice_error', { stage: 'permission_denied_api', message: msg });
+      setState({ kind: 'error', message: msg });
+      setTimeout(() => setState({ kind: 'idle' }), 2000);
+      return;
+    }
+
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
