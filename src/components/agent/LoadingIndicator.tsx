@@ -80,10 +80,10 @@ function cloverRadii(N: number, peak: number, valley: number, exp = 0.5): number
 
 // Order: 6-cookie → 4-cookie → 7-cookie → 4-leaf clover → back to 6-cookie
 const SHAPES: string[] = [
-  makePath(cookieRadii(6, 44, 34)),    // 6-sided cookie
-  makePath(cookieRadii(4, 45, 30)),    // 4-sided cookie
-  makePath(cookieRadii(7, 44, 36)),    // 7-sided cookie
-  makePath(cloverRadii(4, 48, 20)),    // 4-leaf clover
+  makePath(cookieRadii(6, 40, 34)),    // 6-sided cookie
+  makePath(cookieRadii(4, 40, 30)),    // 4-sided cookie
+  makePath(cookieRadii(7, 40, 36)),    // 7-sided cookie
+  makePath(cloverRadii(4, 42, 24)),    // 4-leaf clover
 ];
 
 const MORPH_INTERVAL_MS = 1100; // dwell on each shape
