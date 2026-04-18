@@ -451,10 +451,29 @@ export const useMessageStore = create<MessageStore>()(
     }),
     {
       name: 'inkbloop-messages',
+      // Bump on any change to the persisted shape — most importantly, the
+      // profilePic semantics. Before v1, profilePic was sometimes persisted
+      // as a raw Storage path (not a signed URL), which caused <img> tags
+      // to resolve relative to the Vercel origin on hydration and 404 via
+      // the service worker's static-asset fallback. From v1 forward,
+      // profilePic is never persisted — it's always re-fetched (through
+      // resolveAvatarUrls) by the first fetchConversations call after
+      // hydration.
+      version: 1,
+      migrate: (persistedState) => {
+        // Clear any profilePic left over from the pre-v1 shape. Cheap no-op
+        // if the field is already absent.
+        const state = persistedState as { conversations?: Array<{ profilePic?: unknown }> } | null | undefined;
+        if (state?.conversations) {
+          state.conversations = state.conversations.map((c) => ({ ...c, profilePic: undefined }));
+        }
+        return state;
+      },
       // Cache conversations for instant render; strip profilePic (re-fetched
-      // from DB) to keep the payload small for mobile localStorage quotas.
+      // from DB) to keep the payload small for mobile localStorage quotas
+      // and to avoid stale-URL renders on hydration (see version bump above).
       partialize: (state) => ({
-        conversations: state.conversations,
+        conversations: state.conversations.map((c) => ({ ...c, profilePic: undefined })),
         readMids: state.readMids,
         drafts: state.drafts,
       }),
