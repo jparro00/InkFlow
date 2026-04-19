@@ -77,31 +77,7 @@ Dev is the default target. Never deploy to prod without explicit user permission
 
 Keep this section updated as changes land on dev but haven't shipped to prod.
 
-### Avatar Storage refactor
-
-Moved client profile pics out of `sim_profiles.profile_pic` / `participant_profiles.profile_pic` (base64 data URLs — 3.6 MB on disk for 4 rows) into a new **private** `avatars` Storage bucket. DB columns now hold a short filename path; clients generate short-lived signed URLs to render. Cuts per-row DB size from ~900 KB to ~220 B and shifts image bytes off PostgREST egress onto the Storage CDN.
-
-**Prod apply steps, in order:**
-
-1. Apply migration `00015_avatars_bucket.sql`:
-   ```bash
-   npx supabase link --project-ref jpjvexfldouobiiczhax
-   npx supabase db push --linked
-   ```
-   If history drift prevents `db push`, paste the migration body into prod's SQL Editor. It's idempotent (`on conflict (id) do nothing` on the bucket insert; the policy create will error if it already exists, which is fine).
-
-2. Deploy `sim-api` edge function to prod:
-   ```bash
-   npx supabase functions deploy sim-api --project-ref jpjvexfldouobiiczhax --no-verify-jwt
-   ```
-
-3. Verify prod's `avatars` bucket exists and is marked **Private** in Dashboard → Storage.
-
-4. Frontend changes (`resolveAvatarUrls` helper + updated `clientService`/`messageService` fetch paths + simulator UI Blob pipeline) ship via the normal `npm run deploy:prod` as part of the frontend batch.
-
-**Backward compat:** existing rows with `data:` prefix base64 URLs continue rendering (resolver passes them through). Those rows remain bloated until a separate cleanup task clears them out.
-
-**Pre-deploy sanity check:** after applying the migration and deploying sim-api, `GET /sim/config` from the simulator UI should still return 200 — nothing about config paths changed.
+_No pending changes — dev is in sync with prod as of 2026-04-19._
 
 ## Known caveats
 
