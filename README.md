@@ -1,73 +1,31 @@
-# React + TypeScript + Vite
+# Ink Bloop
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Messaging + booking app for tattoo artists. Single-operator workflow: inbound Instagram/Messenger DMs → agent-assisted triage → bookings → calendar.
 
-Currently, two official plugins are available:
+**Stack**: React 19 + Vite + TypeScript, Tailwind 4, Zustand, Supabase (Postgres + edge functions + Storage), framer-motion. Standalone Express + WebSocket simulator for local Meta API testing.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Quick start
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+git clone git@github.com:jparro00/InkBloop.git
+cd InkBloop
+npm install
+cp .env.example .env      # fill in Supabase dev creds
+npm run dev               # frontend on :5173
+npm run sim               # simulator on :3001
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Full setup (env vars, Supabase link, evals): see [docs/setup.md](docs/setup.md).
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Where to look
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+- [CLAUDE.md](CLAUDE.md) — repo map, feature-doc index, key commands, critical gotchas.
+- [docs/](docs/) — feature-scoped docs (messaging, bookings, clients, agents, supabase, simulator, deployment, design).
+- [docs/CONVENTIONS.md](docs/CONVENTIONS.md) — how the docs system works, how to extend it.
+
+## Deployment
+
+- `npm run deploy:dev` → `inkbloop-dev.vercel.app`
+- `npm run deploy:prod` → `inkbloop.com` (requires explicit permission)
+
+See [docs/deployment.md](docs/deployment.md) for project refs, prod-vs-dev rules, and the deploy playbook.
