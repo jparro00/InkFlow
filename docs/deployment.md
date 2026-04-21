@@ -77,7 +77,7 @@ Dev is the default target. Never deploy to prod without explicit user permission
 
 Keep this section updated as changes land on dev but haven't shipped to prod.
 
-_No pending changes — dev is in sync with prod as of 2026-04-19._
+_No pending changes — dev is in sync with prod as of 2026-04-21._
 
 ## Known caveats
 
