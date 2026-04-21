@@ -21,7 +21,7 @@ import { exportBookingToCalendar } from '../../utils/calendar';
 // Flip to false to hide the "Add to iOS" calendar button
 const ENABLE_IOS_CALENDAR = true;
 
-const bookingTypes: BookingType[] = ['Regular', 'Touch Up', 'Consultation', 'Full Day', 'Cover Up'];
+const bookingTypes: BookingType[] = ['Regular', 'Touch Up', 'Consultation', 'Full Day', 'Cover Up', 'Personal'];
 
 const typeDuration: Record<BookingType, number> = {
   Regular: 3,
@@ -29,7 +29,10 @@ const typeDuration: Record<BookingType, number> = {
   Consultation: 1,
   'Full Day': 3,
   'Cover Up': 3,
+  Personal: 1,
 };
+
+const TITLE_MAX = 30;
 
 const defaultForm = {
   client_id: '',
@@ -41,6 +44,7 @@ const defaultForm = {
   status: 'Confirmed' as BookingStatus,
   rescheduled: false,
   notes: '',
+  title: '',
 };
 
 export default function BookingForm() {
@@ -82,6 +86,7 @@ export default function BookingForm() {
         status: booking.status,
         rescheduled: booking.rescheduled ?? false,
         notes: booking.notes ?? '',
+        title: booking.title ?? '',
       };
 
       // Start with original data, then overlay any agent edit changes
@@ -107,6 +112,7 @@ export default function BookingForm() {
             : (localStorage.getItem('inkbloop-evening-time') ?? '14:00');
         }
         if (prefillBookingData.notes) formData.notes = prefillBookingData.notes;
+        if (prefillBookingData.title) formData.title = prefillBookingData.title.slice(0, TITLE_MAX);
       }
 
       setForm(formData);
@@ -140,6 +146,7 @@ export default function BookingForm() {
         updates.time = slotTime;
       }
       if (prefillBookingData.notes) updates.notes = prefillBookingData.notes;
+      if (prefillBookingData.title) updates.title = prefillBookingData.title.slice(0, TITLE_MAX);
       // If type was set but duration wasn't explicitly provided, use type default
       const typeKey = updates.type ?? defaultForm.type;
       if (!prefillBookingData.duration && typeDuration[typeKey]) {
@@ -153,7 +160,12 @@ export default function BookingForm() {
       const hasMultipleFields = Object.keys(prefillBookingData).length > 1;
       if (hasMultipleFields) {
         const missing = new Set<string>();
-        if (!prefillBookingData.client_id) missing.add('client');
+        const isPersonal = updates.type === 'Personal';
+        if (isPersonal) {
+          if (!prefillBookingData.title) missing.add('title');
+        } else {
+          if (!prefillBookingData.client_id) missing.add('client');
+        }
         if (!prefillBookingData.date) missing.add('date');
         if (!prefillBookingData.type) missing.add('type');
         if (!prefillBookingData.estimate) missing.add('estimate');
@@ -175,8 +187,9 @@ export default function BookingForm() {
 
   const handleSave = async () => {
     const dateTime = new Date(`${form.date}T${form.time}`);
+    const isPersonal = form.type === 'Personal';
     const data: Omit<Booking, 'id' | 'created_at'> = {
-      client_id: form.client_id || null,
+      client_id: isPersonal ? null : (form.client_id || null),
       date: dateTime.toISOString(),
       duration: form.duration,
       type: form.type,
@@ -184,6 +197,7 @@ export default function BookingForm() {
       status: form.status,
       rescheduled: form.rescheduled || undefined,
       notes: form.notes || undefined,
+      title: isPersonal ? (form.title.trim() || undefined) : undefined,
     };
 
     try {
@@ -199,7 +213,7 @@ export default function BookingForm() {
     }
   };
 
-  const isValid = form.date && form.client_id;
+  const isValid = form.date && (form.type === 'Personal' ? form.title.trim().length > 0 : !!form.client_id);
 
   const changedBookingFields = useUIStore((s) => s.changedBookingFields);
   const inputClass = "w-full bg-input border border-border/60 rounded-md px-4 py-3.5 text-base text-text-p placeholder:text-text-t focus:outline-none focus:border-accent/40 transition-colors min-h-[48px]";
@@ -223,50 +237,72 @@ export default function BookingForm() {
       canCollapse={dirty}
     >
       <div className="space-y-6">
-        {/* Client */}
-        <div className="relative">
-          <div className="flex items-center justify-between mb-2">
-            <label className="text-sm text-text-t uppercase tracking-wider font-medium">Client *{changedLabel('client')}</label>
-            <button
-              onClick={() => setShowNewClient(true)}
-              className="flex items-center gap-1.5 text-sm text-accent active:text-accent-dim transition-colors cursor-pointer press-scale"
-            >
-              <UserPlus size={14} />
-              <span>New Client</span>
-            </button>
-          </div>
-          <input
-            type="text"
-            value={clientSearch}
-            onChange={(e) => {
-              setClientSearch(e.target.value);
-              setShowClientDropdown(true);
-              if (!e.target.value) setForm((f) => ({ ...f, client_id: '' }));
-            }}
-            onFocus={() => { setShowClientDropdown(true); setMissingFields((s) => { const n = new Set(s); n.delete('client'); return n; }); }}
-            onBlur={() => setTimeout(() => setShowClientDropdown(false), 200)}
-            placeholder="Search client..."
-            className={inputFor('client')}
-          />
-          {showClientDropdown && filteredClients.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-elevated border border-border/60 rounded-lg shadow-lg max-h-48 overflow-y-auto z-10">
-              {filteredClients.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => {
-                    setForm((f) => ({ ...f, client_id: c.id }));
-                    setClientSearch(c.name);
-                    setShowClientDropdown(false);
-                  }}
-                  className="w-full text-left px-4 py-4 text-base text-text-p active:bg-surface transition-colors cursor-pointer first:rounded-t-lg last:rounded-b-lg min-h-[48px]"
-                >
-                  {c.name}
-                  {c.phone && <span className="text-text-t ml-2 text-sm">{c.phone}</span>}
-                </button>
-              ))}
+        {/* Client or Title (Personal bookings use a free-text title instead of a client) */}
+        {form.type === 'Personal' ? (
+          <div className="relative">
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm text-text-t uppercase tracking-wider font-medium">Title *{changedLabel('title')}</label>
+              <span className="text-xs text-text-t">{form.title.length}/{TITLE_MAX}</span>
             </div>
-          )}
-        </div>
+            <input
+              type="text"
+              value={form.title}
+              onChange={(e) => {
+                const v = e.target.value.slice(0, TITLE_MAX);
+                setForm((f) => ({ ...f, title: v }));
+                if (v.trim()) setMissingFields((s) => { const n = new Set(s); n.delete('title'); return n; });
+              }}
+              onFocus={() => setMissingFields((s) => { const n = new Set(s); n.delete('title'); return n; })}
+              maxLength={TITLE_MAX}
+              placeholder="e.g. Dentist, Gym, Lunch"
+              className={inputFor('title')}
+            />
+          </div>
+        ) : (
+          <div className="relative">
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm text-text-t uppercase tracking-wider font-medium">Client *{changedLabel('client')}</label>
+              <button
+                onClick={() => setShowNewClient(true)}
+                className="flex items-center gap-1.5 text-sm text-accent active:text-accent-dim transition-colors cursor-pointer press-scale"
+              >
+                <UserPlus size={14} />
+                <span>New Client</span>
+              </button>
+            </div>
+            <input
+              type="text"
+              value={clientSearch}
+              onChange={(e) => {
+                setClientSearch(e.target.value);
+                setShowClientDropdown(true);
+                if (!e.target.value) setForm((f) => ({ ...f, client_id: '' }));
+              }}
+              onFocus={() => { setShowClientDropdown(true); setMissingFields((s) => { const n = new Set(s); n.delete('client'); return n; }); }}
+              onBlur={() => setTimeout(() => setShowClientDropdown(false), 200)}
+              placeholder="Search client..."
+              className={inputFor('client')}
+            />
+            {showClientDropdown && filteredClients.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-elevated border border-border/60 rounded-lg shadow-lg max-h-48 overflow-y-auto z-10">
+                {filteredClients.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => {
+                      setForm((f) => ({ ...f, client_id: c.id }));
+                      setClientSearch(c.name);
+                      setShowClientDropdown(false);
+                    }}
+                    className="w-full text-left px-4 py-4 text-base text-text-p active:bg-surface transition-colors cursor-pointer first:rounded-t-lg last:rounded-b-lg min-h-[48px]"
+                  >
+                    {c.name}
+                    {c.phone && <span className="text-text-t ml-2 text-sm">{c.phone}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Date */}
         <div>
@@ -367,7 +403,29 @@ export default function BookingForm() {
               return (
                 <button
                   key={t}
-                  onClick={() => { setForm((f) => ({ ...f, type: t, duration: typeDuration[t] })); setMissingFields((s) => { const n = new Set(s); n.delete('type'); return n; }); }}
+                  onClick={() => {
+                    setForm((f) => {
+                      const switchingToPersonal = t === 'Personal' && f.type !== 'Personal';
+                      const switchingFromPersonal = t !== 'Personal' && f.type === 'Personal';
+                      return {
+                        ...f,
+                        type: t,
+                        duration: typeDuration[t],
+                        // Switching to Personal: drop any client association so the row is unlinked.
+                        client_id: switchingToPersonal ? '' : f.client_id,
+                        // Switching away from Personal: discard the title so it doesn't persist on client bookings.
+                        title: switchingFromPersonal ? '' : f.title,
+                      };
+                    });
+                    if (t === 'Personal') setClientSearch('');
+                    setMissingFields((s) => {
+                      const n = new Set(s);
+                      n.delete('type');
+                      // The required field swaps — clear the now-irrelevant "missing" flag.
+                      if (t === 'Personal') n.delete('client'); else n.delete('title');
+                      return n;
+                    });
+                  }}
                   className={`px-4 py-3.5 text-base rounded-md transition-all cursor-pointer press-scale min-h-[48px] flex items-center gap-2.5 ${
                     selected
                       ? 'border border-border/60 text-text-p bg-text-p/[0.06]'
@@ -447,10 +505,22 @@ export default function BookingForm() {
             <button
               onClick={() => {
                 const dateTime = new Date(`${form.date}T${form.time}`);
-                const clientName = clients.find((c) => c.id === form.client_id)?.name ?? 'Walk-in';
+                const isPersonal = form.type === 'Personal';
+                const label = isPersonal
+                  ? (form.title.trim() || 'Personal')
+                  : (clients.find((c) => c.id === form.client_id)?.name ?? 'Walk-in');
                 exportBookingToCalendar(
-                  { id: editingBookingId ?? tempBookingId.current, created_at: '', client_id: form.client_id || null, date: dateTime.toISOString(), duration: form.duration, type: form.type, status: form.status } as Booking,
-                  clientName,
+                  {
+                    id: editingBookingId ?? tempBookingId.current,
+                    created_at: '',
+                    client_id: isPersonal ? null : (form.client_id || null),
+                    date: dateTime.toISOString(),
+                    duration: form.duration,
+                    type: form.type,
+                    status: form.status,
+                    title: isPersonal ? form.title.trim() : undefined,
+                  } as Booking,
+                  label,
                 );
               }}
               disabled={!isValid}

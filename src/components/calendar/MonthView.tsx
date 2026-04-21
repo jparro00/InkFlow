@@ -16,7 +16,7 @@ import { ChevronLeft, Plus, Search } from 'lucide-react';
 import { useUIStore } from '../../stores/uiStore';
 import { useBookingStore } from '../../stores/bookingStore';
 import { useClientStore } from '../../stores/clientStore';
-import { getTypeColor, getTypeColorAlpha } from '../../types';
+import { getTypeColor, getTypeColorAlpha, getBookingLabel } from '../../types';
 
 const MONTHS_BUFFER = 6;
 
@@ -307,7 +307,7 @@ export default function MonthView() {
                       <div className="w-full flex flex-col gap-[2px] lg:gap-1.5 overflow-hidden">
                         {dayBookings.slice(0, 3).map((b) => {
                           const client = getClient(b.client_id ?? '');
-                          const name = client?.display_name || client?.name || 'Walk-in';
+                          const name = getBookingLabel(b, client?.display_name || client?.name);
                           return (
                             <Fragment key={b.id}>
                               {/* Mobile compact pill — unchanged from original. Desktop

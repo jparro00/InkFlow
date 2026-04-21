@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { format } from 'date-fns';
-import { Edit, Trash2, User, Camera, FileText, CalendarPlus } from 'lucide-react';
+import { Edit, Trash2, User, Camera, FileText, CalendarPlus, Calendar } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import { useUIStore } from '../../stores/uiStore';
 import { useBookingStore } from '../../stores/bookingStore';
@@ -81,29 +81,43 @@ export default function BookingDrawer() {
           </button>
         </div>
 
-        {/* Client */}
+        {/* Client (or Title for Personal bookings) */}
         <div className="flex items-center gap-4">
-          {(() => {
-            if (!client) return (
-              <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center text-accent text-base font-medium shrink-0">
-                <User size={20} />
+          {booking.type === 'Personal' ? (
+            <>
+              <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center text-accent shrink-0">
+                <Calendar size={20} />
               </div>
-            );
-            const pic = client.profile_pic
-              || (client.instagram && linkedProfiles[client.instagram]?.profilePic)
-              || (client.facebook && linkedProfiles[client.facebook]?.profilePic);
-            return pic ? (
-              <img src={pic} alt={client.name} className="w-12 h-12 rounded-full object-cover shrink-0" />
-            ) : (
-              <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center text-accent text-base font-medium shrink-0">
-                {client.name.charAt(0)}
+              <div>
+                <div className="text-base text-text-p font-medium">{booking.title || 'Personal'}</div>
+                <div className="text-sm text-text-s mt-0.5">Personal appointment</div>
               </div>
-            );
-          })()}
-          <div>
-            <div className="text-base text-text-p font-medium">{client?.name ?? 'Walk-in'}</div>
-            {client?.phone && <div className="text-sm text-text-s mt-0.5">{client.phone}</div>}
-          </div>
+            </>
+          ) : (
+            <>
+              {(() => {
+                if (!client) return (
+                  <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center text-accent text-base font-medium shrink-0">
+                    <User size={20} />
+                  </div>
+                );
+                const pic = client.profile_pic
+                  || (client.instagram && linkedProfiles[client.instagram]?.profilePic)
+                  || (client.facebook && linkedProfiles[client.facebook]?.profilePic);
+                return pic ? (
+                  <img src={pic} alt={client.name} className="w-12 h-12 rounded-full object-cover shrink-0" />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center text-accent text-base font-medium shrink-0">
+                    {client.name.charAt(0)}
+                  </div>
+                );
+              })()}
+              <div>
+                <div className="text-base text-text-p font-medium">{client?.name ?? 'Walk-in'}</div>
+                {client?.phone && <div className="text-sm text-text-s mt-0.5">{client.phone}</div>}
+              </div>
+            </>
+          )}
         </div>
 
         <div className="h-px bg-border/40 my-5" />
@@ -230,7 +244,12 @@ export default function BookingDrawer() {
         {/* Export to Calendar */}
         <div className="h-px bg-border/40 my-5" />
         <button
-          onClick={() => exportBookingToCalendar(booking, client?.name ?? 'Walk-in')}
+          onClick={() => {
+            const label = booking.type === 'Personal'
+              ? (booking.title || 'Personal')
+              : (client?.name ?? 'Walk-in');
+            exportBookingToCalendar(booking, label);
+          }}
           className="w-full flex items-center justify-center gap-2.5 px-4 py-3.5 bg-input border border-border/60 rounded-md text-text-s active:text-accent active:bg-elevated transition-colors cursor-pointer press-scale min-h-[52px]"
         >
           <CalendarPlus size={20} />

@@ -75,6 +75,60 @@
       "resolution": "Single match on 'sarah' → resolves to Sarah Kim",
       "expected_outcome": "BookingForm opens with client=Sarah Kim, date=May 2 at 3pm"
     },
+    {
+      "id": "booking-create-personal-dentist",
+      "category": "booking/create",
+      "prompt": "block off tomorrow at 9am for a dentist appointment",
+      "context": "Personal calendar block — single-word title, no client involved",
+      "expected_parse": { "agent": "booking", "action": "create", "entities": { "type": "Personal", "title": "Dentist", "date": "tomorrow 9am ISO" } },
+      "resolution": "type=Personal → skip client resolution entirely",
+      "expected_outcome": "BookingForm opens with type=Personal, title=Dentist (shown instead of client picker), date=tomorrow 9am, duration defaults to 1h"
+    },
+    {
+      "id": "booking-create-personal-gym",
+      "category": "booking/create",
+      "prompt": "block off tomorrow morning at 7 for the gym",
+      "context": "Personal booking for a fitness block",
+      "expected_parse": { "agent": "booking", "action": "create", "entities": { "type": "Personal", "title": "Gym", "date": "tomorrow 7am ISO" } },
+      "resolution": "type=Personal → skip client resolution, 1-hour duration default",
+      "expected_outcome": "BookingForm opens with type=Personal, title=Gym, date=tomorrow 7am, duration=1h"
+    },
+    {
+      "id": "booking-create-personal-doctor",
+      "category": "booking/create",
+      "prompt": "make a personal appointment for the doctor next tuesday at 10",
+      "context": "Explicit 'personal' keyword + a trigger noun (doctor)",
+      "expected_parse": { "agent": "booking", "action": "create", "entities": { "type": "Personal", "title": "Doctor", "date": "next tuesday 10am ISO" } },
+      "resolution": "type=Personal → skip client resolution",
+      "expected_outcome": "BookingForm opens with type=Personal, title=Doctor, date=next tuesday 10am"
+    },
+    {
+      "id": "booking-create-personal-errands-duration",
+      "category": "booking/create",
+      "prompt": "block off 2 hours tomorrow afternoon for errands",
+      "context": "Personal booking with explicit duration override (not the 1-hour default). timeSlot inference from 'afternoon' is not a Personal-specific concern, so we don't assert it here.",
+      "expected_parse": { "agent": "booking", "action": "create", "entities": { "type": "Personal", "title": "Errands", "duration": 2, "date": "tomorrow ISO" } },
+      "resolution": "type=Personal → skip client resolution. duration honored.",
+      "expected_outcome": "BookingForm opens with type=Personal, title=Errands, duration=2h, date=tomorrow"
+    },
+    {
+      "id": "booking-create-personal-lunch-with-relative",
+      "category": "booking/create",
+      "prompt": "personal appointment friday at noon - lunch with mom at the italian place downtown",
+      "context": "Title is flexible wording (Lunch / Lunch w Mom / Lunch with Mom) so we don't assert an exact title string; the critical check is type=Personal and NO client_name (mom isn't a client)",
+      "expected_parse": { "agent": "booking", "action": "create", "entities": { "type": "Personal", "date": "next friday 12pm ISO" } },
+      "resolution": "type=Personal → skip client resolution. 'mom' must NOT be treated as a client_name; title holds the personal label.",
+      "expected_outcome": "BookingForm opens with type=Personal, title populated (short), notes populated with overflow, no client linked"
+    },
+    {
+      "id": "booking-create-personal-no-mom-client",
+      "category": "booking/create",
+      "prompt": "block off sunday at 6pm to have dinner with mom",
+      "context": "Regression guard: 'mom' is NOT one of our clients and must not be leaked into client_name. This is the scenario that broke pre-Personal: a relative name in a personal booking getting resolved against the client list.",
+      "expected_parse": { "agent": "booking", "action": "create", "entities": { "type": "Personal", "date": "next sunday 6pm ISO" } },
+      "resolution": "type=Personal → skip client resolution entirely. Critical: parsed entities must NOT contain client_name.",
+      "expected_outcome": "BookingForm opens with type=Personal, no client linked, title populated, date=Sunday 6pm"
+    },
 
     {
       "id": "booking-open-by-client",

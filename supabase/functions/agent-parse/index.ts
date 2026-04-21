@@ -30,7 +30,21 @@ const SYSTEM_PROMPT = `You are an intent parser for a tattoo studio management a
 
 TODAY: {today} ({dayOfWeek}). Current year: {year}.
 
-BOOKING_TYPES: "Regular", "Touch Up", "Consultation", "Full Day", "Cover Up"
+BOOKING_TYPES: "Regular", "Touch Up", "Consultation", "Full Day", "Cover Up", "Personal"
+
+PERSONAL BOOKINGS (type="Personal"):
+- For the artist's own calendar blocks that aren't tied to a tattoo client. Covers personal errands AND appointments involving family/friends/kids who are NOT tattoo clients.
+- **Explicit triggers** (strong signal): "personal", "block off", "for me", "appointment for me", "personal appointment".
+- **Non-tattoo nouns** (also Personal, even without the word "personal"): dentist, doctor, orthodontist, braces, gym, workout, lunch, dinner, coffee, meeting, errands, travel, vacation, trip, birthday, bday, graduation, wedding, funeral, baby shower, haircut, massage, therapy, school, pickup, drop-off, parent-teacher.
+- If the prompt matches "appointment for [day] for [X]'s [non-tattoo noun]" (e.g. "for Joslyn's braces", "for April's birthday"), route to Personal. A tattoo appointment would say "tattoo", "ink", "touchup", "consultation", or imply artwork — otherwise default to Personal for non-tattoo nouns even when a person's name appears.
+- **Title format** — CRITICAL:
+  - Cap: <= 30 chars.
+  - If the source text is "[Name]'s [Thing]", KEEP THE NAME in the title. Good: "April's Birthday", "Joslyn Braces", "Lunch w/ Mom". Bad (loses context): "Birthday", "Braces", "Lunch".
+  - For plain errands, 1-2 words is ideal: "Dentist", "Gym", "Groceries".
+  - Never put the label in quotes; never truncate mid-word — shorten with abbreviations ("w/", "Bday", "Appt") if needed to fit.
+- Put overflow detail (location, time-of-day modifiers, who else involved) in "notes".
+- Do NOT set "client_name" for Personal bookings. A name in a Personal title/notes (e.g. "Joslyn", "Mom") is NOT a client — suppress it.
+- If the user doesn't specify a duration, omit "duration" — the form defaults Personal to 1 hour.
 
 You must classify the intent into one of these agents and actions:
 
@@ -60,7 +74,8 @@ Return raw client names as-is (do NOT try to match to IDs). The app handles matc
 - timeSlot: "morning" or "evening" if the user says AM/morning or PM/afternoon/evening. If they give a specific time like "2pm", put it in the date field instead.
 - find_slot: "morning" | "evening" | "any" — ONLY set this when the user wants the NEXT/FIRST/SOONEST available slot and does NOT give a specific date. Examples: "book chris in the first available morning slot" → find_slot="morning". "book sarah next available" → find_slot="any". "next open evening" → find_slot="evening". If find_slot is set, DO NOT set date (the app will compute it).
 - estimate: number (dollars)
-- notes: ONLY verbatim tattoo details (placement, style, design). Never put client names or instructions here.
+- notes: ONLY verbatim tattoo details (placement, style, design) for client bookings, OR overflow detail beyond the title for Personal bookings. Never put client names or instructions here.
+- title: ONLY for booking/create or booking/edit when type="Personal". A short free-text label (<= 30 chars) summarizing the personal appointment. If the prompt is "[Name]'s [Thing]", keep the name: "April's Birthday", "Joslyn Braces", "Lunch w/ Mom". For plain errands: "Dentist", "Gym". Never just "Birthday" / "Braces" alone when a name is present. Never set this for client bookings.
 - rescheduled: true ONLY if user explicitly says reschedule/rescheduled
 - name: for client/create — the new client's name
 - phone: for client/create or client/edit — phone number
@@ -234,11 +249,23 @@ Deno.serve(async (req: Request) => {
     // Validate booking type if present
     if (
       parsed.entities.type &&
-      !["Regular", "Touch Up", "Consultation", "Full Day", "Cover Up"].includes(
+      !["Regular", "Touch Up", "Consultation", "Full Day", "Cover Up", "Personal"].includes(
         parsed.entities.type
       )
     ) {
       delete parsed.entities.type;
+    }
+
+    // Validate title — string, clamp to 30 chars. Only meaningful alongside type="Personal";
+    // if the model emitted one for a client booking we drop it so it doesn't leak into the form.
+    if (parsed.entities.title !== undefined) {
+      if (typeof parsed.entities.title !== "string" || parsed.entities.title.trim().length === 0) {
+        delete parsed.entities.title;
+      } else if (parsed.entities.type !== "Personal") {
+        delete parsed.entities.title;
+      } else {
+        parsed.entities.title = parsed.entities.title.trim().slice(0, 30);
+      }
     }
 
     // Validate timeSlot

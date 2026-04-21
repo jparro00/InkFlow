@@ -1,6 +1,6 @@
 import { format } from 'date-fns';
 import type { Booking } from '../../types';
-import { getTypeColor, getTypeColorAlpha } from '../../types';
+import { getTypeColor, getTypeColorAlpha, getBookingLabel } from '../../types';
 import { useClientStore } from '../../stores/clientStore';
 import { useUIStore } from '../../stores/uiStore';
 
@@ -13,6 +13,9 @@ export default function BookingCard({ booking, compact }: BookingCardProps) {
   const client = useClientStore((s) => s.clients.find((c) => c.id === booking.client_id));
   const setSelectedBookingId = useUIStore((s) => s.setSelectedBookingId);
   const color = getTypeColor(booking.type);
+  const label = getBookingLabel(booking, client?.name);
+  // Compact pills only have room for the first token; personal titles stay whole.
+  const compactLabel = booking.type === 'Personal' ? label : label.split(' ')[0];
 
   // Mobile compact: just colored dots on the calendar grid
   if (compact) {
@@ -26,7 +29,7 @@ export default function BookingCard({ booking, compact }: BookingCardProps) {
         style={{ borderLeftWidth: 3, borderLeftColor: color, backgroundColor: getTypeColorAlpha(booking.type, 0.07) }}
       >
         <span className="text-text-s">{format(new Date(booking.date), 'h:mma')}</span>{' '}
-        <span className="text-text-p font-medium">{client?.name.split(' ')[0]}</span>
+        <span className="text-text-p font-medium">{compactLabel}</span>
         <span className="hidden lg:inline text-text-t"> &middot; {booking.type}</span>
       </button>
     );
@@ -39,7 +42,7 @@ export default function BookingCard({ booking, compact }: BookingCardProps) {
       style={{ borderLeftWidth: 3, borderLeftColor: color, backgroundColor: getTypeColorAlpha(booking.type, 0.07) }}
     >
       <div className="mb-1">
-        <span className="text-base text-text-p font-medium truncate">{client?.name ?? 'Walk-in'}</span>
+        <span className="text-base text-text-p font-medium truncate">{label}</span>
       </div>
       <div className="text-sm text-text-s">
         {format(new Date(booking.date), 'h:mm a')} &middot; {booking.type} &middot; {booking.duration}h

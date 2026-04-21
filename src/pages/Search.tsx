@@ -6,7 +6,8 @@ import { useNavigate } from 'react-router-dom';
 import { useClientStore } from '../stores/clientStore';
 import { useBookingStore } from '../stores/bookingStore';
 import { useUIStore } from '../stores/uiStore';
-import { getTypeColor } from '../types';
+import { getTypeColor, getBookingLabel } from '../types';
+import type { Booking } from '../types';
 
 export default function SearchOverlay() {
   const navigate = useNavigate();
@@ -35,8 +36,8 @@ export default function SearchOverlay() {
       ? searchBookings(query, clients.map((c) => ({ id: c.id, name: c.name })))
       : [];
 
-  const getClientName = (clientId: string | null) =>
-    clients.find((c) => c.id === clientId)?.name ?? 'Walk-in';
+  const labelFor = (b: Booking) =>
+    getBookingLabel(b, clients.find((c) => c.id === b.client_id)?.name);
 
   return (
     <motion.div
@@ -116,7 +117,7 @@ export default function SearchOverlay() {
                   >
                     <div className="min-w-0 flex-1" style={{ borderLeftWidth: 3, borderLeftColor: getTypeColor(b.type), paddingLeft: 12 }}>
                       <div className="text-base text-text-p truncate">
-                        {getClientName(b.client_id)} &middot; {b.type}
+                        {labelFor(b)} &middot; {b.type}
                       </div>
                       <div className="text-sm text-text-t">
                         {format(new Date(b.date), 'MMM d, yyyy')} &middot; {b.status}

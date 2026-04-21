@@ -20,6 +20,7 @@ function toBooking(row: BookingRow): Booking {
     rescheduled: row.rescheduled ?? false,
     notes: row.notes ?? undefined,
     quick_booking_raw: row.quick_booking_raw ?? undefined,
+    title: row.title ?? undefined,
   };
 }
 
@@ -48,6 +49,7 @@ export async function createBooking(
     rescheduled: booking.rescheduled ?? false,
     notes: booking.notes ?? null,
     quick_booking_raw: booking.quick_booking_raw ?? null,
+    title: booking.title ?? null,
   };
 
   const { data, error } = await supabase
@@ -75,6 +77,7 @@ export async function updateBooking(
   if (updates.rescheduled !== undefined) payload.rescheduled = updates.rescheduled;
   if (updates.notes !== undefined) payload.notes = updates.notes ?? null;
   if (updates.quick_booking_raw !== undefined) payload.quick_booking_raw = updates.quick_booking_raw ?? null;
+  if (updates.title !== undefined) payload.title = updates.title ?? null;
 
   const { error } = await supabase
     .from('bookings')

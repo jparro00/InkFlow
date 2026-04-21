@@ -284,8 +284,10 @@ async function run() {
       failed++;
     }
 
-    // Small delay to avoid hammering the API
-    await new Promise((r) => setTimeout(r, 200));
+    // Small delay to avoid hammering the API. Default 1500ms keeps us under
+    // Haiku's 50k input tokens/min limit (~1.5k tokens per call). Override
+    // with EVAL_DELAY_MS=N for slower CI or rate-limit tiers.
+    await new Promise((r) => setTimeout(r, Number(process.env.EVAL_DELAY_MS) || 1500));
   }
 
   // ── Summary ───────────────────────────────────────────────────────

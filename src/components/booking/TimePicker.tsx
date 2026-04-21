@@ -3,7 +3,7 @@ import { format, isSameDay, isToday } from 'date-fns';
 import { Clock, Check } from 'lucide-react';
 import { useBookingStore } from '../../stores/bookingStore';
 import { useClientStore } from '../../stores/clientStore';
-import { getTypeColor, getTypeColorAlpha } from '../../types';
+import { getTypeColor, getTypeColorAlpha, getBookingLabel } from '../../types';
 
 const HOUR_H = 32;
 const VISIBLE_HEIGHT = 280;
@@ -397,7 +397,7 @@ export default function TimePicker({ value, onChange, date, duration, bookingTyp
                     }}
                   >
                     <div className="text-2xs text-text-s truncate">
-                      {client?.display_name || client?.name || 'Walk-in'} · {format(d, 'h:mm a')}
+                      {getBookingLabel(booking, client?.display_name || client?.name)} · {format(d, 'h:mm a')}
                     </div>
                   </div>
                 );

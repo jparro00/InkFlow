@@ -31,6 +31,7 @@
   --color-type-consult: #FE84FF;
   --color-type-fullday: #FF00AC;
   --color-type-coverup: #1E90FF;
+  --color-type-personal: #10D897;
 
   /* Overlay colors */
   --color-overlay: rgba(0, 0, 0, 0.60);

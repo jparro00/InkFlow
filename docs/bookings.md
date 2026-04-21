@@ -56,10 +56,11 @@ Tattoo appointments with date/time/duration/type/estimate/notes, optional before
 
 ### `bookings`
 
-`id` (uuid pk), `user_id`, `client_id` (nullable fk), `date` (timestamptz, device-local interpretation — no Z suffix), `duration` (float hours), `type` (enum), `estimate` (int), `status` (enum), `rescheduled` (bool), `notes`, `quick_booking_raw`, timestamps.
+`id` (uuid pk), `user_id`, `client_id` (nullable fk), `date` (timestamptz, device-local interpretation — no Z suffix), `duration` (float hours), `type` (enum), `estimate` (int), `status` (enum), `rescheduled` (bool), `notes`, `quick_booking_raw`, `title` (text, nullable — Personal bookings only), timestamps.
 
-- **Type enum**: Regular, Touch Up, Consultation, Full Day, Cover Up (added in migration 00014).
+- **Type enum**: Regular, Touch Up, Consultation, Full Day, Cover Up, Personal (Personal added in migration 00016, Cover Up in 00014).
 - **Status enum**: Confirmed, Tentative, Completed, Cancelled, No-show.
+- **Personal type**: artist's own calendar blocks (dentist, gym, lunch, family stuff like "Joslyn's braces"). `client_id` is always null; `title` holds a free-text label capped at 30 chars. Form swaps the client picker for a title input. Defaults to 1-hour duration. Display components (`BookingCard`, `BookingDrawer`, agent cards) show `title` instead of the client name for Personal rows via the `getBookingLabel(booking, clientName)` helper in `src/types/index.ts`. The agent parser treats non-tattoo nouns (dentist, braces, birthday, gym, etc.) as Personal-type signals even without the word "personal", and preserves possessive names in titles ("April's Birthday" not just "Birthday").
 - Indexes: `user_id`, `(user_id, date)`, `client_id`.
 - RLS: all CRUD gated by `user_id`.
 

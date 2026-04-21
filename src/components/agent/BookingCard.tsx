@@ -1,6 +1,6 @@
 import { format } from 'date-fns';
 import type { Booking } from '../../types';
-import { getTypeColor } from '../../types';
+import { getTypeColor, getBookingLabel } from '../../types';
 import { useClientStore } from '../../stores/clientStore';
 
 interface BookingCardProps {
@@ -10,8 +10,8 @@ interface BookingCardProps {
 
 export default function BookingCard({ booking, onSelect }: BookingCardProps) {
   const clients = useClientStore((s) => s.clients);
-  const clientName =
-    clients.find((c) => c.id === booking.client_id)?.name ?? 'Walk-in';
+  const client = clients.find((c) => c.id === booking.client_id);
+  const label = getBookingLabel(booking, client?.name);
   const typeColor = getTypeColor(booking.type);
   const d = new Date(booking.date);
 
@@ -31,7 +31,7 @@ export default function BookingCard({ booking, onSelect }: BookingCardProps) {
       />
       <div className="min-w-0 flex-1">
         <div className="text-[15px] text-text-p truncate">
-          {clientName} · {booking.type}
+          {label} · {booking.type}
         </div>
         <div className="text-[13px] text-text-t">
           {format(d, 'EEE, MMM d · h:mm a')} · {booking.duration}h ·{' '}

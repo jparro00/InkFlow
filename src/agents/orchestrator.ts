@@ -314,8 +314,11 @@ async function routeBooking(
   const store = useAgentStore.getState();
 
   if (intent.action === 'create') {
-    // For create, try to resolve client if mentioned
-    if (intent.entities.client_name && !resolved.client_id) {
+    // Personal bookings skip client resolution — they use a free-text title instead.
+    const isPersonal = intent.entities.type === 'Personal';
+
+    // For create, try to resolve client if mentioned (skipped for Personal bookings)
+    if (!isPersonal && intent.entities.client_name && !resolved.client_id) {
       const clients = useClientStore.getState().clients;
       const result = resolveClient(intent.entities.client_name, clients);
       store.logTrace('client_resolved', {
@@ -363,7 +366,7 @@ async function routeBooking(
     }
 
     const bookingPayload = {
-      client_id: resolved.client_id as string | undefined,
+      client_id: isPersonal ? undefined : (resolved.client_id as string | undefined),
       date: resolvedDate,
       duration: intent.entities.duration,
       type: intent.entities.type,
@@ -371,6 +374,7 @@ async function routeBooking(
       estimate: intent.entities.estimate,
       notes: intent.entities.notes,
       rescheduled: intent.entities.rescheduled,
+      title: isPersonal ? intent.entities.title : undefined,
     };
     store.logTrace('sub_agent', { agent: 'booking', action: 'create', payload: bookingPayload });
     executeBookingCreate(bookingPayload);
@@ -556,11 +560,12 @@ async function routeBooking(
       const changes = {
         date: intent.entities.date,
         duration: intent.entities.duration,
-        type: intent.entities.type as 'Regular' | 'Touch Up' | 'Consultation' | 'Full Day' | 'Cover Up' | undefined,
+        type: intent.entities.type as 'Regular' | 'Touch Up' | 'Consultation' | 'Full Day' | 'Cover Up' | 'Personal' | undefined,
         timeSlot: intent.entities.timeSlot,
         estimate: intent.entities.estimate,
         notes: intent.entities.notes,
         rescheduled: intent.entities.rescheduled,
+        title: intent.entities.title,
       };
       store.logTrace('sub_agent', { agent: 'booking', action: 'edit', booking_id: resolved.booking_id, changes });
       executeBookingEdit({

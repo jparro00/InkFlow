@@ -19,7 +19,7 @@ import { useUIStore } from '../../stores/uiStore';
 import { useBookingStore } from '../../stores/bookingStore';
 import { useClientStore } from '../../stores/clientStore';
 import type { Booking } from '../../types';
-import { getTypeColor, getTypeColorAlpha } from '../../types';
+import { getTypeColor, getTypeColorAlpha, getBookingLabel } from '../../types';
 
 
 const hours = Array.from({ length: 24 }, (_, i) => i);
@@ -133,7 +133,7 @@ function DayPanel({
             onClick={(e) => { e.stopPropagation(); onBookingClick(booking.id); }}
           >
             <div className="text-md text-text-p font-medium truncate">
-              {client?.display_name || client?.name || 'Walk-in'}
+              {getBookingLabel(booking, client?.display_name || client?.name)}
             </div>
             <div className="text-base text-text-s mt-0.5 truncate">
               {format(d, 'h:mm a')} · {booking.duration}h

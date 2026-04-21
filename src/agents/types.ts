@@ -17,6 +17,8 @@ export interface AgentIntent {
     notes?: string;
     rescheduled?: boolean;
     find_slot?: 'morning' | 'evening' | 'any';
+    // Personal booking: succinct free-text label (no client association).
+    title?: string;
     // Client entities
     name?: string;
     phone?: string;
@@ -107,6 +109,7 @@ export interface ResolvedBookingCreate {
   estimate?: number;
   notes?: string;
   rescheduled?: boolean;
+  title?: string;
 }
 
 export interface ResolvedBookingOpen {
@@ -123,6 +126,7 @@ export interface ResolvedBookingEdit {
     estimate: number;
     notes: string;
     rescheduled: boolean;
+    title: string;
   }>;
 }
 

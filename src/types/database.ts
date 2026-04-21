@@ -73,6 +73,7 @@ export interface Database {
           rescheduled: boolean;
           notes: string | null;
           quick_booking_raw: string | null;
+          title: string | null;
         };
         Insert: {
           id?: string;
@@ -87,6 +88,7 @@ export interface Database {
           rescheduled?: boolean;
           notes?: string | null;
           quick_booking_raw?: string | null;
+          title?: string | null;
         };
         Update: {
           id?: string;
@@ -101,6 +103,7 @@ export interface Database {
           rescheduled?: boolean;
           notes?: string | null;
           quick_booking_raw?: string | null;
+          title?: string | null;
         };
         Relationships: [
           {

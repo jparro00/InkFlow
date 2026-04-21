@@ -7,7 +7,8 @@ import YearView from '../components/calendar/YearView';
 import { useUIStore } from '../stores/uiStore';
 import { useBookingStore } from '../stores/bookingStore';
 import { useClientStore } from '../stores/clientStore';
-import { getTypeColor } from '../types';
+import { getTypeColor, getBookingLabel } from '../types';
+import type { Booking } from '../types';
 
 export default function CalendarPage() {
   const calendarView = useUIStore((s) => s.calendarView);
@@ -33,8 +34,8 @@ export default function CalendarPage() {
       ? searchBookings(query, clients.map((c) => ({ id: c.id, name: c.name })))
       : [];
 
-  const getClientName = (clientId: string | null) =>
-    clients.find((c) => c.id === clientId)?.name ?? 'Walk-in';
+  const labelFor = (b: Booking) =>
+    getBookingLabel(b, clients.find((c) => c.id === b.client_id)?.name);
 
   return (
     <div className="h-full flex flex-col relative">
@@ -81,7 +82,7 @@ export default function CalendarPage() {
                   >
                     <div className="min-w-0 flex-1" style={{ borderLeftWidth: 3, borderLeftColor: getTypeColor(b.type), paddingLeft: 10 }}>
                       <div className="text-[15px] text-text-p truncate">
-                        {getClientName(b.client_id)} &middot; {b.type}
+                        {labelFor(b)} &middot; {b.type}
                       </div>
                       <div className="text-[13px] text-text-t">
                         {format(new Date(b.date), 'MMM d, yyyy · h:mm a')} &middot; {b.status}

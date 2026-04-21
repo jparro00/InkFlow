@@ -25,6 +25,7 @@ export function executeBookingCreate(data: ResolvedBookingCreate) {
   if (data.estimate) prefill.estimate = data.estimate;
   if (data.notes) prefill.notes = data.notes;
   if (data.rescheduled) prefill.rescheduled = data.rescheduled;
+  if (data.title) prefill.title = data.title;
 
   // Show action confirmation in panel, then open form
   store.replaceLastLoading({
@@ -102,6 +103,7 @@ export function executeBookingEdit(data: ResolvedBookingEdit) {
   if (data.changes.estimate) prefill.estimate = data.changes.estimate;
   if (data.changes.notes) prefill.notes = data.changes.notes;
   if (data.changes.rescheduled !== undefined) prefill.rescheduled = data.changes.rescheduled;
+  if (data.changes.title) prefill.title = data.changes.title;
 
   // Track only the fields that actually have values, not all keys
   ui.setChangedBookingFields(new Set(Object.keys(prefill)));

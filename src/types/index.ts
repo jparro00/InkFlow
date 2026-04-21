@@ -27,7 +27,7 @@ export interface ClientNote {
   text: string;
 }
 
-export type BookingType = 'Regular' | 'Touch Up' | 'Consultation' | 'Full Day' | 'Cover Up';
+export type BookingType = 'Regular' | 'Touch Up' | 'Consultation' | 'Full Day' | 'Cover Up' | 'Personal';
 export type BookingStatus = 'Confirmed' | 'Tentative' | 'Completed' | 'Cancelled' | 'No-show';
 
 const typeColorVar: Record<BookingType, string> = {
@@ -36,6 +36,7 @@ const typeColorVar: Record<BookingType, string> = {
   Consultation: '--color-type-consult',
   'Full Day': '--color-type-fullday',
   'Cover Up': '--color-type-coverup',
+  Personal: '--color-type-personal',
 };
 
 const typeColorFallback: Record<BookingType, string> = {
@@ -44,6 +45,7 @@ const typeColorFallback: Record<BookingType, string> = {
   Consultation: '#FE84FF',
   'Full Day': '#FF00AC',
   'Cover Up': '#1E90FF',
+  Personal: '#10D897',
 };
 
 function readCssColor(varName: string, fallback: string): string {
@@ -87,6 +89,18 @@ export interface Booking {
   rescheduled?: boolean;
   notes?: string;
   quick_booking_raw?: string;
+  /** Free-text label for Personal bookings (not tied to a client). Max 30 chars. */
+  title?: string;
+}
+
+/**
+ * Display label for a booking: the title for Personal bookings, otherwise the
+ * resolved client name (or "Walk-in" fallback). Callers pass in the client
+ * name separately so this helper stays free of store dependencies.
+ */
+export function getBookingLabel(booking: Booking, clientName?: string): string {
+  if (booking.type === 'Personal') return booking.title || 'Personal';
+  return clientName || 'Walk-in';
 }
 
 export interface Document {
