@@ -1,0 +1,47 @@
+# Cloudflare Worker that serves private image reads backed by R2.
+# Verifies Supabase ES256 JWTs and enforces prefix-based authorization.
+#
+# Deploy dev:  npm run deploy:dev
+# Deploy prod: npm run deploy:prod  (REQUIRES explicit user permission)
+
+name = "inkbloop-images"
+main = "src/index.ts"
+compatibility_date = "2025-04-01"
+# Don't expose the .workers.dev URL. Only the custom domain is the real endpoint.
+workers_dev = false
+
+# ──────────────────────────────────────────────────────────────
+# Dev environment → images-dev.inkbloop.com
+# ──────────────────────────────────────────────────────────────
+[env.dev]
+name = "inkbloop-images-dev"
+routes = [
+  { pattern = "images-dev.inkbloop.com/*", zone_name = "inkbloop.com" }
+]
+
+[[env.dev.r2_buckets]]
+binding = "IMAGES_BUCKET"
+bucket_name = "inkbloop-storage-dev"
+
+[env.dev.vars]
+SUPABASE_JWKS_URL = "https://kshwkljbhbwyqumnxuzu.supabase.co/auth/v1/.well-known/jwks.json"
+EXPECTED_JWT_AUD = "authenticated"
+COOKIE_NAME = "sb-access-token"
+
+# ──────────────────────────────────────────────────────────────
+# Prod environment → images.inkbloop.com (not deployed yet)
+# ──────────────────────────────────────────────────────────────
+[env.prod]
+name = "inkbloop-images-prod"
+routes = [
+  { pattern = "images.inkbloop.com/*", zone_name = "inkbloop.com" }
+]
+
+[[env.prod.r2_buckets]]
+binding = "IMAGES_BUCKET"
+bucket_name = "inkbloop-storage"
+
+[env.prod.vars]
+SUPABASE_JWKS_URL = "https://jpjvexfldouobiiczhax.supabase.co/auth/v1/.well-known/jwks.json"
+EXPECTED_JWT_AUD = "authenticated"
+COOKIE_NAME = "sb-access-token"
