@@ -1,10 +1,57 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { AwsClient } from "https://esm.sh/aws4fetch@1.0.20";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 };
+
+// ── R2 shadow-write ─────────────────────────────────────────────────────────
+// Avatars uploaded through sim-api are written to Supabase Storage first,
+// then shadow-copied to Cloudflare R2 under `avatars/{path}`. When the R2
+// write succeeds we flag the row `profile_pic_backend = 'r2'` via the
+// profile_update webhook payload; the frontend's resolveAvatarUrls reads
+// via the Worker for 'r2' rows and falls back to a Supabase signed URL
+// otherwise. Best-effort: R2 failures never fail the upload.
+async function shadowWriteR2Avatar(
+  path: string,
+  bytes: Uint8Array,
+  contentType: string,
+): Promise<boolean> {
+  const accountId = Deno.env.get("R2_ACCOUNT_ID");
+  const accessKeyId = Deno.env.get("R2_ACCESS_KEY_ID");
+  const secretAccessKey = Deno.env.get("R2_SECRET_ACCESS_KEY");
+  const bucket = Deno.env.get("R2_BUCKET");
+  if (!accountId || !accessKeyId || !secretAccessKey || !bucket) return false;
+  try {
+    const aws = new AwsClient({
+      accessKeyId,
+      secretAccessKey,
+      service: "s3",
+      region: "auto",
+    });
+    const endpoint =
+      `https://${accountId}.r2.cloudflarestorage.com/${bucket}/avatars/${path}`;
+    const resp = await aws.fetch(endpoint, {
+      method: "PUT",
+      body: bytes,
+      headers: { "Content-Type": contentType },
+    });
+    if (!resp.ok) {
+      console.error(
+        "[sim-api] R2 shadow-write non-ok:",
+        resp.status,
+        await resp.text(),
+      );
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.error("[sim-api] R2 shadow-write threw:", e);
+    return false;
+  }
+}
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -323,6 +370,12 @@ Deno.serve(async (req: Request) => {
       return json({ error: "Upload failed", detail: upErr.message }, 500);
     }
 
+    // Shadow-write to R2. If this succeeds, the profile_update webhook
+    // below flags the row 'r2' so the frontend reads via the Worker.
+    // If it fails, stay on 'supabase' and reads go through signed URLs.
+    const r2Ok = await shadowWriteR2Avatar(path, bytes, contentType);
+    const profilePicBackend: "supabase" | "r2" = r2Ok ? "r2" : "supabase";
+
     const { data: profile, error } = await supabase
       .from("sim_profiles")
       .update({ profile_pic: path })
@@ -347,7 +400,11 @@ Deno.serve(async (req: Request) => {
         id: psid, time: Date.now(),
         messaging: [{
           sender: { id: psid },
-          profile_update: { name: profile.name, profile_pic: path },
+          profile_update: {
+            name: profile.name,
+            profile_pic: path,
+            profile_pic_backend: profilePicBackend,
+          },
         }],
       }],
     };

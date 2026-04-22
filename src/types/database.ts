@@ -429,6 +429,7 @@ export interface Database {
           user_id: string;
           name: string | null;
           profile_pic: string | null;
+          profile_pic_backend: 'supabase' | 'r2';
           platform: string | null;
           updated_at: string;
         };
@@ -437,6 +438,7 @@ export interface Database {
           user_id: string;
           name?: string | null;
           profile_pic?: string | null;
+          profile_pic_backend?: 'supabase' | 'r2';
           platform?: string | null;
           updated_at?: string;
         };
@@ -445,6 +447,7 @@ export interface Database {
           user_id?: string;
           name?: string | null;
           profile_pic?: string | null;
+          profile_pic_backend?: 'supabase' | 'r2';
           platform?: string | null;
           updated_at?: string;
         };

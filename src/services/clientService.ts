@@ -46,6 +46,8 @@ export async function fetchClients(): Promise<Client[]> {
   const withPic = clients.filter((c) => c.profile_pic);
   if (withPic.length === 0) return clients;
 
+  // clients.profile_pic has no backend flag today (column unused).
+  // Defaults to 'supabase' via resolveAvatarUrls' fallback path.
   const urlMap = await resolveAvatarUrls(
     withPic.map((c) => ({ id: c.id, pic: c.profile_pic }))
   );
@@ -60,12 +62,16 @@ export async function fetchLinkedProfiles(psids: string[]): Promise<Record<strin
   if (psids.length === 0) return {};
   const { data } = await supabase
     .from('participant_profiles')
-    .select('psid, name, platform, profile_pic')
+    .select('psid, name, platform, profile_pic, profile_pic_backend')
     .in('psid', psids);
 
   const rows = data ?? [];
   const urlMap = await resolveAvatarUrls(
-    rows.map((p) => ({ id: p.psid, pic: p.profile_pic }))
+    rows.map((p) => ({
+      id: p.psid,
+      pic: p.profile_pic,
+      backend: p.profile_pic_backend,
+    }))
   );
 
   const map: Record<string, LinkedProfile> = {};
@@ -85,13 +91,17 @@ export async function fetchLinkedProfiles(psids: string[]): Promise<Record<strin
 export async function fetchAvailableProfiles(platform: 'instagram' | 'messenger'): Promise<LinkedProfile[]> {
   const { data } = await supabase
     .from('participant_profiles')
-    .select('psid, name, platform, profile_pic')
+    .select('psid, name, platform, profile_pic, profile_pic_backend')
     .eq('platform', platform)
     .order('name');
 
   const rows = data ?? [];
   const urlMap = await resolveAvatarUrls(
-    rows.map((p) => ({ id: p.psid, pic: p.profile_pic }))
+    rows.map((p) => ({
+      id: p.psid,
+      pic: p.profile_pic,
+      backend: p.profile_pic_backend,
+    }))
   );
 
   return rows.map((p) => ({
