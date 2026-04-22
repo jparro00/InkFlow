@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { BookingImage, ImageSyncStatus } from '../types';
+import type { BookingImage, ImageSyncStatus, StorageBackend } from '../types';
 import * as imageService from '../services/imageService';
 
 interface ImageStore {
@@ -16,7 +16,12 @@ interface ImageStore {
   removeImagesForBookingAsync: (bookingId: string) => Promise<void>;
   remapBookingImages: (oldBookingId: string, newBookingId: string) => void;
   remapBookingImagesAsync: (oldBookingId: string, newBookingId: string) => Promise<void>;
-  updateSyncStatus: (id: string, status: ImageSyncStatus, remotePath?: string) => void;
+  updateSyncStatus: (
+    id: string,
+    status: ImageSyncStatus,
+    remotePath?: string,
+    storageBackend?: StorageBackend,
+  ) => void;
 }
 
 export const useImageStore = create<ImageStore>()(persist((set, get) => ({
@@ -132,16 +137,22 @@ export const useImageStore = create<ImageStore>()(persist((set, get) => ({
     }
   },
 
-  updateSyncStatus: (id, status, remotePath) => {
+  updateSyncStatus: (id, status, remotePath, storageBackend) => {
     set((s) => ({
       images: s.images.map((img) =>
         img.id === id
-          ? { ...img, sync_status: status, remote_path: remotePath ?? img.remote_path }
+          ? {
+              ...img,
+              sync_status: status,
+              remote_path: remotePath ?? img.remote_path,
+              storage_backend: storageBackend ?? img.storage_backend,
+            }
           : img
       ),
     }));
-    // Persist sync status update
-    imageService.updateImageSyncStatus(id, status, remotePath).catch(console.error);
+    imageService
+      .updateImageSyncStatus(id, status, remotePath, storageBackend)
+      .catch(console.error);
   },
 }), {
   name: 'inkbloop-images',

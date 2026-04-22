@@ -8,9 +8,12 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 // the deployed dev app fail with CORS/connection errors. Prod sets the
 // equivalent var to the prod project's graph-api URL.
 const META_API_URL = `${SUPABASE_URL}/functions/v1/graph-api`;
+// R2 images Worker (dev). When unset, src/lib/r2.ts reports disabled and the
+// app stays on Supabase Storage. Prod gets its own worker URL (Phase 3).
+const R2_IMAGES_URL = 'https://images-dev.inkbloop.com';
 
 // Deploy
-const deployCmd = `npx vercel -b VITE_SUPABASE_URL=${SUPABASE_URL} -b VITE_SUPABASE_ANON_KEY=${SUPABASE_KEY} -b VITE_META_API_URL=${META_API_URL} --yes`;
+const deployCmd = `npx vercel -b VITE_SUPABASE_URL=${SUPABASE_URL} -b VITE_SUPABASE_ANON_KEY=${SUPABASE_KEY} -b VITE_META_API_URL=${META_API_URL} -b VITE_R2_IMAGES_URL=${R2_IMAGES_URL} --yes`;
 const output = execSync(deployCmd, { encoding: 'utf-8' });
 console.log(output);
 

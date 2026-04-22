@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { getOriginal } from './imageDb';
+import { isR2Enabled, uploadToR2 } from './r2';
 import { useImageStore } from '../stores/imageStore';
 
 interface SyncQueueItem {
@@ -52,8 +53,22 @@ class ImageSyncQueue {
 
       if (uploadError) throw uploadError;
 
-      // Update sync status in store (which also persists to Supabase)
-      store.updateSyncStatus(item.imageId, 'synced', path);
+      // Shadow-write to R2 alongside Supabase Storage. Best-effort: if this
+      // fails, the image stays on storage_backend='supabase' and reads fall
+      // back to Supabase. Failures are logged for monitoring during Phase 2.
+      let storageBackend: 'supabase' | 'r2' = 'supabase';
+      if (isR2Enabled()) {
+        const r2Key = `booking-images/${path}`;
+        const r2Ok = await uploadToR2(r2Key, blob, item.mimeType).catch(
+          (e) => {
+            console.error('[ImageSync] R2 shadow-write threw:', e);
+            return false;
+          },
+        );
+        if (r2Ok) storageBackend = 'r2';
+      }
+
+      store.updateSyncStatus(item.imageId, 'synced', path, storageBackend);
 
       this.queue.shift(); // Remove completed item
     } catch (e) {

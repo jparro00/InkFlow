@@ -135,6 +135,7 @@ export interface Database {
           height: number;
           sync_status: string;
           remote_path: string | null;
+          storage_backend: 'supabase' | 'r2';
         };
         Insert: {
           id: string;
@@ -148,6 +149,7 @@ export interface Database {
           height: number;
           sync_status?: string;
           remote_path?: string | null;
+          storage_backend?: 'supabase' | 'r2';
         };
         Update: {
           id?: string;
@@ -161,6 +163,7 @@ export interface Database {
           height?: number;
           sync_status?: string;
           remote_path?: string | null;
+          storage_backend?: 'supabase' | 'r2';
         };
         Relationships: [
           {

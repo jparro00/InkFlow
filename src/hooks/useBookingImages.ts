@@ -4,7 +4,23 @@ import { saveImage, getThumbnail, getOriginal, deleteImage as deleteImageBlob } 
 import { generateThumbnail } from '../utils/imageProcessing';
 import { imageSyncQueue } from '../lib/imageSync';
 import { supabase } from '../lib/supabase';
+import { fetchR2Blob } from '../lib/r2';
 import type { BookingImage } from '../types';
+
+// Download a cloud-backed blob for a booking image. R2-backed rows go through
+// the CF Worker; 'supabase' rows fall back to Supabase Storage.
+async function downloadBookingImage(meta: BookingImage): Promise<Blob | null> {
+  if (!meta.remote_path) return null;
+  if (meta.storage_backend === 'r2') {
+    const blob = await fetchR2Blob(`booking-images/${meta.remote_path}`);
+    if (blob) return blob;
+    // Fall through to Supabase if R2 read fails — shadow-write era safety net.
+  }
+  const { data } = await supabase.storage
+    .from('booking-images')
+    .download(meta.remote_path);
+  return data ?? null;
+}
 
 export interface ThumbnailEntry {
   id: string;
@@ -40,15 +56,13 @@ export function useBookingImages(bookingId: string | undefined) {
       for (const meta of images) {
         let blob = await getThumbnail(meta.id);
 
-        // If no local blob but synced to cloud, download from Supabase Storage
+        // If no local blob but synced to cloud, download from R2 or Supabase
+        // Storage depending on meta.storage_backend.
         if (!blob && meta.sync_status === 'synced' && meta.remote_path) {
           try {
-            const { data } = await supabase.storage
-              .from('booking-images')
-              .download(meta.remote_path);
+            const data = await downloadBookingImage(meta);
 
             if (data && !cancelled) {
-              // Regenerate thumbnail and cache locally
               const { thumbnail } = await generateThumbnail(
                 new File([data], meta.filename, { type: meta.mime_type })
               );
@@ -144,9 +158,7 @@ export function useBookingImages(bookingId: string | undefined) {
       const meta = images.find((img) => img.id === id);
       if (meta?.sync_status === 'synced' && meta.remote_path) {
         try {
-          const { data } = await supabase.storage
-            .from('booking-images')
-            .download(meta.remote_path);
+          const data = await downloadBookingImage(meta);
           if (data) blob = data;
         } catch (e) {
           console.error(`[useBookingImages] Failed to download original ${id}:`, e);
