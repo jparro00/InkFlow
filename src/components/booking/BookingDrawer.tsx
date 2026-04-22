@@ -192,7 +192,7 @@ export default function BookingDrawer() {
             <span className="text-sm">Add Document</span>
             <input
               type="file"
-              accept="image/*,.pdf,.doc,.docx,.txt"
+              accept="image/*"
               multiple
               onChange={async (e) => {
                 if (e.target.files?.length && booking.client_id) {

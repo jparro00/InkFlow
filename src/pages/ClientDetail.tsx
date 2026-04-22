@@ -37,7 +37,9 @@ export default function ClientDetailPage() {
   const [deleting, setDeleting] = useState(false);
   const [viewingImageId, setViewingImageId] = useState<string | null>(null);
   const [viewingDocPhotoId, setViewingDocPhotoId] = useState<string | null>(null);
+  const [viewingDocId, setViewingDocId] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
 
   // Tell the shell to hide the FAB while the delete confirm is visible so
   // the bot button doesn't visually cover the "Yes, delete" action.
@@ -67,6 +69,19 @@ export default function ClientDetailPage() {
     () => clientDocuments.filter((d) => d.type !== 'image'),
     [clientDocuments]
   );
+  // Split Docs tab entries by whether they can render as a thumbnail. Most new
+  // uploads are photos (forceType='other'); legacy PDFs / non-image files fall
+  // back to a list below the grid so they remain visible + deletable.
+  const imageDocs = useMemo(
+    () => docs.filter((d) => d.mime_type?.startsWith('image/') ?? false),
+    [docs]
+  );
+  const nonImageDocs = useMemo(
+    () => docs.filter((d) => !(d.mime_type?.startsWith('image/') ?? false)),
+    [docs]
+  );
+  const { thumbnails: docThumbnails, getOriginalUrl: getDocOriginalUrl } =
+    useDocumentImageThumbnails(imageDocs);
 
   if (!client) {
     return (
@@ -415,14 +430,90 @@ export default function ClientDetailPage() {
             onClose={() => setViewingDocPhotoId(null)}
           />
         )}
+        {viewingDocId && (
+          <ImageViewer
+            thumbnails={docThumbnails}
+            initialId={viewingDocId}
+            getOriginalUrl={getDocOriginalUrl}
+            onClose={() => setViewingDocId(null)}
+          />
+        )}
       </AnimatePresence>
 
-      {/* Documents */}
+      {/* Documents — same pattern as Photos: native-picker upload, thumbnail
+          grid, tap-to-view via ImageViewer, always-visible X. Legacy PDFs /
+          non-image files render as a list below the grid. */}
       {tab === 'documents' && (
         <div>
-          {docs.length > 0 ? (
+          <div className="flex justify-end mb-4">
+            <label
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-md bg-accent text-bg text-sm cursor-pointer press-scale shadow-glow active:shadow-glow-strong min-h-[40px] ${uploadingDoc ? 'opacity-50 pointer-events-none' : ''}`}
+            >
+              <Plus size={16} />
+              <span>{uploadingDoc ? 'Uploading…' : 'Add Document'}</span>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                disabled={uploadingDoc}
+                onChange={async (e) => {
+                  if (!e.target.files?.length) return;
+                  setUploadingDoc(true);
+                  try {
+                    for (const file of Array.from(e.target.files)) {
+                      await uploadDocument(file, client.id, undefined, 'other');
+                    }
+                    addToast('Document uploaded');
+                  } catch (err) {
+                    console.error('Failed to upload document:', err);
+                    addToast('Upload failed');
+                  } finally {
+                    setUploadingDoc(false);
+                    e.target.value = '';
+                  }
+                }}
+                className="hidden"
+              />
+            </label>
+          </div>
+          {imageDocs.length > 0 && (
+            <div className="grid grid-cols-3 gap-2 mb-6">
+              {imageDocs.map((doc) => {
+                const thumb = docThumbnails.find((t) => t.id === doc.id);
+                return (
+                  <div key={doc.id} className="relative aspect-square rounded-lg bg-surface border border-border/30 overflow-hidden">
+                    <button
+                      onClick={() => thumb && setViewingDocId(doc.id)}
+                      disabled={!thumb}
+                      className="w-full h-full cursor-pointer press-scale disabled:cursor-default"
+                    >
+                      {thumb ? (
+                        <img
+                          src={thumb.url}
+                          alt={thumb.filename}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-xs text-text-t">
+                          Loading…
+                        </div>
+                      )}
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); removeDocument(doc); }}
+                      aria-label="Delete document"
+                      className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-bg/80 flex items-center justify-center text-text-s active:text-danger transition-colors cursor-pointer"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {nonImageDocs.length > 0 && (
             <div className="space-y-2">
-              {docs.map((doc) => (
+              {nonImageDocs.map((doc) => (
                 <div key={doc.id} className="flex items-center gap-3 bg-surface/60 rounded-lg p-4 border border-border/30">
                   <FileText size={20} className="text-text-t shrink-0" />
                   <div className="flex-1 min-w-0">
@@ -445,6 +536,7 @@ export default function ClientDetailPage() {
                   </div>
                   <button
                     onClick={() => removeDocument(doc)}
+                    aria-label="Delete document"
                     className="w-9 h-9 rounded-md flex items-center justify-center text-text-t active:text-danger transition-colors cursor-pointer press-scale shrink-0"
                   >
                     <Trash2 size={16} />
@@ -452,7 +544,8 @@ export default function ClientDetailPage() {
                 </div>
               ))}
             </div>
-          ) : (
+          )}
+          {docs.length === 0 && (
             <div className="text-center py-16 text-text-t text-sm">No documents yet.</div>
           )}
         </div>
