@@ -4,7 +4,7 @@ import { saveImage, getThumbnail, getOriginal, deleteImage as deleteImageBlob } 
 import { generateThumbnail } from '../utils/imageProcessing';
 import { imageSyncQueue } from '../lib/imageSync';
 import { fetchR2Blob } from '../lib/r2';
-import type { BookingImage } from '../types';
+import type { BookingImage, Document } from '../types';
 
 // Download a cloud-backed blob for a booking image. R2 is the only backend.
 async function downloadBookingImage(meta: BookingImage): Promise<Blob | null> {
@@ -15,7 +15,7 @@ async function downloadBookingImage(meta: BookingImage): Promise<Blob | null> {
 export interface ThumbnailEntry {
   id: string;
   url: string;
-  meta: BookingImage;
+  filename: string;
 }
 
 // Load thumbnails + originals for an arbitrary set of BookingImage rows.
@@ -66,7 +66,7 @@ export function useImageThumbnails(images: BookingImage[]) {
         if (blob && !cancelled) {
           const url = URL.createObjectURL(blob);
           urlsRef.current.push(url);
-          entries.push({ id: meta.id, url, meta });
+          entries.push({ id: meta.id, url, filename: meta.filename });
         }
       }
       if (!cancelled) setThumbnails(entries);
@@ -108,6 +108,91 @@ export function useImageThumbnails(images: BookingImage[]) {
     if (!blob) return null;
     return URL.createObjectURL(blob);
   }, [images]);
+
+  return { thumbnails, getOriginalUrl };
+}
+
+// Load thumbnails + originals for Document rows of type 'image'. Same IDB-first
+// pattern as useImageThumbnails, but the blob lives at documents/<storage_path>
+// in R2. Documents never go through the upload queue — they upload directly in
+// documentService — so there's no sync_status to gate on.
+export function useDocumentImageThumbnails(docs: Document[]) {
+  const [thumbnails, setThumbnails] = useState<ThumbnailEntry[]>([]);
+  const urlsRef = useRef<string[]>([]);
+
+  const key = useMemo(
+    () => docs.map((d) => `${d.id}:${d.storage_path}`).join(','),
+    [docs]
+  );
+
+  useEffect(() => {
+    if (!docs.length) {
+      setThumbnails([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadThumbnails() {
+      const entries: ThumbnailEntry[] = [];
+      for (const doc of docs) {
+        let blob = await getThumbnail(doc.id);
+
+        if (!blob) {
+          try {
+            const data = await fetchR2Blob(`documents/${doc.storage_path}`);
+            if (data && !cancelled) {
+              const { thumbnail } = await generateThumbnail(
+                new File([data], doc.label ?? 'photo', { type: doc.mime_type ?? 'image/jpeg' })
+              );
+              await saveImage(doc.id, data, thumbnail);
+              blob = thumbnail;
+            }
+          } catch (e) {
+            console.error(`[useDocumentImageThumbnails] Failed to download ${doc.id}:`, e);
+          }
+        }
+
+        if (blob && !cancelled) {
+          const url = URL.createObjectURL(blob);
+          urlsRef.current.push(url);
+          entries.push({ id: doc.id, url, filename: doc.label ?? 'photo' });
+        }
+      }
+      if (!cancelled) setThumbnails(entries);
+    }
+
+    loadThumbnails();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+
+  useEffect(() => {
+    return () => {
+      urlsRef.current.forEach((u) => URL.revokeObjectURL(u));
+      urlsRef.current = [];
+    };
+  }, []);
+
+  const getOriginalUrl = useCallback(async (id: string): Promise<string | null> => {
+    let blob = await getOriginal(id);
+    if (!blob) {
+      const doc = docs.find((d) => d.id === id);
+      if (doc) {
+        try {
+          const data = await fetchR2Blob(`documents/${doc.storage_path}`);
+          if (data) blob = data;
+        } catch (e) {
+          console.error(`[useDocumentImageThumbnails] Failed to download original ${id}:`, e);
+        }
+      }
+    }
+    if (!blob) return null;
+    return URL.createObjectURL(blob);
+  }, [docs]);
 
   return { thumbnails, getOriginalUrl };
 }
@@ -160,7 +245,7 @@ export function useBookingImages(bookingId: string | undefined) {
 
       const url = URL.createObjectURL(thumbnail);
       urlsRef.current.push(url);
-      newEntries.push({ id: meta.id, url, meta });
+      newEntries.push({ id: meta.id, url, filename: meta.filename });
     }
 
     // Merge optimistic thumbnails so the drawer shows them before the store

@@ -22,7 +22,7 @@ export default function ImageThumbnailGrid({ thumbnails, editable, onRemove, onV
           >
             <img
               src={t.url}
-              alt={t.meta.filename}
+              alt={t.filename}
               className="w-full h-full object-cover rounded-lg"
             />
           </button>

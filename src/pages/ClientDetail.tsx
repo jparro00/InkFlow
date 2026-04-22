@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Edit, Plus, MessageCircle, Camera, FileText, Trash2 } from 'lucide-react';
+import { ArrowLeft, Edit, Plus, MessageCircle, FileText, Trash2, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { useClientStore } from '../stores/clientStore';
 import { useBookingStore } from '../stores/bookingStore';
@@ -9,7 +9,7 @@ import { useImageStore } from '../stores/imageStore';
 import { useDocumentStore } from '../stores/documentStore';
 import { useUIStore } from '../stores/uiStore';
 import { getSignedUrl } from '../services/documentService';
-import { useImageThumbnails } from '../hooks/useBookingImages';
+import { useImageThumbnails, useDocumentImageThumbnails } from '../hooks/useBookingImages';
 import ImageViewer from '../components/booking/ImageViewer';
 import { getTypeColor } from '../types';
 
@@ -36,6 +36,7 @@ export default function ClientDetailPage() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [viewingImageId, setViewingImageId] = useState<string | null>(null);
+  const [viewingDocPhotoId, setViewingDocPhotoId] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   // Tell the shell to hide the FAB while the delete confirm is visible so
@@ -60,6 +61,8 @@ export default function ClientDetailPage() {
     () => clientDocuments.filter((d) => d.type === 'image'),
     [clientDocuments]
   );
+  const { thumbnails: docPhotoThumbnails, getOriginalUrl: getDocPhotoOriginalUrl } =
+    useDocumentImageThumbnails(docPhotos);
   const docs = useMemo(
     () => clientDocuments.filter((d) => d.type !== 'image'),
     [clientDocuments]
@@ -335,7 +338,7 @@ export default function ClientDetailPage() {
                   >
                     <img
                       src={t.url}
-                      alt={t.meta.filename}
+                      alt={t.filename}
                       className="w-full h-full object-cover"
                     />
                   </button>
@@ -347,29 +350,37 @@ export default function ClientDetailPage() {
             <div className="mb-6">
               <div className="text-sm text-text-t uppercase tracking-wider mb-3 font-medium">Uploaded Photos</div>
               <div className="grid grid-cols-3 gap-2">
-                {docPhotos.map((doc) => (
-                  <div key={doc.id} className="aspect-square rounded-lg bg-surface border border-border/30 overflow-hidden relative group">
-                    <button
-                      onClick={async () => {
-                        const url = await getSignedUrl(doc);
-                        window.open(url, '_blank');
-                      }}
-                      className="w-full h-full flex items-center justify-center cursor-pointer press-scale"
-                    >
-                      <div className="text-center p-2">
-                        <Camera size={20} className="text-text-t mx-auto mb-1" />
-                        <div className="text-xs text-text-t truncate">{doc.label}</div>
-                        <div className="text-xs text-text-t mt-0.5">{format(new Date(doc.created_at), 'MMM d')}</div>
-                      </div>
-                    </button>
-                    <button
-                      onClick={() => removeDocument(doc)}
-                      className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-bg/80 flex items-center justify-center text-text-t active:text-danger transition-colors cursor-pointer press-scale opacity-0 group-hover:opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                ))}
+                {docPhotos.map((doc) => {
+                  const thumb = docPhotoThumbnails.find((t) => t.id === doc.id);
+                  return (
+                    <div key={doc.id} className="relative aspect-square rounded-lg bg-surface border border-border/30 overflow-hidden">
+                      <button
+                        onClick={() => thumb && setViewingDocPhotoId(doc.id)}
+                        disabled={!thumb}
+                        className="w-full h-full cursor-pointer press-scale disabled:cursor-default"
+                      >
+                        {thumb ? (
+                          <img
+                            src={thumb.url}
+                            alt={thumb.filename}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-xs text-text-t">
+                            Loading…
+                          </div>
+                        )}
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); removeDocument(doc); }}
+                        aria-label="Delete photo"
+                        className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-bg/80 flex items-center justify-center text-text-s active:text-danger transition-colors cursor-pointer"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -394,6 +405,14 @@ export default function ClientDetailPage() {
             initialId={viewingImageId}
             getOriginalUrl={getBookingOriginalUrl}
             onClose={() => setViewingImageId(null)}
+          />
+        )}
+        {viewingDocPhotoId && (
+          <ImageViewer
+            thumbnails={docPhotoThumbnails}
+            initialId={viewingDocPhotoId}
+            getOriginalUrl={getDocPhotoOriginalUrl}
+            onClose={() => setViewingDocPhotoId(null)}
           />
         )}
       </AnimatePresence>
