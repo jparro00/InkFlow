@@ -9,7 +9,7 @@ interface DocumentStore {
   fetchDocuments: () => Promise<void>;
   getDocumentsForClient: (clientId: string) => Document[];
   getDocumentsForBooking: (bookingId: string) => Document[];
-  uploadDocument: (file: File, clientId: string, bookingId?: string) => Promise<Document>;
+  uploadDocument: (file: File, clientId: string, bookingId?: string, forceType?: Document['type']) => Promise<Document>;
   removeDocument: (doc: Document) => Promise<void>;
 }
 
@@ -33,8 +33,8 @@ export const useDocumentStore = create<DocumentStore>()(persist((set, get) => ({
   getDocumentsForBooking: (bookingId) =>
     get().documents.filter((d) => d.booking_id === bookingId),
 
-  uploadDocument: async (file, clientId, bookingId) => {
-    const doc = await documentService.uploadDocument(file, clientId, bookingId);
+  uploadDocument: async (file, clientId, bookingId, forceType) => {
+    const doc = await documentService.uploadDocument(file, clientId, bookingId, forceType);
     set((s) => ({ documents: [doc, ...s.documents] }));
     return doc;
   },

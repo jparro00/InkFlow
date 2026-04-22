@@ -47,6 +47,7 @@ export async function uploadDocument(
   file: File,
   clientId: string,
   bookingId?: string,
+  forceType?: Document['type'],
 ): Promise<Document> {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) throw new Error('Not authenticated');
@@ -55,8 +56,11 @@ export async function uploadDocument(
   const ext = file.name.split('.').pop() || 'bin';
   const storagePath = `${session.user.id}/${clientId}/${id}.${ext}`;
 
+  // forceType lets callers override the auto-detection — used by booking docs
+  // where the user wants every upload (photos included) to land in the Docs
+  // tab, not Photos.
   const isImage = file.type.startsWith('image/');
-  const docType: Document['type'] = isImage ? 'image' : 'other';
+  const docType: Document['type'] = forceType ?? (isImage ? 'image' : 'other');
 
   // R2 is the only backend. Throws on failure so we never insert a metadata
   // row that points at a blob that doesn't exist.

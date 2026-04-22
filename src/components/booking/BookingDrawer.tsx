@@ -29,7 +29,6 @@ export default function BookingDrawer() {
   const uploadDocument = useDocumentStore((s) => s.uploadDocument);
   const [viewingImageId, setViewingImageId] = useState<string | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
-  const docInputRef = useRef<HTMLInputElement>(null);
 
   if (!booking) return null;
 
@@ -182,13 +181,36 @@ export default function BookingDrawer() {
             <Camera size={18} />
             <span className="text-sm">Add Photo</span>
           </button>
-          <button
-            onClick={() => docInputRef.current?.click()}
+          {/* label-wrapped input (not button+ref.click) so the native picker
+              opens from a native user gesture on iOS PWA. Accepts images too
+              — most booking documents are photos of IDs / consent forms —
+              and forces type='other' so uploads land in Docs, not Photos. */}
+          <label
             className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-input border border-border/60 rounded-md text-text-s active:text-text-p active:bg-elevated transition-colors cursor-pointer press-scale min-h-[48px]"
           >
             <FileText size={18} />
             <span className="text-sm">Add Document</span>
-          </button>
+            <input
+              type="file"
+              accept="image/*,.pdf,.doc,.docx,.txt"
+              multiple
+              onChange={async (e) => {
+                if (e.target.files?.length && booking.client_id) {
+                  for (const file of Array.from(e.target.files)) {
+                    try {
+                      await uploadDocument(file, booking.client_id, booking.id, 'other');
+                      addToast('Document uploaded');
+                    } catch (err) {
+                      console.error('Failed to upload document:', err);
+                      addToast('Upload failed');
+                    }
+                  }
+                  e.target.value = '';
+                }
+              }}
+              className="hidden"
+            />
+          </label>
         </div>
         <input
           ref={imageInputRef}
@@ -198,27 +220,6 @@ export default function BookingDrawer() {
           onChange={(e) => {
             if (e.target.files?.length) {
               addImages(e.target.files);
-              e.target.value = '';
-            }
-          }}
-          className="hidden"
-        />
-        <input
-          ref={docInputRef}
-          type="file"
-          accept=".pdf,.doc,.docx,.txt"
-          multiple
-          onChange={async (e) => {
-            if (e.target.files?.length && booking.client_id) {
-              for (const file of Array.from(e.target.files)) {
-                try {
-                  await uploadDocument(file, booking.client_id, booking.id);
-                  addToast('Document uploaded');
-                } catch (err) {
-                  console.error('Failed to upload document:', err);
-                  addToast('Upload failed');
-                }
-              }
               e.target.value = '';
             }
           }}
