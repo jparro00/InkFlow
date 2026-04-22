@@ -43,46 +43,62 @@ export async function fetchDocumentsForClient(clientId: string): Promise<Documen
   return (data ?? []).map(toDocument);
 }
 
-export async function uploadDocument(
+// Build a Document row client-side with a pre-computed id + storage_path.
+// No network. Callers can add this to their store optimistically, then call
+// finalizeDocument in the background to push the blob to R2 and persist the
+// row. forceType lets callers override the auto-detected type — used by the
+// booking-drawer + client-docs-tab uploads, which always land in Docs
+// regardless of the file being an image.
+export function prepareDocument(
   file: File,
+  userId: string,
   clientId: string,
   bookingId?: string,
   forceType?: Document['type'],
-): Promise<Document> {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error('Not authenticated');
-
+): Document {
   const id = crypto.randomUUID();
   const ext = file.name.split('.').pop() || 'bin';
-  const storagePath = `${session.user.id}/${clientId}/${id}.${ext}`;
-
-  // forceType lets callers override the auto-detection — used by booking docs
-  // where the user wants every upload (photos included) to land in the Docs
-  // tab, not Photos.
+  const storagePath = `${userId}/${clientId}/${id}.${ext}`;
   const isImage = file.type.startsWith('image/');
   const docType: Document['type'] = forceType ?? (isImage ? 'image' : 'other');
 
-  // R2 is the only backend. Throws on failure so we never insert a metadata
-  // row that points at a blob that doesn't exist.
+  return {
+    id,
+    created_at: new Date().toISOString(),
+    client_id: clientId,
+    booking_id: bookingId,
+    type: docType,
+    label: file.name,
+    storage_path: storagePath,
+    is_sensitive: false,
+    mime_type: file.type || 'application/octet-stream',
+    size_bytes: file.size,
+    storage_backend: 'r2',
+  };
+}
+
+// Push the blob to R2, then insert the row in documents. Throws on failure so
+// the store can roll the optimistic insert back.
+export async function finalizeDocument(file: File, doc: Document): Promise<Document> {
   await uploadToR2(
-    `documents/${storagePath}`,
+    `documents/${doc.storage_path}`,
     file,
-    file.type || 'application/octet-stream',
+    doc.mime_type || 'application/octet-stream',
   );
 
   const { data, error } = await supabase
     .from('documents')
     .insert({
-      id,
-      client_id: clientId,
-      booking_id: bookingId ?? null,
-      type: docType,
-      label: file.name,
-      storage_path: storagePath,
-      is_sensitive: false,
-      mime_type: file.type || null,
-      size_bytes: file.size,
-      storage_backend: 'r2',
+      id: doc.id,
+      client_id: doc.client_id,
+      booking_id: doc.booking_id ?? null,
+      type: doc.type,
+      label: doc.label ?? null,
+      storage_path: doc.storage_path,
+      is_sensitive: doc.is_sensitive,
+      mime_type: doc.mime_type ?? null,
+      size_bytes: doc.size_bytes ?? null,
+      storage_backend: doc.storage_backend ?? 'r2',
     })
     .select()
     .single();

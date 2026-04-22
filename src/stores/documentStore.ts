@@ -2,6 +2,10 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Document } from '../types';
 import * as documentService from '../services/documentService';
+import { supabase } from '../lib/supabase';
+import { saveImage } from '../lib/imageDb';
+import { generateThumbnail } from '../utils/imageProcessing';
+import { useUIStore } from './uiStore';
 
 interface DocumentStore {
   documents: Document[];
@@ -33,9 +37,43 @@ export const useDocumentStore = create<DocumentStore>()(persist((set, get) => ({
   getDocumentsForBooking: (bookingId) =>
     get().documents.filter((d) => d.booking_id === bookingId),
 
+  // Local-first mirror of useBookingImages.addImages: generate a thumbnail,
+  // cache both blobs in IndexedDB (so useDocumentImageThumbnails finds the
+  // thumb instantly), insert the row optimistically, and push to R2 + Supabase
+  // in the background. Returns as soon as the local work is done, so the UI
+  // updates within ~1 thumbnail-gen frame instead of after an R2 roundtrip.
   uploadDocument: async (file, clientId, bookingId, forceType) => {
-    const doc = await documentService.uploadDocument(file, clientId, bookingId, forceType);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+
+    const doc = documentService.prepareDocument(file, session.user.id, clientId, bookingId, forceType);
+
+    if (file.type.startsWith('image/')) {
+      try {
+        const { thumbnail } = await generateThumbnail(file);
+        await saveImage(doc.id, file, thumbnail);
+      } catch (e) {
+        console.error('[documentStore] thumbnail gen failed:', e);
+      }
+    }
+
     set((s) => ({ documents: [doc, ...s.documents] }));
+
+    // Fire-and-forget remote sync. On failure, roll back the optimistic row
+    // and surface a toast. On success, replace with the canonical server row
+    // in case its created_at drifted from our client-side timestamp.
+    documentService.finalizeDocument(file, doc)
+      .then((serverDoc) => {
+        set((s) => ({
+          documents: s.documents.map((d) => (d.id === doc.id ? serverDoc : d)),
+        }));
+      })
+      .catch((e) => {
+        console.error('[documentStore] upload failed:', e);
+        set((s) => ({ documents: s.documents.filter((d) => d.id !== doc.id) }));
+        useUIStore.getState().addToast('Upload failed');
+      });
+
     return doc;
   },
 
