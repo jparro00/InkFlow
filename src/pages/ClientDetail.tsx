@@ -1,5 +1,6 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Edit, Plus, MessageCircle, Camera, FileText, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useClientStore } from '../stores/clientStore';
@@ -8,6 +9,8 @@ import { useImageStore } from '../stores/imageStore';
 import { useDocumentStore } from '../stores/documentStore';
 import { useUIStore } from '../stores/uiStore';
 import { getSignedUrl } from '../services/documentService';
+import { useImageThumbnails } from '../hooks/useBookingImages';
+import ImageViewer from '../components/booking/ImageViewer';
 import { getTypeColor } from '../types';
 
 type Tab = 'overview' | 'appointments' | 'photos' | 'documents' | 'notes';
@@ -26,11 +29,15 @@ export default function ClientDetailPage() {
   const allDocuments = useDocumentStore((s) => s.documents);
   const clientDocuments = useMemo(() => allDocuments.filter((d) => d.client_id === id), [allDocuments, id]);
   const removeDocument = useDocumentStore((s) => s.removeDocument);
+  const uploadDocument = useDocumentStore((s) => s.uploadDocument);
   const { setSelectedBookingId, openBookingForm, setPrefillBookingData, setEditingClientId, addToast, setConfirmDialogOpen } = useUIStore();
   const [tab, setTab] = useState<Tab>('overview');
   const [noteText, setNoteText] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [viewingImageId, setViewingImageId] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   // Tell the shell to hide the FAB while the delete confirm is visible so
   // the bot button doesn't visually cover the "Yes, delete" action.
@@ -38,6 +45,26 @@ export default function ClientDetailPage() {
     setConfirmDialogOpen(confirmDelete);
     return () => setConfirmDialogOpen(false);
   }, [confirmDelete, setConfirmDialogOpen]);
+
+  // Photos: booking_images from this client's bookings + document uploads with type=image.
+  // All hooks must run before any early return to satisfy rules-of-hooks, so
+  // derived state like the photo thumbnails is computed here even when the
+  // client lookup fails (in which case these produce empty results).
+  const clientBookingIds = useMemo(() => new Set(clientBookings.map((b) => b.id)), [clientBookings]);
+  const bookingPhotos = useMemo(
+    () => allBookingImages.filter((img) => clientBookingIds.has(img.booking_id)),
+    [allBookingImages, clientBookingIds]
+  );
+  const { thumbnails: bookingThumbnails, getOriginalUrl: getBookingOriginalUrl } =
+    useImageThumbnails(bookingPhotos);
+  const docPhotos = useMemo(
+    () => clientDocuments.filter((d) => d.type === 'image'),
+    [clientDocuments]
+  );
+  const docs = useMemo(
+    () => clientDocuments.filter((d) => d.type !== 'image'),
+    [clientDocuments]
+  );
 
   if (!client) {
     return (
@@ -58,21 +85,6 @@ export default function ClientDetailPage() {
   );
   const sorted = [...clientBookings].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-  );
-
-  // Photos: booking_images from this client's bookings + document uploads with type=image
-  const clientBookingIds = useMemo(() => new Set(clientBookings.map((b) => b.id)), [clientBookings]);
-  const bookingPhotos = useMemo(
-    () => allBookingImages.filter((img) => clientBookingIds.has(img.booking_id)),
-    [allBookingImages, clientBookingIds]
-  );
-  const docPhotos = useMemo(
-    () => clientDocuments.filter((d) => d.type === 'image'),
-    [clientDocuments]
-  );
-  const docs = useMemo(
-    () => clientDocuments.filter((d) => d.type !== 'image'),
-    [clientDocuments]
   );
 
   const tabs: { key: Tab; label: string }[] = [
@@ -278,28 +290,56 @@ export default function ClientDetailPage() {
       {/* Photos */}
       {tab === 'photos' && (
         <div>
-          {bookingPhotos.length > 0 && (
+          <div className="flex justify-end mb-4">
+            <button
+              onClick={() => photoInputRef.current?.click()}
+              disabled={uploadingPhoto}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-md bg-accent text-bg text-sm cursor-pointer press-scale shadow-glow active:shadow-glow-strong disabled:opacity-50 min-h-[40px]"
+            >
+              <Plus size={16} />
+              <span>{uploadingPhoto ? 'Uploading…' : 'Add Photo'}</span>
+            </button>
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={async (e) => {
+                if (!e.target.files?.length) return;
+                setUploadingPhoto(true);
+                try {
+                  for (const file of Array.from(e.target.files)) {
+                    await uploadDocument(file, client.id);
+                  }
+                  addToast('Photo uploaded');
+                } catch (err) {
+                  console.error('Failed to upload photo:', err);
+                  addToast('Upload failed');
+                } finally {
+                  setUploadingPhoto(false);
+                  e.target.value = '';
+                }
+              }}
+              className="hidden"
+            />
+          </div>
+          {bookingThumbnails.length > 0 && (
             <div className="mb-6">
               <div className="text-sm text-text-t uppercase tracking-wider mb-3 font-medium">From Bookings</div>
               <div className="grid grid-cols-3 gap-2">
-                {bookingPhotos.map((img) => {
-                  const booking = clientBookings.find((b) => b.id === img.booking_id);
-                  return (
-                    <button
-                      key={img.id}
-                      onClick={() => booking && setSelectedBookingId(booking.id)}
-                      className="aspect-square rounded-lg bg-surface border border-border/30 overflow-hidden cursor-pointer press-scale flex items-center justify-center"
-                    >
-                      <div className="text-center p-2">
-                        <Camera size={20} className="text-text-t mx-auto mb-1" />
-                        <div className="text-xs text-text-t truncate">{img.filename}</div>
-                        {booking && (
-                          <div className="text-xs text-text-t mt-0.5">{format(new Date(booking.date), 'MMM d')}</div>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
+                {bookingThumbnails.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => setViewingImageId(t.id)}
+                    className="aspect-square rounded-lg bg-surface border border-border/30 overflow-hidden cursor-pointer press-scale"
+                  >
+                    <img
+                      src={t.url}
+                      alt={t.meta.filename}
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
+                ))}
               </div>
             </div>
           )}
@@ -333,11 +373,30 @@ export default function ClientDetailPage() {
               </div>
             </div>
           )}
+          {bookingThumbnails.length === 0 && bookingPhotos.length > 0 && (
+            <div className="mb-6">
+              <div className="text-sm text-text-t uppercase tracking-wider mb-3 font-medium">From Bookings</div>
+              <div className="text-xs text-text-t bg-surface/60 rounded-lg p-4 border border-border/30">
+                {bookingPhotos.length} image{bookingPhotos.length === 1 ? '' : 's'} still syncing from another device.
+              </div>
+            </div>
+          )}
           {bookingPhotos.length === 0 && docPhotos.length === 0 && (
             <div className="text-center py-16 text-text-t text-sm">No photos yet.</div>
           )}
         </div>
       )}
+
+      <AnimatePresence>
+        {viewingImageId && (
+          <ImageViewer
+            thumbnails={bookingThumbnails}
+            initialId={viewingImageId}
+            getOriginalUrl={getBookingOriginalUrl}
+            onClose={() => setViewingImageId(null)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Documents */}
       {tab === 'documents' && (

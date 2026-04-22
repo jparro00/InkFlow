@@ -28,21 +28,20 @@ export interface ThumbnailEntry {
   meta: BookingImage;
 }
 
-export function useBookingImages(bookingId: string | undefined) {
-  const allImages = useImageStore((s) => s.images);
-  const images = useMemo(
-    () => bookingId ? allImages.filter((img) => img.booking_id === bookingId) : [],
-    [allImages, bookingId]
-  );
-  const addImageMeta = useImageStore((s) => s.addImage);
-  const removeImageMeta = useImageStore((s) => s.removeImage);
-
+// Load thumbnails + originals for an arbitrary set of BookingImage rows.
+// Tries IndexedDB first, falls back to the cloud (R2 or Supabase Storage) and
+// caches the downloaded blobs back into IDB. Skips rows that are still local
+// on a different device (sync_status !== 'synced' and no local blob).
+export function useImageThumbnails(images: BookingImage[]) {
   const [thumbnails, setThumbnails] = useState<ThumbnailEntry[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const urlsRef = useRef<string[]>([]);
 
-  // Load thumbnails from IndexedDB when image metadata changes
-  // Falls back to downloading from Supabase Storage if not available locally
+  // Stable key so the effect only re-runs when the image set actually changes.
+  const key = useMemo(
+    () => images.map((i) => `${i.id}:${i.sync_status}:${i.remote_path ?? ''}`).join(','),
+    [images]
+  );
+
   useEffect(() => {
     if (!images.length) {
       setThumbnails([]);
@@ -70,7 +69,7 @@ export function useBookingImages(bookingId: string | undefined) {
               blob = thumbnail;
             }
           } catch (e) {
-            console.error(`[useBookingImages] Failed to download ${meta.id}:`, e);
+            console.error(`[useImageThumbnails] Failed to download ${meta.id}:`, e);
           }
         }
 
@@ -88,7 +87,8 @@ export function useBookingImages(bookingId: string | undefined) {
     return () => {
       cancelled = true;
     };
-  }, [images]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
 
   // Revoke all object URLs on unmount
   useEffect(() => {
@@ -97,6 +97,44 @@ export function useBookingImages(bookingId: string | undefined) {
       urlsRef.current = [];
     };
   }, []);
+
+  const getOriginalUrl = useCallback(async (id: string): Promise<string | null> => {
+    // Try local first
+    let blob = await getOriginal(id);
+
+    // Fall back to cloud
+    if (!blob) {
+      const meta = images.find((img) => img.id === id);
+      if (meta?.sync_status === 'synced' && meta.remote_path) {
+        try {
+          const data = await downloadBookingImage(meta);
+          if (data) blob = data;
+        } catch (e) {
+          console.error(`[useImageThumbnails] Failed to download original ${id}:`, e);
+        }
+      }
+    }
+
+    if (!blob) return null;
+    return URL.createObjectURL(blob);
+  }, [images]);
+
+  return { thumbnails, getOriginalUrl };
+}
+
+export function useBookingImages(bookingId: string | undefined) {
+  const allImages = useImageStore((s) => s.images);
+  const images = useMemo(
+    () => bookingId ? allImages.filter((img) => img.booking_id === bookingId) : [],
+    [allImages, bookingId]
+  );
+  const addImageMeta = useImageStore((s) => s.addImage);
+  const removeImageMeta = useImageStore((s) => s.removeImage);
+
+  const { thumbnails, getOriginalUrl } = useImageThumbnails(images);
+  const [isLoading, setIsLoading] = useState(false);
+  const urlsRef = useRef<string[]>([]);
+  const [extraThumbs, setExtraThumbs] = useState<ThumbnailEntry[]>([]);
 
   const addImages = useCallback(async (files: FileList) => {
     if (!bookingId) return;
@@ -135,40 +173,38 @@ export function useBookingImages(bookingId: string | undefined) {
       newEntries.push({ id: meta.id, url, meta });
     }
 
-    setThumbnails((prev) => [...prev, ...newEntries]);
+    // Merge optimistic thumbnails so the drawer shows them before the store
+    // re-renders through useImageThumbnails. Duplicates are filtered out by id.
+    setExtraThumbs((prev) => [...prev, ...newEntries]);
     setIsLoading(false);
   }, [bookingId, addImageMeta]);
+
+  // Merged view. Optimistic extras accumulate until unmount (revoked via
+  // urlsRef cleanup) — the useMemo filter keeps duplicates out of the render
+  // once store-driven thumbnails cover them.
+  const mergedThumbnails = useMemo(() => {
+    if (extraThumbs.length === 0) return thumbnails;
+    const ids = new Set(thumbnails.map((t) => t.id));
+    return [...thumbnails, ...extraThumbs.filter((t) => !ids.has(t.id))];
+  }, [thumbnails, extraThumbs]);
+
+  // Revoke any optimistic object URLs on unmount.
+  useEffect(() => {
+    return () => {
+      urlsRef.current.forEach((u) => URL.revokeObjectURL(u));
+      urlsRef.current = [];
+    };
+  }, []);
 
   const removeImage = useCallback(async (id: string) => {
     removeImageMeta(id);
     await deleteImageBlob(id);
-    setThumbnails((prev) => {
+    setExtraThumbs((prev) => {
       const entry = prev.find((t) => t.id === id);
       if (entry) URL.revokeObjectURL(entry.url);
       return prev.filter((t) => t.id !== id);
     });
   }, [removeImageMeta]);
 
-  const getOriginalUrl = useCallback(async (id: string): Promise<string | null> => {
-    // Try local first
-    let blob = await getOriginal(id);
-
-    // Fall back to cloud
-    if (!blob) {
-      const meta = images.find((img) => img.id === id);
-      if (meta?.sync_status === 'synced' && meta.remote_path) {
-        try {
-          const data = await downloadBookingImage(meta);
-          if (data) blob = data;
-        } catch (e) {
-          console.error(`[useBookingImages] Failed to download original ${id}:`, e);
-        }
-      }
-    }
-
-    if (!blob) return null;
-    return URL.createObjectURL(blob);
-  }, [images]);
-
-  return { thumbnails, isLoading, addImages, removeImage, getOriginalUrl };
+  return { thumbnails: mergedThumbnails, isLoading, addImages, removeImage, getOriginalUrl };
 }

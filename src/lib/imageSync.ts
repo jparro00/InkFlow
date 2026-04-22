@@ -2,6 +2,7 @@ import { supabase } from './supabase';
 import { getOriginal } from './imageDb';
 import { isR2Enabled, uploadToR2 } from './r2';
 import { useImageStore } from '../stores/imageStore';
+import type { BookingImage } from '../types';
 
 interface SyncQueueItem {
   imageId: string;
@@ -92,3 +93,31 @@ class ImageSyncQueue {
 }
 
 export const imageSyncQueue = new ImageSyncQueue();
+
+// Re-enqueue any image whose blob still lives in IndexedDB but hasn't reached
+// the cloud (status 'local' / 'uploading' / 'error'). Fixes the case where the
+// browser was closed mid-upload: on next app load we finish the upload from
+// whichever device still holds the blob.
+//
+// Rows whose blob isn't present locally are skipped silently — we can't
+// re-upload what we don't have.
+export async function resumePendingImageUploads(): Promise<void> {
+  const images = useImageStore.getState().images;
+  const candidates = images.filter(
+    (img: BookingImage) =>
+      img.sync_status === 'local' ||
+      img.sync_status === 'uploading' ||
+      img.sync_status === 'error'
+  );
+
+  for (const img of candidates) {
+    const blob = await getOriginal(img.id);
+    if (!blob) continue;
+    imageSyncQueue.enqueue({
+      imageId: img.id,
+      bookingId: img.booking_id,
+      filename: img.filename,
+      mimeType: img.mime_type || 'image/jpeg',
+    });
+  }
+}
