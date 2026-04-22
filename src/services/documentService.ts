@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase';
-import { fetchR2Blob, isR2Enabled, uploadToR2 } from '../lib/r2';
-import type { Document, StorageBackend } from '../types';
+import { fetchR2Blob, uploadToR2 } from '../lib/r2';
+import type { Document } from '../types';
 import type { Database } from '../types/database';
 
 type DocRow = Database['public']['Tables']['documents']['Row'];
@@ -58,29 +58,13 @@ export async function uploadDocument(
   const isImage = file.type.startsWith('image/');
   const docType: Document['type'] = isImage ? 'image' : 'other';
 
-  // Upload to Supabase Storage (primary during shadow-write era).
-  const { error: uploadError } = await supabase.storage
-    .from('documents')
-    .upload(storagePath, file, {
-      contentType: file.type,
-      upsert: false,
-    });
-  if (uploadError) throw uploadError;
-
-  // Shadow-write to R2. If it fails, row stays 'supabase' and reads go
-  // through Supabase — same safety net as booking-images in Phase 2.
-  let storageBackend: StorageBackend = 'supabase';
-  if (isR2Enabled()) {
-    const r2Ok = await uploadToR2(
-      `documents/${storagePath}`,
-      file,
-      file.type || 'application/octet-stream',
-    ).catch((e) => {
-      console.error('[documentService] R2 shadow-write threw:', e);
-      return false;
-    });
-    if (r2Ok) storageBackend = 'r2';
-  }
+  // R2 is the only backend. Throws on failure so we never insert a metadata
+  // row that points at a blob that doesn't exist.
+  await uploadToR2(
+    `documents/${storagePath}`,
+    file,
+    file.type || 'application/octet-stream',
+  );
 
   const { data, error } = await supabase
     .from('documents')
@@ -94,7 +78,7 @@ export async function uploadDocument(
       is_sensitive: false,
       mime_type: file.type || null,
       size_bytes: file.size,
-      storage_backend: storageBackend,
+      storage_backend: 'r2',
     })
     .select()
     .single();
@@ -104,10 +88,8 @@ export async function uploadDocument(
 }
 
 export async function deleteDocument(doc: Document): Promise<void> {
-  // Supabase Storage blob. R2 blobs stay for ~30 days as a rollback safety
-  // net per docs/r2-migration-plan.md — no R2 delete endpoint yet.
-  await supabase.storage.from('documents').remove([doc.storage_path]);
-
+  // R2 blobs are kept (no delete endpoint on the Worker) — rely on bucket
+  // lifecycle policies for eventual cleanup. Only the metadata row is removed.
   const { error } = await supabase
     .from('documents')
     .delete()
@@ -116,26 +98,13 @@ export async function deleteDocument(doc: Document): Promise<void> {
   if (error) throw error;
 }
 
-// Resolve a Document to a URL usable by window.open / <a href>. R2-backed
-// rows fetch the blob via the Worker (bearer auth) and return an Object URL;
-// Supabase-backed rows use a 1-hour signed URL. The Object URL is live for
-// the lifetime of the current page — callers don't need to revoke it since
-// window.open / anchor navigation hands ownership to the target context.
+// Resolve a Document to a URL for window.open / <a href>. Reads the blob from
+// R2 via the Worker (bearer auth) and returns an Object URL. The Object URL
+// is live for the lifetime of the current page — callers don't need to
+// revoke it since window.open / anchor navigation hands ownership to the
+// target context.
 export async function getSignedUrl(doc: Document): Promise<string> {
-  if (doc.storage_backend === 'r2') {
-    try {
-      const blob = await fetchR2Blob(`documents/${doc.storage_path}`);
-      if (blob) return URL.createObjectURL(blob);
-    } catch (e) {
-      console.error('[documentService] R2 read failed, falling back:', e);
-    }
-    // Fall through to Supabase if R2 read fails — shadow-write era safety net.
-  }
-
-  const { data, error } = await supabase.storage
-    .from('documents')
-    .createSignedUrl(doc.storage_path, 3600);
-
-  if (error) throw error;
-  return data.signedUrl;
+  const blob = await fetchR2Blob(`documents/${doc.storage_path}`);
+  if (!blob) throw new Error(`document blob not found: ${doc.storage_path}`);
+  return URL.createObjectURL(blob);
 }

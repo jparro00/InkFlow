@@ -3,23 +3,13 @@ import { useImageStore } from '../stores/imageStore';
 import { saveImage, getThumbnail, getOriginal, deleteImage as deleteImageBlob } from '../lib/imageDb';
 import { generateThumbnail } from '../utils/imageProcessing';
 import { imageSyncQueue } from '../lib/imageSync';
-import { supabase } from '../lib/supabase';
 import { fetchR2Blob } from '../lib/r2';
 import type { BookingImage } from '../types';
 
-// Download a cloud-backed blob for a booking image. R2-backed rows go through
-// the CF Worker; 'supabase' rows fall back to Supabase Storage.
+// Download a cloud-backed blob for a booking image. R2 is the only backend.
 async function downloadBookingImage(meta: BookingImage): Promise<Blob | null> {
   if (!meta.remote_path) return null;
-  if (meta.storage_backend === 'r2') {
-    const blob = await fetchR2Blob(`booking-images/${meta.remote_path}`);
-    if (blob) return blob;
-    // Fall through to Supabase if R2 read fails — shadow-write era safety net.
-  }
-  const { data } = await supabase.storage
-    .from('booking-images')
-    .download(meta.remote_path);
-  return data ?? null;
+  return fetchR2Blob(`booking-images/${meta.remote_path}`);
 }
 
 export interface ThumbnailEntry {

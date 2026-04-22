@@ -8,7 +8,7 @@ import { useBookingStore } from './stores/bookingStore';
 import { useImageStore } from './stores/imageStore';
 import { useDocumentStore } from './stores/documentStore';
 import { useMessageStore } from './stores/messageStore';
-import { resumePendingImageUploads, reconcileR2Backend } from './lib/imageSync';
+import { resumePendingImageUploads } from './lib/imageSync';
 
 // Lazy-load heavy routes — only login loads eagerly
 const AppShell = lazy(() => import('./components/layout/AppShell'));
@@ -52,13 +52,9 @@ function DataLoader({ children }: { children: React.ReactNode }) {
     if (!session) return;
     fetchClients();
     fetchBookings();
-    // Re-enqueue uploads that were interrupted by a previous app close, then
-    // try to backfill R2 for images that uploaded to Supabase but failed
-    // R2 shadow-write (common on PWA / flaky mobile). Both run in background.
-    fetchImages().then(() => {
-      resumePendingImageUploads();
-      reconcileR2Backend();
-    });
+    // Re-enqueue uploads that were interrupted by a previous app close once
+    // fetchImages resolves and the store reflects the latest remote status.
+    fetchImages().then(() => resumePendingImageUploads());
     fetchDocuments();
     fetchConversations();
     startRealtime();

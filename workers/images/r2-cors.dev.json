@@ -1,0 +1,17 @@
+{
+  "rules": [
+    {
+      "allowed": {
+        "origins": [
+          "http://localhost:5173",
+          "http://localhost:4173",
+          "https://inkbloop-dev.vercel.app"
+        ],
+        "methods": ["GET", "PUT", "HEAD"],
+        "headers": ["*"]
+      },
+      "exposeHeaders": ["ETag"],
+      "maxAgeSeconds": 86400
+    }
+  ]
+}

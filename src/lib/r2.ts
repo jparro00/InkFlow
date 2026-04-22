@@ -40,14 +40,14 @@ export async function fetchR2Blob(key: string): Promise<Blob | null> {
   return resp.blob();
 }
 
-// Presigned-PUT upload flow. Returns true on success, false on any failure
-// (caller decides whether to treat failure as fatal).
+// Presigned-PUT upload flow. Throws on any failure so callers treat the row
+// as unsaved (no orphan metadata in the DB pointing at a missing blob).
 export async function uploadToR2(
   key: string,
   blob: Blob,
   contentType: string,
-): Promise<boolean> {
-  if (!isR2Enabled()) return false;
+): Promise<void> {
+  if (!isR2Enabled()) throw new Error("R2 not configured (VITE_R2_IMAGES_URL missing)");
 
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) throw new Error("Not authenticated");
@@ -71,8 +71,8 @@ export async function uploadToR2(
   );
 
   if (!mintResp.ok) {
-    console.error("[r2] mint failed", mintResp.status, await mintResp.text());
-    return false;
+    const text = await mintResp.text();
+    throw new Error(`r2 presign ${mintResp.status}: ${text}`);
   }
 
   const { url, headers } = (await mintResp.json()) as {
@@ -88,8 +88,7 @@ export async function uploadToR2(
   });
 
   if (!putResp.ok) {
-    console.error("[r2] PUT failed", putResp.status, await putResp.text());
-    return false;
+    const text = await putResp.text().catch(() => "");
+    throw new Error(`r2 PUT ${putResp.status}: ${text}`);
   }
-  return true;
 }
