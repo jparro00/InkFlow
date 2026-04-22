@@ -16,26 +16,60 @@ const CACHE_CONTROL: Record<string, string> = {
   "documents": "private, max-age=3600",
 };
 
-function errorResponse(status: number, message: string): Response {
+// Origins allowed to fetch from the Worker. Requests send an Authorization
+// header so the browser triggers a preflight OPTIONS — we must echo the
+// origin back (not `*`) and advertise `authorization` in Allow-Headers.
+const ALLOWED_ORIGINS = new Set([
+  "http://localhost:5173",
+  "http://localhost:4173",
+  "https://inkbloop-dev.vercel.app",
+  "https://inkbloop.com",
+  "https://www.inkbloop.com",
+]);
+
+function corsHeaders(origin: string | null): Record<string, string> {
+  const allowOrigin = origin && ALLOWED_ORIGINS.has(origin) ? origin : "";
+  return {
+    "Access-Control-Allow-Origin": allowOrigin,
+    "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+    "Access-Control-Allow-Headers": "authorization",
+    "Access-Control-Max-Age": "86400",
+    Vary: "Origin",
+  };
+}
+
+function errorResponse(
+  status: number,
+  message: string,
+  origin: string | null,
+): Response {
   return new Response(JSON.stringify({ error: message }), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...corsHeaders(origin),
+    },
   });
 }
 
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
+    const origin = req.headers.get("Origin");
+
+    if (req.method === "OPTIONS") {
+      return new Response(null, { status: 204, headers: corsHeaders(origin) });
+    }
+
     if (req.method !== "GET" && req.method !== "HEAD") {
-      return errorResponse(405, "method not allowed");
+      return errorResponse(405, "method not allowed", origin);
     }
 
     const url = new URL(req.url);
-    // Strip leading slash. Keep everything after as the R2 key.
     const key = url.pathname.replace(/^\/+/, "");
-    if (!key) return errorResponse(404, "missing key");
+    if (!key) return errorResponse(404, "missing key", origin);
 
     const token = extractJwt(req, env.COOKIE_NAME);
-    if (!token) return errorResponse(401, "missing credentials");
+    if (!token) return errorResponse(401, "missing credentials", origin);
 
     let userId: string;
     try {
@@ -47,25 +81,25 @@ export default {
       userId = payload.sub;
     } catch (err) {
       if (err instanceof AuthError) {
-        return errorResponse(err.status, err.message);
+        return errorResponse(err.status, err.message, origin);
       }
-      return errorResponse(500, "auth verification failed");
+      return errorResponse(500, "auth verification failed", origin);
     }
 
     try {
       authorizeKey(key, userId);
     } catch (err) {
       if (err instanceof AuthError) {
-        return errorResponse(err.status, err.message);
+        return errorResponse(err.status, err.message, origin);
       }
       throw err;
     }
 
     const object = await env.IMAGES_BUCKET.get(key);
-    if (!object) return errorResponse(404, "not found");
+    if (!object) return errorResponse(404, "not found", origin);
 
     const prefix = key.split("/")[0];
-    const headers = new Headers();
+    const headers = new Headers(corsHeaders(origin));
     object.writeHttpMetadata(headers);
     headers.set("ETag", object.httpEtag);
     headers.set(
