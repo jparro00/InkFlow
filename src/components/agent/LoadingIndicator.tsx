@@ -117,7 +117,7 @@ export default function LoadingIndicator({ onStop }: LoadingIndicatorProps) {
             aria-hidden="true"
           >
             <motion.path
-              fill="#DE0000"
+              style={{ fill: 'var(--color-accent)' }}
               d={SHAPES[0]}
               animate={{ d: SHAPES[idx] }}
               transition={{ duration: MORPH_INTERVAL_MS / 1000, ease: 'easeInOut' }}

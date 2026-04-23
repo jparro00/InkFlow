@@ -10,22 +10,29 @@ import { useUIStore } from './uiStore';
 interface DocumentStore {
   documents: Document[];
   isLoading: boolean;
-  fetchDocuments: () => Promise<void>;
+  _fetchedAt: number | null;
+  fetchDocuments: (force?: boolean) => Promise<void>;
   getDocumentsForClient: (clientId: string) => Document[];
   getDocumentsForBooking: (bookingId: string) => Document[];
   uploadDocument: (file: File, clientId: string, bookingId?: string, forceType?: Document['type']) => Promise<Document>;
   removeDocument: (doc: Document) => Promise<void>;
 }
 
+const FETCH_TTL = 60_000;
+
 export const useDocumentStore = create<DocumentStore>()(persist((set, get) => ({
   documents: [],
   isLoading: false,
+  _fetchedAt: null,
 
-  fetchDocuments: async () => {
+  fetchDocuments: async (force = false) => {
+    const fetchedAt = get()._fetchedAt;
+    if (!force && fetchedAt && Date.now() - fetchedAt < FETCH_TTL) return;
+
     if (get().documents.length === 0) set({ isLoading: true });
     try {
       const documents = await documentService.fetchDocuments();
-      set({ documents, isLoading: false });
+      set({ documents, isLoading: false, _fetchedAt: Date.now() });
     } catch {
       set({ isLoading: false });
     }
@@ -89,5 +96,5 @@ export const useDocumentStore = create<DocumentStore>()(persist((set, get) => ({
   },
 }), {
   name: 'inkbloop-documents',
-  partialize: (state) => ({ documents: state.documents }),
+  partialize: (state) => ({ documents: state.documents, _fetchedAt: state._fetchedAt }),
 }));

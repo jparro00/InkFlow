@@ -19,7 +19,7 @@ Numbered and append-only. Never edit or delete a migration once committed — cr
 | 00007 | `simulator_tables` | `sim_profiles`, `sim_conversations`, `sim_messages`, `sim_config`; Realtime enabled; no RLS. |
 | 00008 | `replica_identity_full` | `REPLICA IDENTITY FULL` on `messages` + `participant_profiles` for Realtime filters. |
 | 00009 | `client_psid` | Adds `psid` column to `clients`. |
-| 00010 | `device_trust` | `device_trusts` + `verification_codes` for risk-based MFA. |
+| 00010 | `device_trust` | `device_trusts` + `verification_codes` tables (feature removed 2026-04-23; tables kept, zero rows). |
 | 00011 | `rls_perf_and_indexes` | Wraps `auth.uid()` in `select` (caches per query); adds FK indexes on `verification_codes`, `documents.booking_id`. |
 | 00012 | `client_profile_pic` | Adds `profile_pic` column to `clients`. |
 | 00013 | `agent_feedback` | Thumbs-up/down + full trace JSONB. |
@@ -54,8 +54,7 @@ Numbered and append-only. Never edit or delete a migration once committed — cr
 ### Auth / settings
 
 - `user_settings` — `user_id`, `anthropic_key` (AES-GCM ciphertext), `has_api_key`, `created_at`, `updated_at`.
-- `device_trusts` — `id`, `user_id`, `device_id`, `device_name`, `created_at`, `last_used`.
-- `verification_codes` — `id`, `user_id`, `code`, `expires_at`, `used`, `created_at`.
+- `device_trusts`, `verification_codes` — legacy risk-based-MFA tables. Feature ripped out 2026-04-23 (edge functions deleted); tables left in place with zero rows.
 
 ## RLS patterns
 
@@ -65,7 +64,7 @@ Numbered and append-only. Never edit or delete a migration once committed — cr
 - **Storage `booking-images`, `documents`**: users `SELECT/INSERT/DELETE` within their own `{user_id}/...` folder only.
 - **Service-role carveouts**: `webhook`, `sim-api`, `graph-api` use the service key. None of them trust client-side input — they validate via HMAC (webhook) or `sim_config.access_token` (graph-api).
 
-## Edge functions (10 total)
+## Edge functions (9 total)
 
 | Name | Purpose | Auth | Key env vars |
 |------|---------|------|--------------|
@@ -73,11 +72,10 @@ Numbered and append-only. Never edit or delete a migration once committed — cr
 | `agent-resolve-edit` | Resolve "change last name to have two t's" into a field diff. | Bearer | `API_KEY_SECRET` |
 | `graph-api` | Dev Meta Graph API mock; prod passthrough. Reads/writes `sim_*`. | Access token | `SUPABASE_SERVICE_ROLE_KEY` |
 | `parse-booking` | Quick-booking text → structured booking fields (Claude Haiku). | Bearer | `API_KEY_SECRET` |
+| `r2-upload-url` | Mint presigned PUT URLs for R2 image uploads. | Bearer | `R2_*` |
 | `save-api-key` | AES-GCM encrypt user's Anthropic key → `user_settings`. | Bearer | `API_KEY_SECRET` |
-| `send-verification` | 6-digit code → `verification_codes` → email via Resend. | Bearer | `RESEND_API_KEY` |
 | `sim-api` | Simulator backend: conversations, profiles, config, send, contacts, avatar upload. | None (dev tool) | `SUPABASE_SERVICE_ROLE_KEY` |
 | `transcribe-audio` | Audio blob → Groq Whisper → text. | Bearer | `GROQ_API_KEY` |
-| `verify-code` | Validate code, upsert `device_trusts`. | Bearer | — |
 | `webhook` | Meta webhook handler. Upserts `messages` + `participant_profiles`. | HMAC-SHA256 | `APP_SECRET`, `WEBHOOK_VERIFY_TOKEN`, `OWNER_USER_ID`, `SUPABASE_SERVICE_ROLE_KEY` |
 
 **All edge functions deploy with `--no-verify-jwt`.** See [deployment.md](./deployment.md#deploy-an-edge-function) for the reason.
@@ -110,7 +108,7 @@ Client subscription pattern: `supabase.channel('user-{user_id}').on('broadcast',
 1. **Migration history drift** (dev). If `supabase_migrations.schema_migrations` is empty but migrations already exist in the DB, `db push` tries to re-run them. Repair with `supabase migration repair --linked --status applied 00001 ...`. See [deployment.md](./deployment.md#known-caveats).
 2. **`--no-verify-jwt` resets on every deploy** — the CLI flag must be passed each time. Dashboard toggle doesn't persist either.
 3. **HMAC verification on webhook** is mandatory in every environment. Simulator signs outgoing webhooks with the same `APP_SECRET`; mismatch returns 401 silently. Debug by comparing raw body bytes + secret.
-4. **Idempotency**: `messages` upsert by `mid`; `participant_profiles` upsert by `(user_id, psid)`; `device_trusts` upsert by `(user_id, device_id)`. Safe to retry.
+4. **Idempotency**: `messages` upsert by `mid`; `participant_profiles` upsert by `(user_id, psid)`. Safe to retry.
 5. **MCP is prod-only**. Every `mcp__supabase__*` tool call hits prod. For dev, use the CLI with `--project-ref <dev-ref>`.
 6. **Avatar paths vs legacy base64**. Post-migration 00015, new rows store short paths; pre-migration rows still contain `data:` URLs. The app resolver handles both (passes `data:` through unchanged). Until a one-off cleanup runs, expect mixed content in `participant_profiles.profile_pic` / `sim_profiles.profile_pic`.
 7. **Message pruning in webhook** means older messages must be fetched on demand from Meta via `graph-api` (using `conversation_map`). Plan UI flows around "last 20 available instantly; older paginated".

@@ -29,6 +29,15 @@
       }
     </style>
     <script>
+      // Apply saved theme before first paint to avoid a palette flash.
+      (function () {
+        try {
+          var t = localStorage.getItem('inkbloop-theme');
+          if (t && t !== 'crimson') document.documentElement.dataset.theme = t;
+        } catch (e) { /* ignore */ }
+      })();
+    </script>
+    <script>
       (function () {
         var t = '%VITE_CF_ANALYTICS_TOKEN%';
         if (!t || t.charAt(0) === '%') return;

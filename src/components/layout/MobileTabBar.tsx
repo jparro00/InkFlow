@@ -33,14 +33,14 @@ export default function MobileTabBar() {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 lg:hidden safe-bottom">
       <div className="bg-surface/80 backdrop-blur-xl border-t border-border/60">
-        <div className="flex items-start justify-around h-[100px]">
+        <div className="flex justify-around h-[100px]">
           {tabs.map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}
               to={to}
               onClick={() => handleTabClick(to)}
               className={({ isActive }) =>
-                `relative flex flex-col items-center flex-1 pt-3 transition-all duration-200 press-scale ${
+                `relative flex flex-col items-center justify-start flex-1 h-full pt-3 transition-all duration-200 press-scale ${
                   isActive
                     ? 'text-accent'
                     : 'text-text-t active:text-text-s'

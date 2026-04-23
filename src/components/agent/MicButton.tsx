@@ -59,13 +59,13 @@ export default function MicButton({
     return (
       <button
         onClick={onStopManual}
-        className={`${base} relative bg-red-500 text-white`}
+        className={`${base} relative bg-accent text-bg`}
         title="Tap to stop"
         aria-label="Stop recording"
       >
         {/* Expanding glow ring driven by audio level */}
         <span
-          className="absolute inset-0 rounded-xl bg-red-500/60 animate-pulse pointer-events-none"
+          className="absolute inset-0 rounded-xl bg-accent/60 animate-pulse pointer-events-none"
           style={{
             transform: `scale(${glowScale})`,
             transition: 'transform 100ms ease-out',

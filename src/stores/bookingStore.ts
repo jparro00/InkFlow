@@ -7,7 +7,8 @@ interface BookingStore {
   bookings: Booking[];
   isLoading: boolean;
   error: string | null;
-  fetchBookings: () => Promise<void>;
+  _fetchedAt: number | null;
+  fetchBookings: (force?: boolean) => Promise<void>;
   getBooking: (id: string) => Booking | undefined;
   getBookingsForClient: (clientId: string) => Booking[];
   getBookingsForDate: (date: Date) => Booking[];
@@ -18,17 +19,23 @@ interface BookingStore {
   searchBookings: (query: string, clients: { id: string; name: string }[]) => Booking[];
 }
 
+const FETCH_TTL = 60_000;
+
 export const useBookingStore = create<BookingStore>()(persist((set, get) => ({
   bookings: [],
   isLoading: false,
   error: null,
+  _fetchedAt: null,
 
-  fetchBookings: async () => {
+  fetchBookings: async (force = false) => {
+    const fetchedAt = get()._fetchedAt;
+    if (!force && fetchedAt && Date.now() - fetchedAt < FETCH_TTL) return;
+
     if (get().bookings.length === 0) set({ isLoading: true });
     set({ error: null });
     try {
       const bookings = await bookingService.fetchBookings();
-      set({ bookings, isLoading: false });
+      set({ bookings, isLoading: false, _fetchedAt: Date.now() });
     } catch (e) {
       set({ error: (e as Error).message, isLoading: false });
     }
@@ -117,5 +124,5 @@ export const useBookingStore = create<BookingStore>()(persist((set, get) => ({
   },
 }), {
   name: 'inkbloop-bookings',
-  partialize: (state) => ({ bookings: state.bookings }),
+  partialize: (state) => ({ bookings: state.bookings, _fetchedAt: state._fetchedAt }),
 }));

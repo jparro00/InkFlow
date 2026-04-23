@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { THEMES, getTheme, applyTheme, type ThemeId } from '../lib/theme';
 
 // --- Color helpers ---
 function hexToRgb(hex: string) {
@@ -135,6 +136,7 @@ const defaults = {
   Consultation: '#FE84FF',
   'Full Day': '#FF00AC',
   'Cover Up': '#1E90FF',
+  Personal: '#10D897',
 };
 
 type ColorKey = keyof typeof defaults;
@@ -156,6 +158,7 @@ const cssMap: Record<ColorKey, string> = {
   Consultation: '--color-type-consult',
   'Full Day': '--color-type-fullday',
   'Cover Up': '--color-type-coverup',
+  Personal: '--color-type-personal',
 };
 
 /** Read the live CSS variable value for each color, falling back to defaults. */
@@ -182,6 +185,25 @@ function readLiveColors(): Record<ColorKey, string> {
 export default function ThemePage() {
   const [colors, setColors] = useState(readLiveColors);
   const [selected, setSelected] = useState<ColorKey | null>(null);
+  const [activeTheme, setActiveTheme] = useState<ThemeId>(() => getTheme());
+
+  const clearInlineOverrides = useCallback(() => {
+    Object.values(cssMap).forEach((p) => {
+      if (p) document.documentElement.style.removeProperty(p);
+    });
+    ['--color-accent-glow', '--accent-rgb', '--shadow-glow', '--shadow-glow-strong'].forEach((p) =>
+      document.documentElement.style.removeProperty(p),
+    );
+  }, []);
+
+  const handleThemeChange = useCallback((id: ThemeId) => {
+    clearInlineOverrides();
+    applyTheme(id);
+    setActiveTheme(id);
+    setSelected(null);
+    // CSS-var updates are synchronous — reading getComputedStyle now reflects the new theme
+    setColors(readLiveColors());
+  }, [clearInlineOverrides]);
 
   const update = useCallback((key: ColorKey, value: string) => {
     setColors((prev) => ({ ...prev, [key]: value }));
@@ -199,16 +221,10 @@ export default function ThemePage() {
   }, []);
 
   const reset = useCallback(() => {
-    setColors(defaults);
     setSelected(null);
-    // Remove all inline CSS overrides so @theme defaults take over
-    Object.values(cssMap).forEach((p) => {
-      if (p) document.documentElement.style.removeProperty(p);
-    });
-    ['--color-accent-glow', '--accent-rgb', '--shadow-glow', '--shadow-glow-strong'].forEach((p) =>
-      document.documentElement.style.removeProperty(p),
-    );
-  }, []);
+    clearInlineOverrides();
+    setColors(readLiveColors());
+  }, [clearInlineOverrides]);
 
   const accentRgb = hexToRgb(colors.accent);
 
@@ -255,6 +271,34 @@ export default function ThemePage() {
           </button>
         </div>
 
+        {/* Theme picker */}
+        <section className="mb-10">
+          <div className="text-xs text-accent uppercase tracking-wider font-medium mb-4">Theme</div>
+          <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+            {THEMES.map((t) => {
+              const selectedTheme = activeTheme === t.id;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => handleThemeChange(t.id)}
+                  className={`flex flex-col items-center gap-2 py-2 rounded-md cursor-pointer press-scale transition-all ${selectedTheme ? 'ring-2 ring-accent' : ''}`}
+                  aria-pressed={selectedTheme}
+                  aria-label={`Apply ${t.name} theme`}
+                >
+                  <span
+                    className="w-10 h-10 rounded-full border border-border/60 flex items-center justify-center"
+                    style={{ background: t.bg }}
+                  >
+                    <span className="w-5 h-5 rounded-full" style={{ background: t.accent }} />
+                  </span>
+                  <span className={`text-xs ${selectedTheme ? 'text-text-p' : 'text-text-t'}`}>{t.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
         {/* Fonts */}
         <section className="mb-10">
           <div className="text-xs text-accent uppercase tracking-wider font-medium mb-4">Fonts</div>
@@ -289,7 +333,7 @@ export default function ThemePage() {
           </div>
 
           <div className="text-xs text-text-t mb-2">Booking types</div>
-          {renderSwatchGroup(['Regular', 'Touch Up', 'Consultation', 'Full Day', 'Cover Up'])}
+          {renderSwatchGroup(['Regular', 'Touch Up', 'Consultation', 'Full Day', 'Cover Up', 'Personal'])}
         </section>
 
         {/* Components */}
@@ -349,7 +393,7 @@ export default function ThemePage() {
           <div className="mb-5">
             <div className="text-xs text-text-t mb-2">Booking cards</div>
             <div className="space-y-2">
-              {(['Regular', 'Touch Up', 'Consultation', 'Full Day', 'Cover Up'] as const).map((type) => (
+              {(['Regular', 'Touch Up', 'Consultation', 'Full Day', 'Cover Up', 'Personal'] as const).map((type) => (
                 <div
                   key={type}
                   className="p-3 rounded-lg border border-border/30 flex items-center gap-3"
@@ -357,7 +401,7 @@ export default function ThemePage() {
                 >
                   <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: colors[type] }} />
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm text-text-p font-medium">{type === 'Regular' ? 'Sarah Mitchell' : type === 'Touch Up' ? 'Jake Donovan' : type === 'Consultation' ? 'Alyssa Chen' : type === 'Full Day' ? 'Tyler Brooks' : 'Morgan Blake'}</div>
+                    <div className="text-sm text-text-p font-medium">{type === 'Regular' ? 'Sarah Mitchell' : type === 'Touch Up' ? 'Jake Donovan' : type === 'Consultation' ? 'Alyssa Chen' : type === 'Full Day' ? 'Tyler Brooks' : type === 'Cover Up' ? 'Morgan Blake' : 'Day Off'}</div>
                     <div className="text-xs text-text-s">{type} &middot; 3h</div>
                   </div>
                 </div>

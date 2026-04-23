@@ -13,7 +13,6 @@ import {
   markConversationRead,
   sendMarkSeen,
   fetchSingleMessage,
-  fetchAllParticipantProfiles,
   fetchParticipantProfile,
 } from '../services/messageService';
 import type { ConversationSummary, GraphMessage } from '../services/messageService';
@@ -164,21 +163,25 @@ export const useMessageStore = create<MessageStore>()(
               }));
             }
           })
-          .on('broadcast', { event: 'profile-updated' }, async () => {
-            // Fetch only profiles (tiny query) instead of the entire messages table
-            const profiles = await fetchAllParticipantProfiles();
-            if (profiles.size === 0) return;
+          .on('broadcast', { event: 'profile-updated' }, async ({ payload }) => {
+            // Webhook broadcasts { psid } for the specific profile that changed,
+            // so fetch just that one row instead of every participant profile.
+            const psid = payload?.psid as string | undefined;
+            if (!psid) return;
+
+            const profile = await fetchParticipantProfile(psid);
+            if (!profile) return;
 
             set((s) => ({
-              conversations: s.conversations.map(c => {
-                const profile = profiles.get(c.participantPsid);
-                if (!profile) return c;
-                return {
-                  ...c,
-                  participantName: profile.name || c.participantName,
-                  profilePic: profile.profilePic || undefined,
-                };
-              }),
+              conversations: s.conversations.map(c =>
+                c.participantPsid === psid
+                  ? {
+                      ...c,
+                      participantName: profile.name || c.participantName,
+                      profilePic: profile.profilePic || undefined,
+                    }
+                  : c
+              ),
             }));
           })
           .subscribe();

@@ -6,7 +6,8 @@ import * as imageService from '../services/imageService';
 interface ImageStore {
   images: BookingImage[];
   isLoading: boolean;
-  fetchImages: () => Promise<void>;
+  _fetchedAt: number | null;
+  fetchImages: (force?: boolean) => Promise<void>;
   getImagesForBooking: (bookingId: string) => BookingImage[];
   addImage: (data: Omit<BookingImage, 'created_at'>) => BookingImage;
   addImageAsync: (data: Omit<BookingImage, 'created_at'>) => Promise<BookingImage>;
@@ -24,15 +25,21 @@ interface ImageStore {
   ) => void;
 }
 
+const FETCH_TTL = 60_000;
+
 export const useImageStore = create<ImageStore>()(persist((set, get) => ({
   images: [],
   isLoading: false,
+  _fetchedAt: null,
 
-  fetchImages: async () => {
+  fetchImages: async (force = false) => {
+    const fetchedAt = get()._fetchedAt;
+    if (!force && fetchedAt && Date.now() - fetchedAt < FETCH_TTL) return;
+
     if (get().images.length === 0) set({ isLoading: true });
     try {
       const images = await imageService.fetchImages();
-      set({ images, isLoading: false });
+      set({ images, isLoading: false, _fetchedAt: Date.now() });
     } catch {
       set({ isLoading: false });
     }
@@ -156,5 +163,5 @@ export const useImageStore = create<ImageStore>()(persist((set, get) => ({
   },
 }), {
   name: 'inkbloop-images',
-  partialize: (state) => ({ images: state.images }),
+  partialize: (state) => ({ images: state.images, _fetchedAt: state._fetchedAt }),
 }));

@@ -7,6 +7,11 @@ const THUMB_QUALITY = 0.7;
 const ATTACH_MAX = 1600;
 const ATTACH_QUALITY = 0.8;
 
+// Client avatar — bucket enforces 256KB cap; 512px JPEG @ 0.85 lands
+// comfortably under ~40KB even on camera-originals.
+const AVATAR_MAX = 512;
+const AVATAR_QUALITY = 0.85;
+
 async function resize(
   file: File,
   maxDim: number,
@@ -48,4 +53,10 @@ export async function compressImage(
   file: File,
 ): Promise<{ blob: Blob; width: number; height: number }> {
   return resize(file, ATTACH_MAX, ATTACH_QUALITY);
+}
+
+export async function compressAvatar(
+  file: File,
+): Promise<{ blob: Blob; width: number; height: number }> {
+  return resize(file, AVATAR_MAX, AVATAR_QUALITY);
 }

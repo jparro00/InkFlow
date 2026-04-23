@@ -1,7 +1,10 @@
 import { supabase } from '../lib/supabase';
 import type { Client, ClientNote, LinkedProfile } from '../types';
 import type { Database, Json } from '../types/database';
-import { resolveAvatarUrls } from './messageService';
+import { resolveAvatarUrls, invalidateAvatarUrlCache } from './messageService';
+import { compressAvatar } from '../utils/imageProcessing';
+
+const AVATAR_SIGNED_URL_TTL_SECONDS = 3600;
 
 type ClientRow = Database['public']['Tables']['clients']['Row'];
 type ClientInsert = Database['public']['Tables']['clients']['Insert'];
@@ -160,6 +163,56 @@ export async function updateClient(
     .eq('id', id);
 
   if (error) throw error;
+}
+
+/** Upload a custom avatar for a client. Resizes to 512px JPEG (≤256KB bucket
+ *  cap), writes to `{user_id}/clients/{client_id}.jpg`, and returns both the
+ *  storage path (persist to clients.profile_pic) and a signed URL for
+ *  immediate display. The storage RLS policy enforces path-scoping via
+ *  (storage.foldername(name))[1] = auth.uid(), so uploads outside the
+ *  caller's folder fail. Uploads use upsert so repeat uploads overwrite. */
+export async function uploadClientAvatar(
+  clientId: string,
+  file: File,
+): Promise<{ path: string; signedUrl: string }> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not signed in');
+
+  const { blob } = await compressAvatar(file);
+  const path = `${user.id}/clients/${clientId}.jpg`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('avatars')
+    .upload(path, blob, {
+      contentType: 'image/jpeg',
+      upsert: true,
+    });
+  if (uploadError) throw uploadError;
+
+  // Previous signed URL (if any) is now stale — drop it so the next resolve
+  // mints a fresh one pointing at the new blob.
+  invalidateAvatarUrlCache(path);
+
+  const { data: signed, error: signError } = await supabase.storage
+    .from('avatars')
+    .createSignedUrl(path, AVATAR_SIGNED_URL_TTL_SECONDS);
+  if (signError || !signed) throw signError ?? new Error('Failed to sign avatar URL');
+
+  return { path, signedUrl: signed.signedUrl };
+}
+
+/** Remove a client's custom avatar from storage. Safe to call even if no
+ *  object exists at the path — `remove` is idempotent and returns an empty
+ *  array in that case. Caller is responsible for clearing clients.profile_pic. */
+export async function deleteClientAvatar(clientId: string): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not signed in');
+
+  const path = `${user.id}/clients/${clientId}.jpg`;
+  const { error } = await supabase.storage.from('avatars').remove([path]);
+  if (error) throw error;
+
+  invalidateAvatarUrlCache(path);
 }
 
 export async function deleteClient(id: string): Promise<void> {
