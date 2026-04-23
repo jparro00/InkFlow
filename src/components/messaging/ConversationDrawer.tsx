@@ -8,6 +8,7 @@ import { useUIStore } from '../../stores/uiStore';
 import { useMessageStore, isBusinessMessage } from '../../stores/messageStore';
 import { useClientStore } from '../../stores/clientStore';
 import type { GraphMessage } from '../../services/messageService';
+import { compressImage } from '../../utils/imageProcessing';
 import CreateClientForm from '../client/CreateClientForm';
 
 function MessageBubble({ msg }: { msg: GraphMessage }) {
@@ -32,6 +33,8 @@ function MessageBubble({ msg }: { msg: GraphMessage }) {
                 key={i}
                 src={att.payload.url}
                 alt="attachment"
+                loading="lazy"
+                decoding="async"
                 className="mt-1 rounded-lg max-w-full max-h-48 object-cover"
               />
             ) : (
@@ -185,10 +188,20 @@ export default function ConversationDrawer() {
     if (!file || !convo) return;
     e.target.value = '';
 
+    // Compress before base64'ing so a 4032×3024 iPhone shot ships as a few
+    // hundred KB instead of 6 MB inline in messages.attachments JSON.
+    let payload: Blob = file;
+    try {
+      const { blob } = await compressImage(file);
+      payload = blob;
+    } catch (err) {
+      console.error('Image compress failed, sending original:', err);
+    }
+
     const dataUrl = await new Promise<string>((resolve) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result as string);
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(payload);
     });
 
     try {
