@@ -85,10 +85,10 @@ html[data-theme="green"] {
   --color-success: #22D3EE;
   --color-today: #E8453C;
 
-  /* Booking types — M2 400-tone, pastel-leaning to match clean green theme */
+  /* Booking types — M2 400-tone; Consultation shifted to yellow so it's not confused with pink Full Day */
   --color-type-regular: #C084FC;
   --color-type-touchup: #FB923C;
-  --color-type-consult: #F9A8D4;
+  --color-type-consult: #FACC15;
   --color-type-fullday: #F472B6;
   --color-type-coverup: #60A5FA;
   --color-type-personal: #2DD4BF;
@@ -172,12 +172,12 @@ html[data-theme="sepia"] {
   --color-success: #84CC16;
   --color-today: #F97316;
 
-  /* Booking types — spread across the wheel with cool pops (cyan/sky/violet) to contrast the warm brown base */
+  /* Booking types — spread across the wheel with cool pops to contrast the warm brown base; Cover Up indigo (not sky) to stay distinct from cyan Touch Up */
   --color-type-regular: #A855F7;
   --color-type-touchup: #22D3EE;
   --color-type-consult: #EC4899;
   --color-type-fullday: #DC2626;
-  --color-type-coverup: #0EA5E9;
+  --color-type-coverup: #6366F1;
   --color-type-personal: #65A30D;
 
   --shadow-glow: 0 0 14px rgba(245, 158, 11, 0.22);
