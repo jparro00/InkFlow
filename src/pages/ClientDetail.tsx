@@ -328,7 +328,6 @@ export default function ClientDetailPage() {
                     for (const file of Array.from(e.target.files)) {
                       await uploadDocument(file, client.id);
                     }
-                    addToast('Photo uploaded');
                   } catch (err) {
                     console.error('Failed to upload photo:', err);
                     addToast('Upload failed');
@@ -463,7 +462,6 @@ export default function ClientDetailPage() {
                     for (const file of Array.from(e.target.files)) {
                       await uploadDocument(file, client.id, undefined, 'other');
                     }
-                    addToast('Document uploaded');
                   } catch (err) {
                     console.error('Failed to upload document:', err);
                     addToast('Upload failed');
