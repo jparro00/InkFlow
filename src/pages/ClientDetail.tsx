@@ -46,6 +46,7 @@ export default function ClientDetailPage() {
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [removingAvatar, setRemovingAvatar] = useState(false);
+  const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
 
   // Tell the shell to hide the FAB while the delete confirm is visible so
   // the bot button doesn't visually cover the "Yes, delete" action.
@@ -190,63 +191,101 @@ export default function ClientDetailPage() {
             || (client.instagram && linkedProfiles[client.instagram]?.profilePic)
             || (client.facebook && linkedProfiles[client.facebook]?.profilePic);
           const busy = uploadingAvatar || removingAvatar;
+          const hasCustom = !!client.profile_pic;
+
+          const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+            const file = e.target.files?.[0];
+            e.target.value = '';
+            setAvatarMenuOpen(false);
+            if (!file) return;
+            setUploadingAvatar(true);
+            try {
+              await uploadAvatar(client.id, file);
+            } catch (err) {
+              console.error('Avatar upload failed', err);
+              addToast('Could not upload photo. Try a smaller image.');
+            } finally {
+              setUploadingAvatar(false);
+            }
+          };
+
           return (
             <div className="relative shrink-0">
-              <label className="relative cursor-pointer press-scale block">
-                {/* File input is label-wrapped so iOS Safari opens the picker
-                    from a native user gesture; programmatic .click() on a
-                    hidden input is unreliable there. */}
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  className="sr-only"
-                  disabled={busy}
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    e.target.value = '';
-                    if (!file) return;
-                    setUploadingAvatar(true);
-                    try {
-                      await uploadAvatar(client.id, file);
-                    } catch (err) {
-                      console.error('Avatar upload failed', err);
-                      addToast('Could not upload photo. Try a smaller image.');
-                    } finally {
-                      setUploadingAvatar(false);
-                    }
-                  }}
-                />
-                {pic ? (
-                  <img src={pic} alt={client.name} className="w-16 h-16 rounded-2xl object-cover" />
-                ) : (
-                  <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center text-accent text-xl font-medium">
-                    {client.name.charAt(0)}
+              {hasCustom ? (
+                <>
+                  <img src={pic!} alt={client.name} className="w-24 h-24 rounded-2xl object-cover" />
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setAvatarMenuOpen((o) => !o)}
+                    className="absolute -bottom-1 -right-1 w-7 h-7 bg-surface border border-border/60 rounded-full flex items-center justify-center text-text-s press-scale z-10"
+                    aria-label="Edit photo"
+                  >
+                    {busy ? <Loader2 size={14} className="animate-spin" /> : <Edit size={14} />}
+                  </button>
+                  {avatarMenuOpen && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-20"
+                        onClick={() => setAvatarMenuOpen(false)}
+                      />
+                      <div className="absolute top-full left-0 mt-2 w-40 bg-surface border border-border/60 rounded-md shadow-lg z-30 overflow-hidden">
+                        <label className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-elevated">
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            className="sr-only"
+                            onChange={handleUpload}
+                          />
+                          <Camera size={14} />
+                          <span>Change photo</span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            setAvatarMenuOpen(false);
+                            setRemovingAvatar(true);
+                            try {
+                              await removeAvatar(client.id);
+                            } catch (err) {
+                              console.error('Avatar remove failed', err);
+                              addToast('Could not remove photo.');
+                            } finally {
+                              setRemovingAvatar(false);
+                            }
+                          }}
+                          className="flex items-center gap-2 px-3 py-2 text-sm w-full text-left hover:bg-elevated text-accent"
+                        >
+                          <Trash2 size={14} />
+                          <span>Remove photo</span>
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </>
+              ) : (
+                <label className="relative cursor-pointer press-scale block">
+                  {/* File input is label-wrapped so iOS Safari opens the picker
+                      from a native user gesture; programmatic .click() on a
+                      hidden input is unreliable there. */}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="sr-only"
+                    disabled={busy}
+                    onChange={handleUpload}
+                  />
+                  {pic ? (
+                    <img src={pic} alt={client.name} className="w-24 h-24 rounded-2xl object-cover" />
+                  ) : (
+                    <div className="w-24 h-24 rounded-2xl bg-accent/10 flex items-center justify-center text-accent text-3xl font-medium">
+                      {client.name.charAt(0)}
+                    </div>
+                  )}
+                  <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-surface border border-border/60 rounded-full flex items-center justify-center text-text-s">
+                    {uploadingAvatar ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
                   </div>
-                )}
-                <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-surface border border-border/60 rounded-full flex items-center justify-center text-text-s">
-                  {uploadingAvatar ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
-                </div>
-              </label>
-              {client.profile_pic && !uploadingAvatar && (
-                <button
-                  type="button"
-                  disabled={removingAvatar}
-                  onClick={async () => {
-                    setRemovingAvatar(true);
-                    try {
-                      await removeAvatar(client.id);
-                    } catch (err) {
-                      console.error('Avatar remove failed', err);
-                      addToast('Could not remove photo.');
-                    } finally {
-                      setRemovingAvatar(false);
-                    }
-                  }}
-                  className="absolute -top-1 -right-1 w-7 h-7 bg-surface border border-border/60 rounded-full flex items-center justify-center text-text-s press-scale z-10"
-                  aria-label="Remove photo"
-                >
-                  {removingAvatar ? <Loader2 size={14} className="animate-spin" /> : <X size={14} />}
-                </button>
+                </label>
               )}
             </div>
           );
