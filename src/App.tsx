@@ -1,6 +1,5 @@
 import { useEffect, lazy, Suspense } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
-import LoginPage from './pages/Login';
 import { useUIStore } from './stores/uiStore';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { useClientStore } from './stores/clientStore';
@@ -10,7 +9,8 @@ import { useDocumentStore } from './stores/documentStore';
 import { useMessageStore } from './stores/messageStore';
 import { resumePendingImageUploads } from './lib/imageSync';
 
-// Lazy-load heavy routes — only login loads eagerly
+// Lazy-load every route — keeps the main bundle minimal
+const LoginPage = lazy(() => import('./pages/Login'));
 const AppShell = lazy(() => import('./components/layout/AppShell'));
 const CalendarPage = lazy(() => import('./pages/Calendar'));
 const ClientsPage = lazy(() => import('./pages/Clients'));

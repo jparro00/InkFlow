@@ -1,53 +1,80 @@
-// Ink Bloop Service Worker — cache-first for app shell, network-first for API
-const CACHE_NAME = 'inkbloop-v2';
+// Ink Bloop Service Worker — DEV copy.
+// Production builds overwrite this file in dist/ via the writeServiceWorker
+// plugin in vite.config.ts, which injects a hashed CACHE_NAME and a list of
+// precache URLs derived from the Vite manifest.
+const CACHE_NAME = 'inkbloop-dev';
+const PRECACHE_URLS = [];
 
-// Cache the app shell on install
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) =>
-      cache.addAll([
-        '/',
-        '/index.html',
-      ])
+      Promise.all(
+        PRECACHE_URLS.map((url) =>
+          fetch(url, { cache: 'reload' })
+            .then((res) => (res.ok ? cache.put(url, res) : null))
+            .catch(() => null)
+        )
+      )
     )
   );
 });
 
-// Clean up old caches on activate
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((key) => key !== CACHE_NAME)
-          .map((key) => caches.delete(key))
+    caches.keys()
+      .then((keys) =>
+        Promise.all(
+          keys
+            .filter((key) => key !== CACHE_NAME)
+            .map((key) => caches.delete(key))
+        )
       )
-    ).then(() => self.clients.claim())
+      .then(() => self.clients.claim())
   );
 });
 
 self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
+  const { request } = event;
+  if (request.method !== 'GET') return;
 
-  // Skip non-GET requests
-  if (event.request.method !== 'GET') return;
+  const url = new URL(request.url);
 
-  // Network-first for Supabase API calls
   if (url.hostname.includes('supabase')) return;
 
-  // Cache-first for static assets (JS, CSS, images, fonts)
+  // SPA navigation: serve cached shell instantly, revalidate in background.
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      caches.open(CACHE_NAME).then((cache) =>
+        cache.match('/index.html').then((cached) => {
+          const networkFetch = fetch(request)
+            .then((response) => {
+              if (response && response.ok) {
+                cache.put('/index.html', response.clone());
+              }
+              return response;
+            })
+            .catch(() => cached);
+          return cached || networkFetch;
+        })
+      )
+    );
+    return;
+  }
+
+  // Cache-first for content-hashed static assets.
   if (
-    url.pathname.match(/\.(js|css|png|jpg|jpeg|svg|webp|woff2?|ttf|ico)$/) ||
-    url.pathname.startsWith('/assets/')
+    url.origin === self.location.origin &&
+    (url.pathname.startsWith('/assets/') ||
+      url.pathname.match(/\.(js|css|png|jpg|jpeg|svg|webp|woff2?|ttf|ico)$/))
   ) {
     event.respondWith(
-      caches.match(event.request).then((cached) => {
+      caches.match(request).then((cached) => {
         if (cached) return cached;
-        return fetch(event.request).then((response) => {
+        return fetch(request).then((response) => {
           if (response.ok) {
             const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
           }
           return response;
         });
@@ -56,17 +83,20 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Network-first for navigation (HTML), fall back to cache
-  if (event.request.mode === 'navigate') {
-    event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-          return response;
-        })
-        .catch(() => caches.match('/index.html'))
-    );
-    return;
-  }
+  // Everything else (cross-origin fonts, etc.): stale-while-revalidate.
+  event.respondWith(
+    caches.open(CACHE_NAME).then((cache) =>
+      cache.match(request).then((cached) => {
+        const networkFetch = fetch(request)
+          .then((response) => {
+            if (response && response.ok) {
+              cache.put(request, response.clone());
+            }
+            return response;
+          })
+          .catch(() => cached);
+        return cached || networkFetch;
+      })
+    )
+  );
 });
