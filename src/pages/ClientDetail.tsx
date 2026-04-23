@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit, Plus, MessageCircle, Camera, FileText, Trash2 } from 'lucide-react';
+import { AnimatePresence } from 'framer-motion';
+import { ArrowLeft, Edit, Plus, MessageCircle, FileText, Trash2, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { useClientStore } from '../stores/clientStore';
 import { useBookingStore } from '../stores/bookingStore';
@@ -8,6 +9,8 @@ import { useImageStore } from '../stores/imageStore';
 import { useDocumentStore } from '../stores/documentStore';
 import { useUIStore } from '../stores/uiStore';
 import { getSignedUrl } from '../services/documentService';
+import { useImageThumbnails, useDocumentImageThumbnails } from '../hooks/useBookingImages';
+import ImageViewer from '../components/booking/ImageViewer';
 import { getTypeColor } from '../types';
 
 type Tab = 'overview' | 'appointments' | 'photos' | 'documents' | 'notes';
@@ -26,11 +29,17 @@ export default function ClientDetailPage() {
   const allDocuments = useDocumentStore((s) => s.documents);
   const clientDocuments = useMemo(() => allDocuments.filter((d) => d.client_id === id), [allDocuments, id]);
   const removeDocument = useDocumentStore((s) => s.removeDocument);
+  const uploadDocument = useDocumentStore((s) => s.uploadDocument);
   const { setSelectedBookingId, openBookingForm, setPrefillBookingData, setEditingClientId, addToast, setConfirmDialogOpen } = useUIStore();
   const [tab, setTab] = useState<Tab>('overview');
   const [noteText, setNoteText] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [viewingImageId, setViewingImageId] = useState<string | null>(null);
+  const [viewingDocPhotoId, setViewingDocPhotoId] = useState<string | null>(null);
+  const [viewingDocId, setViewingDocId] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
 
   // Tell the shell to hide the FAB while the delete confirm is visible so
   // the bot button doesn't visually cover the "Yes, delete" action.
@@ -38,6 +47,41 @@ export default function ClientDetailPage() {
     setConfirmDialogOpen(confirmDelete);
     return () => setConfirmDialogOpen(false);
   }, [confirmDelete, setConfirmDialogOpen]);
+
+  // Photos: booking_images from this client's bookings + document uploads with type=image.
+  // All hooks must run before any early return to satisfy rules-of-hooks, so
+  // derived state like the photo thumbnails is computed here even when the
+  // client lookup fails (in which case these produce empty results).
+  const clientBookingIds = useMemo(() => new Set(clientBookings.map((b) => b.id)), [clientBookings]);
+  const bookingPhotos = useMemo(
+    () => allBookingImages.filter((img) => clientBookingIds.has(img.booking_id)),
+    [allBookingImages, clientBookingIds]
+  );
+  const { thumbnails: bookingThumbnails, getOriginalUrl: getBookingOriginalUrl } =
+    useImageThumbnails(bookingPhotos);
+  const docPhotos = useMemo(
+    () => clientDocuments.filter((d) => d.type === 'image'),
+    [clientDocuments]
+  );
+  const { thumbnails: docPhotoThumbnails, getOriginalUrl: getDocPhotoOriginalUrl } =
+    useDocumentImageThumbnails(docPhotos);
+  const docs = useMemo(
+    () => clientDocuments.filter((d) => d.type !== 'image'),
+    [clientDocuments]
+  );
+  // Split Docs tab entries by whether they can render as a thumbnail. Most new
+  // uploads are photos (forceType='other'); legacy PDFs / non-image files fall
+  // back to a list below the grid so they remain visible + deletable.
+  const imageDocs = useMemo(
+    () => docs.filter((d) => d.mime_type?.startsWith('image/') ?? false),
+    [docs]
+  );
+  const nonImageDocs = useMemo(
+    () => docs.filter((d) => !(d.mime_type?.startsWith('image/') ?? false)),
+    [docs]
+  );
+  const { thumbnails: docThumbnails, getOriginalUrl: getDocOriginalUrl } =
+    useDocumentImageThumbnails(imageDocs);
 
   if (!client) {
     return (
@@ -58,21 +102,6 @@ export default function ClientDetailPage() {
   );
   const sorted = [...clientBookings].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-  );
-
-  // Photos: booking_images from this client's bookings + document uploads with type=image
-  const clientBookingIds = useMemo(() => new Set(clientBookings.map((b) => b.id)), [clientBookings]);
-  const bookingPhotos = useMemo(
-    () => allBookingImages.filter((img) => clientBookingIds.has(img.booking_id)),
-    [allBookingImages, clientBookingIds]
-  );
-  const docPhotos = useMemo(
-    () => clientDocuments.filter((d) => d.type === 'image'),
-    [clientDocuments]
-  );
-  const docs = useMemo(
-    () => clientDocuments.filter((d) => d.type !== 'image'),
-    [clientDocuments]
   );
 
   const tabs: { key: Tab; label: string }[] = [
@@ -278,28 +307,57 @@ export default function ClientDetailPage() {
       {/* Photos */}
       {tab === 'photos' && (
         <div>
-          {bookingPhotos.length > 0 && (
+          <div className="flex justify-end mb-4">
+            {/* <label>-wrapped input instead of button + ref.click() so the file
+                picker opens from a native user gesture on Safari/iOS PWA where
+                programmatic .click() on display:none inputs is unreliable. */}
+            <label
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-md bg-accent text-bg text-sm cursor-pointer press-scale shadow-glow active:shadow-glow-strong min-h-[40px] ${uploadingPhoto ? 'opacity-50 pointer-events-none' : ''}`}
+            >
+              <Plus size={16} />
+              <span>{uploadingPhoto ? 'Uploading…' : 'Add Photo'}</span>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                disabled={uploadingPhoto}
+                onChange={async (e) => {
+                  if (!e.target.files?.length) return;
+                  setUploadingPhoto(true);
+                  try {
+                    for (const file of Array.from(e.target.files)) {
+                      await uploadDocument(file, client.id);
+                    }
+                    addToast('Photo uploaded');
+                  } catch (err) {
+                    console.error('Failed to upload photo:', err);
+                    addToast('Upload failed');
+                  } finally {
+                    setUploadingPhoto(false);
+                    e.target.value = '';
+                  }
+                }}
+                className="hidden"
+              />
+            </label>
+          </div>
+          {bookingThumbnails.length > 0 && (
             <div className="mb-6">
               <div className="text-sm text-text-t uppercase tracking-wider mb-3 font-medium">From Bookings</div>
               <div className="grid grid-cols-3 gap-2">
-                {bookingPhotos.map((img) => {
-                  const booking = clientBookings.find((b) => b.id === img.booking_id);
-                  return (
-                    <button
-                      key={img.id}
-                      onClick={() => booking && setSelectedBookingId(booking.id)}
-                      className="aspect-square rounded-lg bg-surface border border-border/30 overflow-hidden cursor-pointer press-scale flex items-center justify-center"
-                    >
-                      <div className="text-center p-2">
-                        <Camera size={20} className="text-text-t mx-auto mb-1" />
-                        <div className="text-xs text-text-t truncate">{img.filename}</div>
-                        {booking && (
-                          <div className="text-xs text-text-t mt-0.5">{format(new Date(booking.date), 'MMM d')}</div>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
+                {bookingThumbnails.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => setViewingImageId(t.id)}
+                    className="aspect-square rounded-lg bg-surface border border-border/30 overflow-hidden cursor-pointer press-scale"
+                  >
+                    <img
+                      src={t.url}
+                      alt={t.filename}
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
+                ))}
               </div>
             </div>
           )}
@@ -307,29 +365,45 @@ export default function ClientDetailPage() {
             <div className="mb-6">
               <div className="text-sm text-text-t uppercase tracking-wider mb-3 font-medium">Uploaded Photos</div>
               <div className="grid grid-cols-3 gap-2">
-                {docPhotos.map((doc) => (
-                  <div key={doc.id} className="aspect-square rounded-lg bg-surface border border-border/30 overflow-hidden relative group">
-                    <button
-                      onClick={async () => {
-                        const url = await getSignedUrl(doc.storage_path);
-                        window.open(url, '_blank');
-                      }}
-                      className="w-full h-full flex items-center justify-center cursor-pointer press-scale"
-                    >
-                      <div className="text-center p-2">
-                        <Camera size={20} className="text-text-t mx-auto mb-1" />
-                        <div className="text-xs text-text-t truncate">{doc.label}</div>
-                        <div className="text-xs text-text-t mt-0.5">{format(new Date(doc.created_at), 'MMM d')}</div>
-                      </div>
-                    </button>
-                    <button
-                      onClick={() => removeDocument(doc)}
-                      className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-bg/80 flex items-center justify-center text-text-t active:text-danger transition-colors cursor-pointer press-scale opacity-0 group-hover:opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                ))}
+                {docPhotos.map((doc) => {
+                  const thumb = docPhotoThumbnails.find((t) => t.id === doc.id);
+                  return (
+                    <div key={doc.id} className="relative aspect-square rounded-lg bg-surface border border-border/30 overflow-hidden">
+                      <button
+                        onClick={() => thumb && setViewingDocPhotoId(doc.id)}
+                        disabled={!thumb}
+                        className="w-full h-full cursor-pointer press-scale disabled:cursor-default"
+                      >
+                        {thumb ? (
+                          <img
+                            src={thumb.url}
+                            alt={thumb.filename}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-xs text-text-t">
+                            Loading…
+                          </div>
+                        )}
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); removeDocument(doc); }}
+                        aria-label="Delete photo"
+                        className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-bg/80 flex items-center justify-center text-text-s active:text-danger transition-colors cursor-pointer"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          {bookingThumbnails.length === 0 && bookingPhotos.length > 0 && (
+            <div className="mb-6">
+              <div className="text-sm text-text-t uppercase tracking-wider mb-3 font-medium">From Bookings</div>
+              <div className="text-xs text-text-t bg-surface/60 rounded-lg p-4 border border-border/30">
+                {bookingPhotos.length} image{bookingPhotos.length === 1 ? '' : 's'} still syncing from another device.
               </div>
             </div>
           )}
@@ -339,18 +413,113 @@ export default function ClientDetailPage() {
         </div>
       )}
 
-      {/* Documents */}
+      <AnimatePresence>
+        {viewingImageId && (
+          <ImageViewer
+            thumbnails={bookingThumbnails}
+            initialId={viewingImageId}
+            getOriginalUrl={getBookingOriginalUrl}
+            onClose={() => setViewingImageId(null)}
+          />
+        )}
+        {viewingDocPhotoId && (
+          <ImageViewer
+            thumbnails={docPhotoThumbnails}
+            initialId={viewingDocPhotoId}
+            getOriginalUrl={getDocPhotoOriginalUrl}
+            onClose={() => setViewingDocPhotoId(null)}
+          />
+        )}
+        {viewingDocId && (
+          <ImageViewer
+            thumbnails={docThumbnails}
+            initialId={viewingDocId}
+            getOriginalUrl={getDocOriginalUrl}
+            onClose={() => setViewingDocId(null)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Documents — same pattern as Photos: native-picker upload, thumbnail
+          grid, tap-to-view via ImageViewer, always-visible X. Legacy PDFs /
+          non-image files render as a list below the grid. */}
       {tab === 'documents' && (
         <div>
-          {docs.length > 0 ? (
+          <div className="flex justify-end mb-4">
+            <label
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-md bg-accent text-bg text-sm cursor-pointer press-scale shadow-glow active:shadow-glow-strong min-h-[40px] ${uploadingDoc ? 'opacity-50 pointer-events-none' : ''}`}
+            >
+              <Plus size={16} />
+              <span>{uploadingDoc ? 'Uploading…' : 'Add Document'}</span>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                disabled={uploadingDoc}
+                onChange={async (e) => {
+                  if (!e.target.files?.length) return;
+                  setUploadingDoc(true);
+                  try {
+                    for (const file of Array.from(e.target.files)) {
+                      await uploadDocument(file, client.id, undefined, 'other');
+                    }
+                    addToast('Document uploaded');
+                  } catch (err) {
+                    console.error('Failed to upload document:', err);
+                    addToast('Upload failed');
+                  } finally {
+                    setUploadingDoc(false);
+                    e.target.value = '';
+                  }
+                }}
+                className="hidden"
+              />
+            </label>
+          </div>
+          {imageDocs.length > 0 && (
+            <div className="grid grid-cols-3 gap-2 mb-6">
+              {imageDocs.map((doc) => {
+                const thumb = docThumbnails.find((t) => t.id === doc.id);
+                return (
+                  <div key={doc.id} className="relative aspect-square rounded-lg bg-surface border border-border/30 overflow-hidden">
+                    <button
+                      onClick={() => thumb && setViewingDocId(doc.id)}
+                      disabled={!thumb}
+                      className="w-full h-full cursor-pointer press-scale disabled:cursor-default"
+                    >
+                      {thumb ? (
+                        <img
+                          src={thumb.url}
+                          alt={thumb.filename}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-xs text-text-t">
+                          Loading…
+                        </div>
+                      )}
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); removeDocument(doc); }}
+                      aria-label="Delete document"
+                      className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-bg/80 flex items-center justify-center text-text-s active:text-danger transition-colors cursor-pointer"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {nonImageDocs.length > 0 && (
             <div className="space-y-2">
-              {docs.map((doc) => (
+              {nonImageDocs.map((doc) => (
                 <div key={doc.id} className="flex items-center gap-3 bg-surface/60 rounded-lg p-4 border border-border/30">
                   <FileText size={20} className="text-text-t shrink-0" />
                   <div className="flex-1 min-w-0">
                     <button
                       onClick={async () => {
-                        const url = await getSignedUrl(doc.storage_path);
+                        const url = await getSignedUrl(doc);
                         window.open(url, '_blank');
                       }}
                       className="text-base text-accent truncate block cursor-pointer press-scale"
@@ -367,6 +536,7 @@ export default function ClientDetailPage() {
                   </div>
                   <button
                     onClick={() => removeDocument(doc)}
+                    aria-label="Delete document"
                     className="w-9 h-9 rounded-md flex items-center justify-center text-text-t active:text-danger transition-colors cursor-pointer press-scale shrink-0"
                   >
                     <Trash2 size={16} />
@@ -374,7 +544,8 @@ export default function ClientDetailPage() {
                 </div>
               ))}
             </div>
-          ) : (
+          )}
+          {docs.length === 0 && (
             <div className="text-center py-16 text-text-t text-sm">No documents yet.</div>
           )}
         </div>

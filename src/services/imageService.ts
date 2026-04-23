@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import type { BookingImage, ImageSyncStatus } from '../types';
+import type { BookingImage, ImageSyncStatus, StorageBackend } from '../types';
 import type { Database } from '../types/database';
 
 type ImageRow = Database['public']['Tables']['booking_images']['Row'];
@@ -18,6 +18,7 @@ function toBookingImage(row: ImageRow): BookingImage {
     height: row.height,
     sync_status: row.sync_status as ImageSyncStatus,
     remote_path: row.remote_path ?? undefined,
+    storage_backend: row.storage_backend,
   };
 }
 
@@ -77,10 +78,12 @@ export async function deleteImagesForBooking(bookingId: string): Promise<void> {
 export async function updateImageSyncStatus(
   id: string,
   syncStatus: ImageSyncStatus,
-  remotePath?: string
+  remotePath?: string,
+  storageBackend?: StorageBackend,
 ): Promise<void> {
   const update: ImageUpdate = { sync_status: syncStatus };
   if (remotePath !== undefined) update.remote_path = remotePath;
+  if (storageBackend !== undefined) update.storage_backend = storageBackend;
 
   const { error } = await supabase
     .from('booking_images')

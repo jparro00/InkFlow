@@ -135,6 +135,7 @@ export interface Database {
           height: number;
           sync_status: string;
           remote_path: string | null;
+          storage_backend: 'supabase' | 'r2';
         };
         Insert: {
           id: string;
@@ -148,6 +149,7 @@ export interface Database {
           height: number;
           sync_status?: string;
           remote_path?: string | null;
+          storage_backend?: 'supabase' | 'r2';
         };
         Update: {
           id?: string;
@@ -161,6 +163,7 @@ export interface Database {
           height?: number;
           sync_status?: string;
           remote_path?: string | null;
+          storage_backend?: 'supabase' | 'r2';
         };
         Relationships: [
           {
@@ -193,6 +196,7 @@ export interface Database {
           mime_type: string | null;
           size_bytes: number | null;
           notes: string | null;
+          storage_backend: 'supabase' | 'r2';
         };
         Insert: {
           id?: string;
@@ -207,6 +211,7 @@ export interface Database {
           mime_type?: string | null;
           size_bytes?: number | null;
           notes?: string | null;
+          storage_backend?: 'supabase' | 'r2';
         };
         Update: {
           id?: string;
@@ -221,6 +226,7 @@ export interface Database {
           mime_type?: string | null;
           size_bytes?: number | null;
           notes?: string | null;
+          storage_backend?: 'supabase' | 'r2';
         };
         Relationships: [
           {
@@ -423,6 +429,7 @@ export interface Database {
           user_id: string;
           name: string | null;
           profile_pic: string | null;
+          profile_pic_backend: 'supabase' | 'r2';
           platform: string | null;
           updated_at: string;
         };
@@ -431,6 +438,7 @@ export interface Database {
           user_id: string;
           name?: string | null;
           profile_pic?: string | null;
+          profile_pic_backend?: 'supabase' | 'r2';
           platform?: string | null;
           updated_at?: string;
         };
@@ -439,6 +447,7 @@ export interface Database {
           user_id?: string;
           name?: string | null;
           profile_pic?: string | null;
+          profile_pic_backend?: 'supabase' | 'r2';
           platform?: string | null;
           updated_at?: string;
         };

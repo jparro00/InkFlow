@@ -1,6 +1,8 @@
 import { supabase } from './supabase';
 import { getOriginal } from './imageDb';
+import { uploadToR2 } from './r2';
 import { useImageStore } from '../stores/imageStore';
+import type { BookingImage } from '../types';
 
 interface SyncQueueItem {
   imageId: string;
@@ -43,33 +45,24 @@ class ImageSyncQueue {
       const ext = item.mimeType.split('/')[1] || 'jpg';
       const path = `${session.user.id}/${item.bookingId}/${item.imageId}.${ext}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from('booking-images')
-        .upload(path, blob, {
-          contentType: item.mimeType,
-          upsert: false,
-        });
+      // R2 is the only backend. Throws on failure → caught below for retry.
+      await uploadToR2(`booking-images/${path}`, blob, item.mimeType);
 
-      if (uploadError) throw uploadError;
+      store.updateSyncStatus(item.imageId, 'synced', path, 'r2');
 
-      // Update sync status in store (which also persists to Supabase)
-      store.updateSyncStatus(item.imageId, 'synced', path);
-
-      this.queue.shift(); // Remove completed item
+      this.queue.shift();
     } catch (e) {
       console.error(`[ImageSync] Failed to sync ${item.imageId}:`, e);
 
       item.retryCount++;
       if (item.retryCount >= this.maxRetries) {
         store.updateSyncStatus(item.imageId, 'error');
-        this.queue.shift(); // Give up after max retries
+        this.queue.shift();
       }
-      // else: leave in queue for retry
     }
 
     this.processing = false;
 
-    // Process next item after a brief delay (battery/network friendliness)
     if (this.queue.length > 0) {
       setTimeout(() => this.processNext(), 1000);
     }
@@ -77,3 +70,30 @@ class ImageSyncQueue {
 }
 
 export const imageSyncQueue = new ImageSyncQueue();
+
+// Re-enqueue any image whose blob still lives in IndexedDB but hasn't reached
+// R2 yet (status 'local' / 'uploading' / 'error'). Covers the case where the
+// browser was closed mid-upload.
+//
+// Rows whose blob isn't present locally are skipped — we can't re-upload what
+// we don't have.
+export async function resumePendingImageUploads(): Promise<void> {
+  const images = useImageStore.getState().images;
+  const candidates = images.filter(
+    (img: BookingImage) =>
+      img.sync_status === 'local' ||
+      img.sync_status === 'uploading' ||
+      img.sync_status === 'error'
+  );
+
+  for (const img of candidates) {
+    const blob = await getOriginal(img.id);
+    if (!blob) continue;
+    imageSyncQueue.enqueue({
+      imageId: img.id,
+      bookingId: img.booking_id,
+      filename: img.filename,
+      mimeType: img.mime_type || 'image/jpeg',
+    });
+  }
+}

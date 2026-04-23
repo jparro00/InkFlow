@@ -1,4 +1,6 @@
 import { supabase } from '../lib/supabase';
+import { fetchR2Blob, isR2Enabled } from '../lib/r2';
+import type { StorageBackend } from '../types';
 import type { Json } from '../types/database';
 
 const API_URL = import.meta.env.VITE_META_API_URL || 'http://localhost:3001';
@@ -345,9 +347,13 @@ export async function fetchSingleMessage(mid: string): Promise<BroadcastMessageD
 const SIGNED_URL_TTL_SECONDS = 86400; // 24 h
 const SIGNED_URL_REFRESH_MS = 20 * 60 * 60 * 1000; // 20 h
 const signedUrlCache = new Map<string, { url: string; generatedAt: number }>();
+// Per-page-load blob URL cache for R2-backed avatars. Object URLs are tied to
+// the document, so we don't try to persist across reloads — just avoid
+// re-fetching the same avatar repeatedly within a session.
+const r2BlobUrlCache = new Map<string, string>();
 
 /**
- * Resolve a list of {id, pic} entries into an id → renderable URL map.
+ * Resolve a list of {id, pic, backend?} entries into an id → renderable URL map.
  *
  * The `id` is any string — PSID, client UUID, whatever — the caller uses
  * it only to look up the resolved URL in the returned map. `pic` is the
@@ -355,17 +361,21 @@ const signedUrlCache = new Map<string, { url: string; generatedAt: number }>();
  *
  * - Null/empty pic → null (no avatar)
  * - `data:` prefix → passes through (legacy base64 rows)
- * - Anything else → treated as a Storage path, batch-signed via the
- *   `avatars` bucket with a 24 h TTL, and cached.
+ * - `backend === 'r2'` → fetched via the Worker (bearer auth) and returned
+ *   as an Object URL. Falls back to the Supabase signed-URL path if the
+ *   Worker read fails (shadow-write era safety net).
+ * - Otherwise → treated as a Storage path, batch-signed via the `avatars`
+ *   bucket with a 24 h TTL, and cached.
  *
- * All Storage paths that need signing are collected and sent in ONE
- * createSignedUrls call so we don't round-trip per avatar.
+ * All Supabase-backed paths are collected into ONE createSignedUrls call so
+ * we don't round-trip per avatar.
  */
 export async function resolveAvatarUrls(
-  entries: { id: string; pic: string | null | undefined }[]
+  entries: { id: string; pic: string | null | undefined; backend?: StorageBackend }[]
 ): Promise<Map<string, string | null>> {
   const result = new Map<string, string | null>();
   const toSign: { id: string; path: string }[] = [];
+  const toFetchR2: { id: string; path: string }[] = [];
   const now = Date.now();
 
   for (const e of entries) {
@@ -378,12 +388,44 @@ export async function resolveAvatarUrls(
       result.set(e.id, pic);
       continue;
     }
+    if (e.backend === 'r2' && isR2Enabled()) {
+      const cached = r2BlobUrlCache.get(pic);
+      if (cached) {
+        result.set(e.id, cached);
+        continue;
+      }
+      toFetchR2.push({ id: e.id, path: pic });
+      continue;
+    }
     const cached = signedUrlCache.get(pic);
     if (cached && now - cached.generatedAt < SIGNED_URL_REFRESH_MS) {
       result.set(e.id, cached.url);
       continue;
     }
     toSign.push({ id: e.id, path: pic });
+  }
+
+  // Fetch R2-backed avatars in parallel. Per-avatar fetch, but small blobs
+  // (~1 MB cap) and edge-cached after the first origin hit. Failures fall
+  // through to Supabase as a safety net.
+  if (toFetchR2.length > 0) {
+    await Promise.all(
+      toFetchR2.map(async ({ id, path }) => {
+        try {
+          const blob = await fetchR2Blob(`avatars/${path}`);
+          if (blob) {
+            const objectUrl = URL.createObjectURL(blob);
+            r2BlobUrlCache.set(path, objectUrl);
+            result.set(id, objectUrl);
+            return;
+          }
+        } catch (e) {
+          console.error(`[resolveAvatarUrls] R2 fetch failed for ${path}:`, e);
+        }
+        // R2 miss or error — fall back to Supabase signed URL.
+        toSign.push({ id, path });
+      }),
+    );
   }
 
   if (toSign.length > 0) {
@@ -416,9 +458,15 @@ export async function resolveAvatarUrls(
 }
 
 /** Invalidate the signed-URL cache for a specific path. Call after an avatar
- *  update so the next render re-signs with the fresh URL. */
+ *  update so the next render re-signs (or re-fetches) with the fresh URL. */
 export function invalidateAvatarUrlCache(path: string | null | undefined): void {
-  if (path) signedUrlCache.delete(path);
+  if (!path) return;
+  signedUrlCache.delete(path);
+  const cachedBlobUrl = r2BlobUrlCache.get(path);
+  if (cachedBlobUrl) {
+    URL.revokeObjectURL(cachedBlobUrl);
+    r2BlobUrlCache.delete(path);
+  }
 }
 
 /** Fetch all participant profiles for the current user (for profile-updated broadcasts).
@@ -431,13 +479,17 @@ export async function fetchAllParticipantProfiles(): Promise<Map<string, { name:
 
   const { data } = await supabase
     .from('participant_profiles')
-    .select('psid, name, profile_pic')
+    .select('psid, name, profile_pic, profile_pic_backend')
     .eq('user_id', user.id);
 
   const rows = data ?? [];
   // Batch-resolve all avatar paths → signed URLs in one round trip.
   const urlMap = await resolveAvatarUrls(
-    rows.map((p) => ({ id: p.psid, pic: p.profile_pic }))
+    rows.map((p) => ({
+      id: p.psid,
+      pic: p.profile_pic,
+      backend: p.profile_pic_backend,
+    }))
   );
 
   const map = new Map<string, { name: string | null; profilePic: string | null }>();
@@ -456,13 +508,15 @@ export async function fetchParticipantProfile(psid: string): Promise<{ name: str
 
   const { data } = await supabase
     .from('participant_profiles')
-    .select('name, profile_pic')
+    .select('name, profile_pic, profile_pic_backend')
     .eq('psid', psid)
     .eq('user_id', user.id)
     .maybeSingle();
 
   if (!data) return null;
-  const urlMap = await resolveAvatarUrls([{ id: psid, pic: data.profile_pic }]);
+  const urlMap = await resolveAvatarUrls([
+    { id: psid, pic: data.profile_pic, backend: data.profile_pic_backend },
+  ]);
   return { name: data.name, profilePic: urlMap.get(psid) ?? null };
 }
 
@@ -570,7 +624,7 @@ export async function fetchConversationsFromDB(readMids?: Record<string, string>
   );
   const { data: dbProfiles } = await supabase
     .from('participant_profiles')
-    .select('psid, name, profile_pic')
+    .select('psid, name, profile_pic, profile_pic_backend')
     .eq('user_id', user.id)
     .in('psid', psids);
 
@@ -582,7 +636,11 @@ export async function fetchConversationsFromDB(readMids?: Record<string, string>
   // before building the conversation summaries. Avoids per-conversation
   // round-trips to Storage and shares the cache across fetches.
   const urlMap = await resolveAvatarUrls(
-    (dbProfiles ?? []).map((p) => ({ id: p.psid, pic: p.profile_pic }))
+    (dbProfiles ?? []).map((p) => ({
+      id: p.psid,
+      pic: p.profile_pic,
+      backend: p.profile_pic_backend,
+    }))
   );
 
   const results: ConversationSummary[] = entries.map(([convId, { lastMsg, unreadCount }], i) => {

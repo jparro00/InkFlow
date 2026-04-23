@@ -91,7 +91,7 @@ export default function ImageViewer({ thumbnails, initialId, getOriginalUrl, onC
       <div className="w-full h-full flex items-center justify-center p-4" onClick={(e) => e.stopPropagation()}>
         <img
           src={originalUrl ?? current.url}
-          alt={current.meta.filename}
+          alt={current.filename}
           className={`max-w-full max-h-full object-contain rounded-lg transition-opacity ${loading ? 'opacity-60 blur-sm' : ''}`}
         />
       </div>

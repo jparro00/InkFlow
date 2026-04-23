@@ -115,6 +115,7 @@ export interface Document {
   mime_type?: string;
   size_bytes?: number;
   notes?: string;
+  storage_backend?: StorageBackend;
 }
 
 export interface AgeVerificationLog {
@@ -128,6 +129,7 @@ export interface AgeVerificationLog {
 }
 
 export type ImageSyncStatus = 'local' | 'uploading' | 'synced' | 'error';
+export type StorageBackend = 'supabase' | 'r2';
 
 export interface BookingImage {
   id: string;
@@ -140,6 +142,7 @@ export interface BookingImage {
   height: number;
   sync_status: ImageSyncStatus;
   remote_path?: string;
+  storage_backend?: StorageBackend;
 }
 
 export type CalendarView = 'year' | 'month' | 'day';

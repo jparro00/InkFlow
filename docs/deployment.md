@@ -63,6 +63,19 @@ npx supabase secrets set SECRET_NAME=<value> --project-ref <ref>
 Current secrets in use:
 - `API_KEY_SECRET` — AES-GCM key for encrypting per-user Anthropic API keys
 - `GROQ_API_KEY` — shared Groq key used by `transcribe-audio` edge function
+- `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` — used by `r2-upload-url` to mint presigned R2 PUT URLs. See [r2-migration-plan.md](./r2-migration-plan.md).
+
+### Deploy the CF images Worker
+
+Worker lives in [`workers/images/`](../workers/images) and serves private image reads from R2 at `images-dev.inkbloop.com` (dev) and `images.inkbloop.com` (prod). Deployed via wrangler:
+
+```bash
+cd workers/images
+npx wrangler deploy --env dev    # → images-dev.inkbloop.com
+npx wrangler deploy --env prod   # → images.inkbloop.com (REQUIRES explicit user permission)
+```
+
+The Worker uses `custom_domain = true` in `wrangler.toml`, so DNS records are managed automatically. See [r2-migration-plan.md](./r2-migration-plan.md) for architecture.
 
 ### Deploy the frontend
 
@@ -77,7 +90,7 @@ Dev is the default target. Never deploy to prod without explicit user permission
 
 Keep this section updated as changes land on dev but haven't shipped to prod.
 
-_No pending changes — dev is in sync with prod as of 2026-04-21._
+_No pending changes — dev is in sync with prod as of 2026-04-22._
 
 ## Known caveats
 

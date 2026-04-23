@@ -109,12 +109,23 @@ Deno.serve(async (req: Request) => {
           const psid = event.sender?.id;
           const profilePic = event.profile_update?.profile_pic ?? null;
           const name = event.profile_update?.name ?? null;
+          // Phase 4: sim-api sends 'r2' when the avatar made it to R2.
+          // Older callers omit the field — treat that as 'supabase'.
+          const profilePicBackend: "supabase" | "r2" =
+            event.profile_update?.profile_pic_backend === "r2"
+              ? "r2"
+              : "supabase";
           if (psid) {
             await supabase.from("participant_profiles").upsert({
               psid,
               user_id: ownerUserId,
               ...(name ? { name } : {}),
-              ...(profilePic !== null ? { profile_pic: profilePic } : {}),
+              ...(profilePic !== null
+                ? {
+                    profile_pic: profilePic,
+                    profile_pic_backend: profilePicBackend,
+                  }
+                : {}),
               updated_at: new Date().toISOString(),
             });
 
