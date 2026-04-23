@@ -24,6 +24,7 @@ export default function ClientDetailPage() {
   const addNote = useClientStore((s) => s.addNote);
   const deleteClient = useClientStore((s) => s.deleteClient);
   const uploadAvatar = useClientStore((s) => s.uploadAvatar);
+  const removeAvatar = useClientStore((s) => s.removeAvatar);
   const linkedProfiles = useClientStore((s) => s.linkedProfiles);
   const allBookings = useBookingStore((s) => s.bookings);
   const clientBookings = useMemo(() => allBookings.filter((b) => b.client_id === id), [allBookings, id]);
@@ -44,6 +45,7 @@ export default function ClientDetailPage() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [removingAvatar, setRemovingAvatar] = useState(false);
 
   // Tell the shell to hide the FAB while the delete confirm is visible so
   // the bot button doesn't visually cover the "Yes, delete" action.
@@ -187,42 +189,66 @@ export default function ClientDetailPage() {
           const pic = client.profile_pic
             || (client.instagram && linkedProfiles[client.instagram]?.profilePic)
             || (client.facebook && linkedProfiles[client.facebook]?.profilePic);
+          const busy = uploadingAvatar || removingAvatar;
           return (
-            <label className="relative cursor-pointer press-scale shrink-0 block">
-              {/* File input is label-wrapped so iOS Safari opens the picker
-                  from a native user gesture; programmatic .click() on a
-                  hidden input is unreliable there. */}
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="sr-only"
-                disabled={uploadingAvatar}
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  e.target.value = '';
-                  if (!file) return;
-                  setUploadingAvatar(true);
-                  try {
-                    await uploadAvatar(client.id, file);
-                  } catch (err) {
-                    console.error('Avatar upload failed', err);
-                    addToast('Could not upload photo. Try a smaller image.');
-                  } finally {
-                    setUploadingAvatar(false);
-                  }
-                }}
-              />
-              {pic ? (
-                <img src={pic} alt={client.name} className="w-16 h-16 rounded-2xl object-cover" />
-              ) : (
-                <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center text-accent text-xl font-medium">
-                  {client.name.charAt(0)}
+            <div className="relative shrink-0">
+              <label className="relative cursor-pointer press-scale block">
+                {/* File input is label-wrapped so iOS Safari opens the picker
+                    from a native user gesture; programmatic .click() on a
+                    hidden input is unreliable there. */}
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="sr-only"
+                  disabled={busy}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = '';
+                    if (!file) return;
+                    setUploadingAvatar(true);
+                    try {
+                      await uploadAvatar(client.id, file);
+                    } catch (err) {
+                      console.error('Avatar upload failed', err);
+                      addToast('Could not upload photo. Try a smaller image.');
+                    } finally {
+                      setUploadingAvatar(false);
+                    }
+                  }}
+                />
+                {pic ? (
+                  <img src={pic} alt={client.name} className="w-16 h-16 rounded-2xl object-cover" />
+                ) : (
+                  <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center text-accent text-xl font-medium">
+                    {client.name.charAt(0)}
+                  </div>
+                )}
+                <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-surface border border-border/60 rounded-full flex items-center justify-center text-text-s">
+                  {uploadingAvatar ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
                 </div>
+              </label>
+              {client.profile_pic && !uploadingAvatar && (
+                <button
+                  type="button"
+                  disabled={removingAvatar}
+                  onClick={async () => {
+                    setRemovingAvatar(true);
+                    try {
+                      await removeAvatar(client.id);
+                    } catch (err) {
+                      console.error('Avatar remove failed', err);
+                      addToast('Could not remove photo.');
+                    } finally {
+                      setRemovingAvatar(false);
+                    }
+                  }}
+                  className="absolute -top-1 -right-1 w-7 h-7 bg-surface border border-border/60 rounded-full flex items-center justify-center text-text-s press-scale z-10"
+                  aria-label="Remove photo"
+                >
+                  {removingAvatar ? <Loader2 size={14} className="animate-spin" /> : <X size={14} />}
+                </button>
               )}
-              <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-surface border border-border/60 rounded-full flex items-center justify-center text-text-s">
-                {uploadingAvatar ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
-              </div>
-            </label>
+            </div>
           );
         })()}
         <div className="min-w-0">

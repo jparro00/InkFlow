@@ -201,6 +201,20 @@ export async function uploadClientAvatar(
   return { path, signedUrl: signed.signedUrl };
 }
 
+/** Remove a client's custom avatar from storage. Safe to call even if no
+ *  object exists at the path — `remove` is idempotent and returns an empty
+ *  array in that case. Caller is responsible for clearing clients.profile_pic. */
+export async function deleteClientAvatar(clientId: string): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not signed in');
+
+  const path = `${user.id}/clients/${clientId}.jpg`;
+  const { error } = await supabase.storage.from('avatars').remove([path]);
+  if (error) throw error;
+
+  invalidateAvatarUrlCache(path);
+}
+
 export async function deleteClient(id: string): Promise<void> {
   const { error } = await supabase
     .from('clients')

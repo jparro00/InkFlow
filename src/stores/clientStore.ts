@@ -13,6 +13,7 @@ interface ClientStore {
   addClient: (client: Omit<Client, 'id' | 'created_at' | 'notes'>) => Promise<Client>;
   updateClient: (id: string, data: Partial<Client>) => Promise<void>;
   uploadAvatar: (id: string, file: File) => Promise<void>;
+  removeAvatar: (id: string) => Promise<void>;
   deleteClient: (id: string) => Promise<void>;
   addNote: (clientId: string, text: string) => Promise<void>;
   searchClients: (query: string) => Client[];
@@ -99,6 +100,27 @@ export const useClientStore = create<ClientStore>()(persist((set, get) => ({
       set((s) => ({
         clients: s.clients.map((c) => (c.id === id ? { ...c, profile_pic: signedUrl } : c)),
       }));
+    } catch (e) {
+      if (prev) {
+        set((s) => ({
+          clients: s.clients.map((c) => (c.id === id ? prev : c)),
+        }));
+      }
+      throw e;
+    }
+  },
+
+  removeAvatar: async (id) => {
+    const prev = get().clients.find((c) => c.id === id);
+    set((s) => ({
+      clients: s.clients.map((c) => (c.id === id ? { ...c, profile_pic: undefined } : c)),
+    }));
+
+    try {
+      await clientService.deleteClientAvatar(id);
+      // Cast null through unknown to satisfy Partial<Client>; updateClient
+      // service maps the !== undefined guard then `?? null` to NULL the column.
+      await clientService.updateClient(id, { profile_pic: null as unknown as undefined });
     } catch (e) {
       if (prev) {
         set((s) => ({
