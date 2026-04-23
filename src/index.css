@@ -273,3 +273,14 @@ body::before {
     transition: transform 0.1s ease;
   }
 }
+
+/* Override Tailwind's shadow-glow utilities so they read from the live CSS
+   variable and re-theme correctly. Tailwind 4 inlines --shadow-* literals
+   at build time, ignoring runtime CSS-var updates. */
+@layer utilities {
+  .shadow-glow { box-shadow: var(--shadow-glow); }
+  .shadow-glow-strong { box-shadow: var(--shadow-glow-strong); }
+  .hover\:shadow-glow:hover { box-shadow: var(--shadow-glow); }
+  .active\:shadow-glow:active { box-shadow: var(--shadow-glow); }
+  .active\:shadow-glow-strong:active { box-shadow: var(--shadow-glow-strong); }
+}
