@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search } from 'lucide-react';
-import { motion } from 'framer-motion';
 import { useClientStore } from '../stores/clientStore';
 import { useBookingStore } from '../stores/bookingStore';
 import { useUIStore } from '../stores/uiStore';
@@ -13,27 +12,39 @@ export default function ClientsPage() {
   const [search, setSearch] = useState('');
   const { setHeaderLeft, setHeaderRight, setCreateClientFormOpen } = useUIStore();
 
-  const sorted = [...clients].sort((a, b) => a.name.localeCompare(b.name));
+  // Single O(bookings) pass to build { total, upcoming } per client_id —
+  // replaces a per-card bookings.filter() that was O(clients × bookings)
+  // on every render and blocked the tab bar for large accounts.
+  const statsByClient = useMemo(() => {
+    const now = Date.now();
+    const m = new Map<string, { total: number; upcoming: number }>();
+    for (const b of bookings) {
+      if (!b.client_id) continue;
+      const s = m.get(b.client_id) ?? { total: 0, upcoming: 0 };
+      s.total += 1;
+      if (new Date(b.date).getTime() > now && b.status !== 'Cancelled') {
+        s.upcoming += 1;
+      }
+      m.set(b.client_id, s);
+    }
+    return m;
+  }, [bookings]);
 
-  const filtered = search
-    ? sorted.filter((c) => {
-        const q = search.toLowerCase();
-        return (
-          c.name.toLowerCase().includes(q) ||
-          c.phone?.toLowerCase().includes(q) ||
-          (c.instagram && linkedProfiles[c.instagram]?.name?.toLowerCase().includes(q)) ||
-          (c.facebook && linkedProfiles[c.facebook]?.name?.toLowerCase().includes(q))
-        );
-      })
-    : sorted;
+  const sorted = useMemo(
+    () => [...clients].sort((a, b) => a.name.localeCompare(b.name)),
+    [clients],
+  );
 
-  const getStats = (clientId: string) => {
-    const clientBookings = bookings.filter((b) => b.client_id === clientId);
-    const upcoming = clientBookings.filter(
-      (b) => new Date(b.date) > new Date() && b.status !== 'Cancelled'
-    ).length;
-    return { total: clientBookings.length, upcoming };
-  };
+  const filtered = useMemo(() => {
+    if (!search) return sorted;
+    const q = search.toLowerCase();
+    return sorted.filter((c) => (
+      c.name.toLowerCase().includes(q) ||
+      c.phone?.toLowerCase().includes(q) ||
+      (c.instagram && linkedProfiles[c.instagram]?.name?.toLowerCase().includes(q)) ||
+      (c.facebook && linkedProfiles[c.facebook]?.name?.toLowerCase().includes(q))
+    ));
+  }, [sorted, search, linkedProfiles]);
 
   // Register header buttons
   useEffect(() => {
@@ -69,14 +80,11 @@ export default function ClientsPage() {
       {/* Scrollable client list */}
       <div className="flex-1 overflow-y-auto px-3 pb-4 lg:px-6">
         <div className="space-y-1">
-          {filtered.map((client, i) => {
-            const stats = getStats(client.id);
+          {filtered.map((client) => {
+            const stats = statsByClient.get(client.id) ?? { total: 0, upcoming: 0 };
             return (
-              <motion.button
+              <button
                 key={client.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.03 }}
                 onClick={() => navigate(`/clients/${client.id}`)}
                 className="w-full text-left flex items-center gap-4 px-5 py-4 lg:px-4 rounded-lg active:bg-elevated/40 lg:hover:bg-elevated/30 transition-colors cursor-pointer group press-scale min-h-[72px]"
               >
@@ -119,7 +127,7 @@ export default function ClientsPage() {
                     </span>
                   ))}
                 </div>
-              </motion.button>
+              </button>
             );
           })}
 
