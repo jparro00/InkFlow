@@ -61,6 +61,97 @@
   --radius-xl: 20px;
 }
 
+/* --------------------------------------------------------------------------
+   Theme presets — swap the palette by setting data-theme on <html>.
+   Default (no attribute) is Crimson. Variables NOT listed here inherit from
+   the @theme block above (text opacities, fonts, sizes, radii, booking type
+   swatches, overlays).
+   -------------------------------------------------------------------------- */
+
+html[data-theme="green"] {
+  --color-bg: #121212;
+  --color-surface: #1E1E1E;
+  --color-elevated: #272727;
+  --color-input: #2C2C2C;
+  --color-border: #333333;
+  --color-border-s: #383838;
+
+  --color-accent: #4ADE80;
+  --color-accent-dim: #16A34A;
+  --color-accent-glow: rgba(74, 222, 128, 0.10);
+  --accent-rgb: 74, 222, 128;
+
+  --color-danger: #CF6679;
+  --color-success: #22D3EE;
+  --color-today: #E8453C;
+
+  --shadow-glow: 0 0 14px rgba(74, 222, 128, 0.20);
+  --shadow-glow-strong: 0 0 22px rgba(74, 222, 128, 0.32);
+}
+
+html[data-theme="noir"] {
+  --color-bg: #0A0A0A;
+  --color-surface: #141414;
+  --color-elevated: #1F1F1F;
+  --color-input: #262626;
+  --color-border: #2E2E2E;
+  --color-border-s: #3A3A3A;
+
+  --color-accent: #E5E5E5;
+  --color-accent-dim: #A3A3A3;
+  --color-accent-glow: rgba(229, 229, 229, 0.08);
+  --accent-rgb: 229, 229, 229;
+
+  --color-danger: #F87171;
+  --color-success: #A3E635;
+  --color-today: #FB7185;
+
+  --shadow-glow: 0 0 14px rgba(229, 229, 229, 0.12);
+  --shadow-glow-strong: 0 0 22px rgba(229, 229, 229, 0.20);
+}
+
+html[data-theme="electric"] {
+  --color-bg: #0A0E1A;
+  --color-surface: #131826;
+  --color-elevated: #1C2233;
+  --color-input: #232A3D;
+  --color-border: #2D3449;
+  --color-border-s: #3A425C;
+
+  --color-accent: #38BDF8;
+  --color-accent-dim: #0EA5E9;
+  --color-accent-glow: rgba(56, 189, 248, 0.12);
+  --accent-rgb: 56, 189, 248;
+
+  --color-danger: #F87171;
+  --color-success: #34D399;
+  --color-today: #FBBF24;
+
+  --shadow-glow: 0 0 14px rgba(56, 189, 248, 0.22);
+  --shadow-glow-strong: 0 0 22px rgba(56, 189, 248, 0.34);
+}
+
+html[data-theme="sepia"] {
+  --color-bg: #1A1410;
+  --color-surface: #251C16;
+  --color-elevated: #30241C;
+  --color-input: #3A2D23;
+  --color-border: #453629;
+  --color-border-s: #504030;
+
+  --color-accent: #F59E0B;
+  --color-accent-dim: #B45309;
+  --color-accent-glow: rgba(245, 158, 11, 0.15);
+  --accent-rgb: 245, 158, 11;
+
+  --color-danger: #E11D48;
+  --color-success: #84CC16;
+  --color-today: #F97316;
+
+  --shadow-glow: 0 0 14px rgba(245, 158, 11, 0.22);
+  --shadow-glow-strong: 0 0 22px rgba(245, 158, 11, 0.34);
+}
+
 * {
   box-sizing: border-box;
   -webkit-user-select: none;

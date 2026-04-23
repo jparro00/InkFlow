@@ -3,6 +3,7 @@ import { useUIStore } from '../stores/uiStore';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { saveApiKey, removeApiKey, hasApiKey } from '../services/apiKeyService';
+import { THEMES, getTheme, applyTheme, type ThemeId } from '../lib/theme';
 
 // Session-scoped cache so the API-key probe doesn't re-fire on every tab visit.
 let _cachedApiKeyConfigured: boolean | null = null;
@@ -25,6 +26,8 @@ export default function SettingsPage() {
   const [morningTime, setMorningTime] = useState(() => localStorage.getItem('inkbloop-morning-time') ?? '10:00');
   const [eveningTime, setEveningTime] = useState(() => localStorage.getItem('inkbloop-evening-time') ?? '14:00');
   const [timesSaved, setTimesSaved] = useState(false);
+
+  const [theme, setTheme] = useState<ThemeId>(() => getTheme());
 
   const [apiKeyInput, setApiKeyInput] = useState('');
   const [apiKeySaving, setApiKeySaving] = useState(false);
@@ -141,6 +144,36 @@ export default function SettingsPage() {
             >
               {timesSaved ? 'Saved!' : 'Save Times'}
             </button>
+          </div>
+
+          <div className={`${cardClass} mt-4`}>
+            <div className="text-base text-text-s mb-2">Theme</div>
+            <div className="grid grid-cols-5 gap-2">
+              {THEMES.map((t) => {
+                const selected = theme === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => { setTheme(t.id); applyTheme(t.id); }}
+                    className={`flex flex-col items-center gap-2 py-2 rounded-md cursor-pointer press-scale transition-all ${selected ? 'ring-2 ring-accent' : ''}`}
+                    aria-pressed={selected}
+                    aria-label={`Apply ${t.name} theme`}
+                  >
+                    <span
+                      className="w-10 h-10 rounded-full border border-border/60 flex items-center justify-center"
+                      style={{ background: t.bg }}
+                    >
+                      <span
+                        className="w-5 h-5 rounded-full"
+                        style={{ background: t.accent }}
+                      />
+                    </span>
+                    <span className={`text-xs ${selected ? 'text-text-p' : 'text-text-t'}`}>{t.name}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </section>
 
