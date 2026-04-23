@@ -247,22 +247,26 @@ export default function ClientDetailPage() {
             { label: 'Date of Birth', value: client.dob ? format(new Date(client.dob), 'MMM d, yyyy') : undefined },
           ]
             .filter((f) => f.value)
-            .map((f) => (
-              <div key={f.label} className="bg-surface/60 rounded-lg p-5 border border-border/30">
-                <div className="text-sm text-text-t uppercase tracking-wider mb-1.5 font-medium">{f.label}</div>
-                {f.psid ? (
-                  <button
-                    onClick={() => navigate('/messages', { state: { openPsid: f.psid } })}
-                    className="flex items-center gap-2 text-base text-accent cursor-pointer press-scale"
-                  >
+            .map((f) =>
+              f.psid ? (
+                <button
+                  key={f.label}
+                  onClick={() => navigate('/messages', { state: { openPsid: f.psid } })}
+                  className="w-full text-left bg-surface/60 rounded-lg p-5 border border-border/30 cursor-pointer press-scale active:bg-elevated/40 transition-colors"
+                >
+                  <div className="text-sm text-text-t uppercase tracking-wider mb-1.5 font-medium">{f.label}</div>
+                  <div className="flex items-center gap-2 text-base text-accent">
                     <span>{f.value}</span>
                     <MessageCircle size={16} />
-                  </button>
-                ) : (
+                  </div>
+                </button>
+              ) : (
+                <div key={f.label} className="bg-surface/60 rounded-lg p-5 border border-border/30">
+                  <div className="text-sm text-text-t uppercase tracking-wider mb-1.5 font-medium">{f.label}</div>
                   <div className="text-base text-text-p">{f.value}</div>
-                )}
-              </div>
-            ))}
+                </div>
+              )
+            )}
 
           {upcoming.length > 0 && (
             <div className="lg:col-span-2 bg-accent-glow rounded-lg p-5 border border-accent/10">
