@@ -85,6 +85,14 @@ html[data-theme="green"] {
   --color-success: #22D3EE;
   --color-today: #E8453C;
 
+  /* Booking types — M2 400-tone, pastel-leaning to match clean green theme */
+  --color-type-regular: #C084FC;
+  --color-type-touchup: #FB923C;
+  --color-type-consult: #F9A8D4;
+  --color-type-fullday: #F472B6;
+  --color-type-coverup: #60A5FA;
+  --color-type-personal: #2DD4BF;
+
   --shadow-glow: 0 0 14px rgba(74, 222, 128, 0.20);
   --shadow-glow-strong: 0 0 22px rgba(74, 222, 128, 0.32);
 }
@@ -105,6 +113,14 @@ html[data-theme="noir"] {
   --color-danger: #F87171;
   --color-success: #A3E635;
   --color-today: #FB7185;
+
+  /* Booking types — softer pastels so color reads as accent, not neon, against pure black */
+  --color-type-regular: #A78BFA;
+  --color-type-touchup: #FBBF24;
+  --color-type-consult: #F9A8D4;
+  --color-type-fullday: #FB7185;
+  --color-type-coverup: #60A5FA;
+  --color-type-personal: #6EE7B7;
 
   --shadow-glow: 0 0 14px rgba(229, 229, 229, 0.12);
   --shadow-glow-strong: 0 0 22px rgba(229, 229, 229, 0.20);
@@ -127,6 +143,14 @@ html[data-theme="electric"] {
   --color-success: #34D399;
   --color-today: #FBBF24;
 
+  /* Booking types — saturated 500-tones; Cover Up shifted to indigo so it doesn't clash with sky-blue accent */
+  --color-type-regular: #A855F7;
+  --color-type-touchup: #F97316;
+  --color-type-consult: #EC4899;
+  --color-type-fullday: #F43F5E;
+  --color-type-coverup: #6366F1;
+  --color-type-personal: #10B981;
+
   --shadow-glow: 0 0 14px rgba(56, 189, 248, 0.22);
   --shadow-glow-strong: 0 0 22px rgba(56, 189, 248, 0.34);
 }
@@ -147,6 +171,14 @@ html[data-theme="sepia"] {
   --color-danger: #E11D48;
   --color-success: #84CC16;
   --color-today: #F97316;
+
+  /* Booking types — spread across the wheel with cool pops (cyan/sky/violet) to contrast the warm brown base */
+  --color-type-regular: #A855F7;
+  --color-type-touchup: #22D3EE;
+  --color-type-consult: #EC4899;
+  --color-type-fullday: #DC2626;
+  --color-type-coverup: #0EA5E9;
+  --color-type-personal: #65A30D;
 
   --shadow-glow: 0 0 14px rgba(245, 158, 11, 0.22);
   --shadow-glow-strong: 0 0 22px rgba(245, 158, 11, 0.34);
