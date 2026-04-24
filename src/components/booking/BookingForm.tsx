@@ -73,7 +73,7 @@ export default function BookingForm() {
   const timePickerOpen = useRef(false);
   const excludeRefs = useRef([morningRef, durationRef]);
 
-  const scrollIntoViewOnOpen = useCallback((isOpen: boolean, ref: React.RefObject<HTMLDivElement>) => {
+  const scrollIntoViewOnOpen = useCallback((isOpen: boolean, ref: React.RefObject<HTMLDivElement | null>) => {
     if (!isOpen) return;
     requestAnimationFrame(() => {
       ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
