@@ -368,6 +368,7 @@ async function routeBooking(
     const bookingPayload = {
       client_id: isPersonal ? undefined : (resolved.client_id as string | undefined),
       date: resolvedDate,
+      end_date: isPersonal ? intent.entities.end_date : undefined,
       duration: intent.entities.duration,
       type: intent.entities.type,
       timeSlot: resolvedTimeSlot,
@@ -375,6 +376,8 @@ async function routeBooking(
       notes: intent.entities.notes,
       rescheduled: intent.entities.rescheduled,
       title: isPersonal ? intent.entities.title : undefined,
+      is_all_day: isPersonal ? intent.entities.is_all_day : undefined,
+      blocks_availability: isPersonal ? intent.entities.blocks_availability : undefined,
     };
     store.logTrace('sub_agent', { agent: 'booking', action: 'create', payload: bookingPayload });
     executeBookingCreate(bookingPayload);

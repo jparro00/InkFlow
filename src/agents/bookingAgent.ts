@@ -19,6 +19,7 @@ export function executeBookingCreate(data: ResolvedBookingCreate) {
   const prefill: Record<string, unknown> = {};
   if (data.client_id) prefill.client_id = data.client_id;
   if (data.date) prefill.date = data.date;
+  if (data.end_date) prefill.end_date = data.end_date;
   if (data.duration) prefill.duration = data.duration;
   if (data.type) prefill.type = data.type;
   if (data.timeSlot) prefill.timeSlot = data.timeSlot;
@@ -26,6 +27,8 @@ export function executeBookingCreate(data: ResolvedBookingCreate) {
   if (data.notes) prefill.notes = data.notes;
   if (data.rescheduled) prefill.rescheduled = data.rescheduled;
   if (data.title) prefill.title = data.title;
+  if (data.is_all_day !== undefined) prefill.is_all_day = data.is_all_day;
+  if (data.blocks_availability !== undefined) prefill.blocks_availability = data.blocks_availability;
 
   // Show action confirmation in panel, then open form
   store.replaceLastLoading({
@@ -97,6 +100,7 @@ export function executeBookingEdit(data: ResolvedBookingEdit) {
   // Build prefill from changes — only include fields that actually have values
   const prefill: Record<string, unknown> = {};
   if (data.changes.date) prefill.date = data.changes.date;
+  if (data.changes.end_date) prefill.end_date = data.changes.end_date;
   if (data.changes.duration) prefill.duration = data.changes.duration;
   if (data.changes.type) prefill.type = data.changes.type;
   if (data.changes.timeSlot) prefill.timeSlot = data.changes.timeSlot;
@@ -104,6 +108,8 @@ export function executeBookingEdit(data: ResolvedBookingEdit) {
   if (data.changes.notes) prefill.notes = data.changes.notes;
   if (data.changes.rescheduled !== undefined) prefill.rescheduled = data.changes.rescheduled;
   if (data.changes.title) prefill.title = data.changes.title;
+  if (data.changes.is_all_day !== undefined) prefill.is_all_day = data.changes.is_all_day;
+  if (data.changes.blocks_availability !== undefined) prefill.blocks_availability = data.changes.blocks_availability;
 
   // Track only the fields that actually have values, not all keys
   ui.setChangedBookingFields(new Set(Object.keys(prefill)));

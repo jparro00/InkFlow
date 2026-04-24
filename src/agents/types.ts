@@ -10,6 +10,7 @@ export interface AgentIntent {
     // Booking entities
     client_name?: string;
     date?: string;
+    end_date?: string;
     duration?: number;
     type?: string;
     timeSlot?: 'morning' | 'evening';
@@ -19,6 +20,9 @@ export interface AgentIntent {
     find_slot?: 'morning' | 'evening' | 'any';
     // Personal booking: succinct free-text label (no client association).
     title?: string;
+    // Personal all-day / multi-day
+    is_all_day?: boolean;
+    blocks_availability?: boolean;
     // Client entities
     name?: string;
     phone?: string;
@@ -103,6 +107,7 @@ export interface AgentMessage {
 export interface ResolvedBookingCreate {
   client_id?: string;
   date?: string;
+  end_date?: string;
   duration?: number;
   type?: string;
   timeSlot?: 'morning' | 'evening';
@@ -110,6 +115,8 @@ export interface ResolvedBookingCreate {
   notes?: string;
   rescheduled?: boolean;
   title?: string;
+  is_all_day?: boolean;
+  blocks_availability?: boolean;
 }
 
 export interface ResolvedBookingOpen {
@@ -120,6 +127,7 @@ export interface ResolvedBookingEdit {
   booking_id: string;
   changes: Partial<{
     date: string;
+    end_date: string;
     duration: number;
     type: string;
     timeSlot: 'morning' | 'evening';
@@ -127,6 +135,8 @@ export interface ResolvedBookingEdit {
     notes: string;
     rescheduled: boolean;
     title: string;
+    is_all_day: boolean;
+    blocks_availability: boolean;
   }>;
 }
 

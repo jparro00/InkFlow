@@ -275,6 +275,52 @@ export default function BookingForm() {
       canCollapse={dirty}
     >
       <div className="space-y-6">
+        {/* Type — placed first so the Personal-only fields below (title, all-day, end-date) reveal themselves when the user picks Personal */}
+        <div>
+          <label className={labelClass}>Type{changedLabel('type')}</label>
+          <div className="grid grid-cols-2 gap-3">
+            {bookingTypes.map((t) => {
+              const color = getTypeColor(t);
+              const selected = form.type === t;
+              return (
+                <button
+                  key={t}
+                  onClick={() => {
+                    setForm((f) => {
+                      const switchingToPersonal = t === 'Personal' && f.type !== 'Personal';
+                      const switchingFromPersonal = t !== 'Personal' && f.type === 'Personal';
+                      return {
+                        ...f,
+                        type: t,
+                        duration: typeDuration[t],
+                        client_id: switchingToPersonal ? '' : f.client_id,
+                        title: switchingFromPersonal ? '' : f.title,
+                      };
+                    });
+                    if (t === 'Personal') setClientSearch('');
+                    setMissingFields((s) => {
+                      const n = new Set(s);
+                      n.delete('type');
+                      if (t === 'Personal') n.delete('client'); else n.delete('title');
+                      return n;
+                    });
+                  }}
+                  className={`px-4 py-3.5 text-base rounded-md transition-all cursor-pointer press-scale min-h-[48px] flex items-center gap-2.5 ${
+                    selected
+                      ? 'border border-border/60 text-text-p bg-text-p/[0.06]'
+                      : missingFields.has('type')
+                        ? 'border-2 border-danger/60 text-text-s'
+                        : 'border border-border/60 text-text-s active:text-text-p active:bg-elevated'
+                  }`}
+                >
+                  <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                  {t}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Client or Title (Personal bookings use a free-text title instead of a client) */}
         {form.type === 'Personal' ? (
           <div className="relative">
@@ -490,57 +536,6 @@ export default function BookingForm() {
           />
         </div>
         )}
-
-        {/* Type */}
-        <div>
-          <label className={labelClass}>Type{changedLabel('type')}</label>
-          <div className="grid grid-cols-2 gap-3">
-            {bookingTypes.map((t) => {
-              const color = getTypeColor(t);
-              const selected = form.type === t;
-              return (
-                <button
-                  key={t}
-                  onClick={() => {
-                    setForm((f) => {
-                      const switchingToPersonal = t === 'Personal' && f.type !== 'Personal';
-                      const switchingFromPersonal = t !== 'Personal' && f.type === 'Personal';
-                      return {
-                        ...f,
-                        type: t,
-                        duration: typeDuration[t],
-                        // Switching to Personal: drop any client association so the row is unlinked.
-                        client_id: switchingToPersonal ? '' : f.client_id,
-                        // Switching away from Personal: discard the title so it doesn't persist on client bookings.
-                        title: switchingFromPersonal ? '' : f.title,
-                      };
-                    });
-                    if (t === 'Personal') setClientSearch('');
-                    setMissingFields((s) => {
-                      const n = new Set(s);
-                      n.delete('type');
-                      // The required field swaps — clear the now-irrelevant "missing" flag.
-                      if (t === 'Personal') n.delete('client'); else n.delete('title');
-                      return n;
-                    });
-                  }}
-                  className={`px-4 py-3.5 text-base rounded-md transition-all cursor-pointer press-scale min-h-[48px] flex items-center gap-2.5 ${
-                    selected
-                      ? 'border border-border/60 text-text-p bg-text-p/[0.06]'
-                      : missingFields.has('type')
-                        ? 'border-2 border-danger/60 text-text-s'
-                        : 'border border-border/60 text-text-s active:text-text-p active:bg-elevated'
-                  }`}
-                >
-                  <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                  {t}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="h-px bg-border/40" />
 
         {/* Estimate */}
         <div>
