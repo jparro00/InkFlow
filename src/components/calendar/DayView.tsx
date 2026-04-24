@@ -29,7 +29,7 @@ const SWIPE_THRESHOLD = 50;
 const VELOCITY_THRESHOLD = 0.4;
 // All-day banner row (Outlook-style): one slim bar per overlapping all-day /
 // multi-day booking, stacked above the hour grid.
-const BANNER_BAR_H = 22;
+const BANNER_BAR_H = 26;
 const BANNER_GAP = 4;
 const BANNER_PAD_Y = 6;
 
@@ -111,7 +111,7 @@ function DayPanel({
                 <button
                   key={b.id}
                   onClick={(e) => { e.stopPropagation(); onBookingClick(b.id); }}
-                  className="text-left px-2 rounded-[4px] overflow-hidden whitespace-nowrap flex items-center gap-1 text-[13px] font-medium press-scale cursor-pointer"
+                  className="text-left px-2 rounded-[4px] overflow-hidden whitespace-nowrap flex items-center gap-1 text-md font-medium press-scale cursor-pointer"
                   style={{
                     height: BANNER_BAR_H,
                     backgroundColor: isBlocking

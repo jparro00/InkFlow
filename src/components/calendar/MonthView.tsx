@@ -25,10 +25,10 @@ import {
 import { isBarBooking } from '../../utils/bookingRanges';
 
 const MS_PER_DAY = 86400000;
-// Bar visual height. Keep tight so a week row can stack 2-3 bars without
-// squeezing the single-day pills that sit beneath them.
-const BAR_PX = 12;
-const BAR_GAP_PX = 1;
+// Bar visual height. Matches pill font-size (12px) + breathing room so the
+// bar label reads at the same size as the single-day pills beneath it.
+const BAR_PX = 16;
+const BAR_GAP_PX = 2;
 
 interface BarSegment {
   booking: Booking;
@@ -490,7 +490,7 @@ export default function MonthView() {
                             return (
                               <div
                                 key={booking.id + '-' + wIdx}
-                                className="absolute overflow-hidden whitespace-nowrap text-[10px] lg:text-[11px] font-medium flex items-center pointer-events-auto"
+                                className="absolute overflow-hidden whitespace-nowrap text-[12px] leading-tight font-medium flex items-center pointer-events-auto"
                                 style={{
                                   left: `calc(${(startCol / 7) * 100}%)`,
                                   width: `calc(${(span / 7) * 100}%)`,
