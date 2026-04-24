@@ -9,6 +9,7 @@ interface DatePickerProps {
   value: string;
   onChange: (date: string) => void;
   missing?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 function buildGrid(month: Date) {
@@ -64,8 +65,12 @@ function MonthPanel({ month, selectedDate, bookedDays, onSelect }: {
   );
 }
 
-export default function DatePicker({ value, onChange, missing }: DatePickerProps) {
+export default function DatePicker({ value, onChange, missing, onOpenChange }: DatePickerProps) {
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    onOpenChange?.(open);
+  }, [open, onOpenChange]);
   const [viewMonth, setViewMonth] = useState(() => {
     if (value) return startOfMonth(new Date(value + 'T00:00:00'));
     return startOfMonth(new Date());

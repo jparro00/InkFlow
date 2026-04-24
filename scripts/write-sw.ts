@@ -18,11 +18,23 @@ export function writeServiceWorker({ distDir = 'dist' }: { distDir?: string } = 
       const urls = new Set(['/', '/index.html']);
       walk(root, root, urls);
 
-      // Ignore anything too large or irrelevant (simulator dir, palette html).
+      // Shell-only precache. On install the SW used to fetch every hashed
+      // asset in dist/ (~600KB), which blocked PWA readiness for 20-30s on
+      // slow connections after every deploy. Route chunks and vendor chunks
+      // are large and only needed when the user navigates to them, so we
+      // let the fetch handler cache them on first request instead.
+      const SHELL_PATTERNS: RegExp[] = [
+        /^\/$/,
+        /^\/index\.html$/,
+        /^\/manifest\.json$/,
+        /^\/assets\/index-[^/]+\.(js|css)$/, // main entry bundle + CSS
+        /^\/inkbloop_logo\.png$/,
+        /^\/apple-touch-icon(?:-\d+x\d+)?\.png$/,
+      ];
       const filtered = [...urls].filter((u) => {
         if (u.startsWith('/simulator/')) return false;
         if (u === '/palette-preview.html') return false;
-        return true;
+        return SHELL_PATTERNS.some((re) => re.test(u));
       });
 
       // Stable cache name derived from the content of the precache list so

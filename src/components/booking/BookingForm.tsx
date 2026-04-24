@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { format } from 'date-fns';
 import { UserPlus, CalendarPlus } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
@@ -37,8 +37,11 @@ const TITLE_MAX = 30;
 const defaultForm = {
   client_id: '',
   date: '',
+  end_date: '',
   time: '10:00',
   duration: 3,
+  is_all_day: false,
+  blocks_availability: true,
   type: 'Regular' as BookingType,
   estimate: '',
   status: 'Confirmed' as BookingStatus,
@@ -65,8 +68,17 @@ export default function BookingForm() {
   const morningRef = useRef<HTMLDivElement>(null);
   const timeRef = useRef<HTMLDivElement>(null);
   const durationRef = useRef<HTMLDivElement>(null);
+  const dateRef = useRef<HTMLDivElement>(null);
+  const endsRef = useRef<HTMLDivElement>(null);
   const timePickerOpen = useRef(false);
   const excludeRefs = useRef([morningRef, durationRef]);
+
+  const scrollIntoViewOnOpen = useCallback((isOpen: boolean, ref: React.RefObject<HTMLDivElement | null>) => {
+    if (!isOpen) return;
+    requestAnimationFrame(() => {
+      ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }, []);
   const initialFormRef = useRef<typeof defaultForm | null>(null);
   const imageBookingId = editingBookingId ?? tempBookingId.current;
   const { thumbnails, addImages, removeImage, getOriginalUrl } = useBookingImages(imageBookingId);
@@ -75,12 +87,16 @@ export default function BookingForm() {
   useEffect(() => {
     if (booking) {
       const d = new Date(booking.date);
+      const endD = new Date(booking.end_date);
       // Original booking values — used as the baseline for dirty detection
       const originalData = {
         client_id: booking.client_id ?? '',
         date: format(d, 'yyyy-MM-dd'),
+        end_date: format(endD, 'yyyy-MM-dd'),
         time: format(d, 'HH:mm'),
         duration: booking.duration,
+        is_all_day: booking.is_all_day ?? false,
+        blocks_availability: booking.blocks_availability ?? true,
         type: booking.type,
         estimate: booking.estimate?.toString() ?? '',
         status: booking.status,
@@ -130,6 +146,12 @@ export default function BookingForm() {
         updates.date = datePart;
         if (timePart) updates.time = timePart.slice(0, 5);
       }
+      if (prefillBookingData.end_date) {
+        const [endPart] = String(prefillBookingData.end_date).split('T');
+        updates.end_date = endPart;
+      }
+      if (prefillBookingData.is_all_day !== undefined) updates.is_all_day = prefillBookingData.is_all_day;
+      if (prefillBookingData.blocks_availability !== undefined) updates.blocks_availability = prefillBookingData.blocks_availability;
       if (prefillBookingData.client_id) {
         updates.client_id = prefillBookingData.client_id;
         const c = clients.find((c) => c.id === prefillBookingData.client_id);
@@ -186,12 +208,37 @@ export default function BookingForm() {
     : clients;
 
   const handleSave = async () => {
-    const dateTime = new Date(`${form.date}T${form.time}`);
     const isPersonal = form.type === 'Personal';
+    const isAllDay = isPersonal && form.is_all_day;
+
+    // For all-day: start at 00:00 of start date, end at 00:00 of day AFTER end-date (exclusive).
+    // For timed: start at chosen time, end = start + duration.
+    let startIso: string;
+    let endIso: string;
+    let durationHours: number;
+    if (isAllDay) {
+      const startDate = new Date(`${form.date}T00:00:00`);
+      const endDay = form.end_date && form.end_date >= form.date ? form.end_date : form.date;
+      const endDate = new Date(`${endDay}T00:00:00`);
+      endDate.setDate(endDate.getDate() + 1);
+      startIso = startDate.toISOString();
+      endIso = endDate.toISOString();
+      durationHours = (endDate.getTime() - startDate.getTime()) / (60 * 60 * 1000);
+    } else {
+      const startDate = new Date(`${form.date}T${form.time}`);
+      startIso = startDate.toISOString();
+      const endDate = new Date(startDate.getTime() + form.duration * 60 * 60 * 1000);
+      endIso = endDate.toISOString();
+      durationHours = form.duration;
+    }
+
     const data: Omit<Booking, 'id' | 'created_at'> = {
       client_id: isPersonal ? null : (form.client_id || null),
-      date: dateTime.toISOString(),
-      duration: form.duration,
+      date: startIso,
+      end_date: endIso,
+      duration: durationHours,
+      is_all_day: isAllDay,
+      blocks_availability: isPersonal ? form.blocks_availability : true,
       type: form.type,
       estimate: form.estimate ? parseFloat(form.estimate) : undefined,
       status: form.status,
@@ -304,17 +351,77 @@ export default function BookingForm() {
           </div>
         )}
 
-        {/* Date */}
-        <div>
-          <label className={labelClass}>Date *{changedLabel('date')}</label>
+        {/* Personal-only: All-day + Show-as-busy checkboxes (above Starts/Ends) */}
+        {form.type === 'Personal' && (
+          <div className="space-y-1">
+            <button
+              type="button"
+              onClick={() => setForm((f) => {
+                const nextAllDay = !f.is_all_day;
+                // Checking all-day → default Show-as-busy to false.
+                // Unchecking all-day → preserve user's current Show-as-busy choice.
+                return {
+                  ...f,
+                  is_all_day: nextAllDay,
+                  blocks_availability: nextAllDay ? false : f.blocks_availability,
+                };
+              })}
+              className={`flex items-center gap-3 w-full text-left py-1 cursor-pointer press-scale min-h-[44px] transition-colors ${form.is_all_day ? 'text-accent' : 'text-text-s'}`}
+            >
+              <span className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${form.is_all_day ? 'border-accent bg-accent/20' : 'border-border'}`}>
+                {form.is_all_day && <span className="text-accent text-xs font-bold">✓</span>}
+              </span>
+              <span className="text-base">All-day</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setForm((f) => ({ ...f, blocks_availability: !f.blocks_availability }))}
+              className={`flex items-center gap-3 w-full text-left py-1 cursor-pointer press-scale min-h-[44px] transition-colors ${form.blocks_availability ? 'text-accent' : 'text-text-s'}`}
+            >
+              <span className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${form.blocks_availability ? 'border-accent bg-accent/20' : 'border-border'}`}>
+                {form.blocks_availability && <span className="text-accent text-xs font-bold">✓</span>}
+              </span>
+              <span className="text-base">Show as busy</span>
+            </button>
+          </div>
+        )}
+
+        {/* Date (Starts for Personal) */}
+        <div ref={dateRef} style={{ scrollMarginTop: 12 }}>
+          <label className={labelClass}>{form.type === 'Personal' ? 'Starts *' : 'Date *'}{changedLabel('date')}</label>
           <DatePicker
             value={form.date}
-            onChange={(date) => { setForm((f) => ({ ...f, date })); setMissingFields((s) => { const n = new Set(s); n.delete('date'); return n; }); }}
+            onChange={(date) => {
+              setForm((f) => {
+                // Keep end_date ≥ start date
+                const nextEnd = f.end_date && f.end_date >= date ? f.end_date : date;
+                return { ...f, date, end_date: nextEnd };
+              });
+              setMissingFields((s) => { const n = new Set(s); n.delete('date'); return n; });
+            }}
             missing={missingFields.has('date')}
+            onOpenChange={(isOpen) => scrollIntoViewOnOpen(isOpen, dateRef)}
           />
         </div>
 
-        {/* Morning / Evening */}
+        {/* Personal + all-day only: End date picker (for multi-day) */}
+        {form.type === 'Personal' && form.is_all_day && (
+          <div ref={endsRef} style={{ scrollMarginTop: 12 }}>
+            <label className={labelClass}>Ends</label>
+            <DatePicker
+              value={form.end_date || form.date}
+              onChange={(end_date) => {
+                // Don't allow end < start
+                const safeEnd = end_date >= form.date ? end_date : form.date;
+                setForm((f) => ({ ...f, end_date: safeEnd }));
+              }}
+              onOpenChange={(isOpen) => scrollIntoViewOnOpen(isOpen, endsRef)}
+            />
+          </div>
+        )}
+
+        {/* Morning / Evening (hidden for all Personal bookings) */}
+        {form.type !== 'Personal' && (
         <div ref={morningRef} className="flex gap-3 mt-2" style={{ scrollMarginTop: 12 }}>
           {['Morning', 'Evening'].map((slot) => {
             const time = slot === 'Morning'
@@ -339,8 +446,10 @@ export default function BookingForm() {
             );
           })}
         </div>
+        )}
 
-        {/* Duration */}
+        {/* Duration (hidden for all-day Personal — end-date determines span) */}
+        {!(form.type === 'Personal' && form.is_all_day) && (
         <div ref={durationRef}>
           <label className={labelClass}>Duration{changedLabel('duration')}</label>
           <select
@@ -354,8 +463,10 @@ export default function BookingForm() {
             ))}
           </select>
         </div>
+        )}
 
-        {/* Time */}
+        {/* Time (hidden for all-day Personal) */}
+        {!(form.type === 'Personal' && form.is_all_day) && (
         <div ref={timeRef}>
           <label className={labelClass}>Time{changedLabel('timeSlot')}</label>
           <TimePicker
@@ -392,6 +503,7 @@ export default function BookingForm() {
             }}
           />
         </div>
+        )}
 
         {/* Type */}
         <div>
@@ -411,9 +523,7 @@ export default function BookingForm() {
                         ...f,
                         type: t,
                         duration: typeDuration[t],
-                        // Switching to Personal: drop any client association so the row is unlinked.
                         client_id: switchingToPersonal ? '' : f.client_id,
-                        // Switching away from Personal: discard the title so it doesn't persist on client bookings.
                         title: switchingFromPersonal ? '' : f.title,
                       };
                     });
@@ -421,7 +531,6 @@ export default function BookingForm() {
                     setMissingFields((s) => {
                       const n = new Set(s);
                       n.delete('type');
-                      // The required field swaps — clear the now-irrelevant "missing" flag.
                       if (t === 'Personal') n.delete('client'); else n.delete('title');
                       return n;
                     });
@@ -444,18 +553,20 @@ export default function BookingForm() {
 
         <div className="h-px bg-border/40" />
 
-        {/* Estimate */}
-        <div>
-          <label className={labelClass}>Estimate ($){changedLabel('estimate')}</label>
-          <input
-            type="text"
-            inputMode="decimal"
-            value={form.estimate}
-            onChange={(e) => { setForm((f) => ({ ...f, estimate: e.target.value.replace(/[^0-9.]/g, '') })); setMissingFields((s) => { const n = new Set(s); n.delete('estimate'); return n; }); }}
-            placeholder="0"
-            className={inputFor('estimate')}
-          />
-        </div>
+        {/* Estimate (hidden for Personal) */}
+        {form.type !== 'Personal' && (
+          <div>
+            <label className={labelClass}>Estimate ($){changedLabel('estimate')}</label>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={form.estimate}
+              onChange={(e) => { setForm((f) => ({ ...f, estimate: e.target.value.replace(/[^0-9.]/g, '') })); setMissingFields((s) => { const n = new Set(s); n.delete('estimate'); return n; }); }}
+              placeholder="0"
+              className={inputFor('estimate')}
+            />
+          </div>
+        )}
 
         {/* Notes */}
         <div>
@@ -481,17 +592,19 @@ export default function BookingForm() {
           <span className="text-base">Rescheduled</span>
         </button>
 
-        {/* Reference Images */}
-        <div>
-          <label className={labelClass}>Reference Images</label>
-          <ImageThumbnailGrid
-            thumbnails={thumbnails}
-            editable
-            onRemove={removeImage}
-            onView={(id) => setViewingImageId(id)}
-          />
-          <ImagePicker onFiles={addImages} />
-        </div>
+        {/* Reference Images (hidden for Personal) */}
+        {form.type !== 'Personal' && (
+          <div>
+            <label className={labelClass}>Reference Images</label>
+            <ImageThumbnailGrid
+              thumbnails={thumbnails}
+              editable
+              onRemove={removeImage}
+              onView={(id) => setViewingImageId(id)}
+            />
+            <ImagePicker onFiles={addImages} />
+          </div>
+        )}
 
         {/* Add to iOS / Save */}
         <div className="flex flex-col lg:flex-row lg:justify-end gap-3 pt-4 border-t border-border/40 sticky bottom-0 bg-elevated pb-2">

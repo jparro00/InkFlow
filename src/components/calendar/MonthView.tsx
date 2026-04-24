@@ -16,7 +16,103 @@ import { ChevronLeft, Plus, Search } from 'lucide-react';
 import { useUIStore } from '../../stores/uiStore';
 import { useBookingStore } from '../../stores/bookingStore';
 import { useClientStore } from '../../stores/clientStore';
-import { getTypeColor, getTypeColorAlpha, getBookingLabel } from '../../types';
+import {
+  getTypeColor,
+  getTypeColorAlpha,
+  getBookingLabel,
+  type Booking,
+} from '../../types';
+import { isBarBooking } from '../../utils/bookingRanges';
+
+const MS_PER_DAY = 86400000;
+// Bar visual height. Matches pill font-size (12px) + breathing room so the
+// bar label reads at the same size as the single-day pills beneath it.
+const BAR_PX = 16;
+const BAR_GAP_PX = 2;
+
+interface BarSegment {
+  booking: Booking;
+  /** Index (0-6) where this segment starts in the week. */
+  startCol: number;
+  /** Number of columns covered in this week. */
+  span: number;
+  /** Row slot assigned by the greedy packer (0 = topmost). */
+  lane: number;
+  /** Booking begins in a prior week — left side should stay square (no left radius). */
+  continuesLeft: boolean;
+  /** Booking ends in a later week — right side should stay square (no right radius). */
+  continuesRight: boolean;
+}
+
+/**
+ * Greedy per-week packer: returns segments for every bar-worthy booking that
+ * touches the week AND the rendered month, clipped to the intersection of
+ * [weekStart, weekEnd) and [monthStart, nextMonthStart). Clipping to the
+ * month matters because a grid week straddling two months is rendered twice
+ * (once in each month's grid) — without the extra month clip the same bar
+ * would be drawn on the hidden out-of-month cells of the neighboring month.
+ */
+function computeWeekBars(weekDays: Date[], bookings: Booking[], month: Date): BarSegment[] {
+  if (weekDays.length === 0) return [];
+  const weekStart = new Date(weekDays[0]); weekStart.setHours(0, 0, 0, 0);
+  const weekEnd = new Date(weekDays[weekDays.length - 1]); weekEnd.setHours(0, 0, 0, 0);
+  weekEnd.setDate(weekEnd.getDate() + 1);
+  const weekStartMs = weekStart.getTime();
+  const weekEndMs = weekEnd.getTime();
+
+  const monthStartMs = startOfMonth(month).getTime();
+  const nextMonthStartMs = startOfMonth(addMonths(month, 1)).getTime();
+  const visibleStartMs = Math.max(weekStartMs, monthStartMs);
+  const visibleEndMs = Math.min(weekEndMs, nextMonthStartMs);
+  if (visibleEndMs <= visibleStartMs) return [];
+
+  const candidates = bookings
+    .filter((b) => isBarBooking(b))
+    .filter((b) => {
+      const start = new Date(b.date).getTime();
+      const end = new Date(b.end_date).getTime();
+      return start < visibleEndMs && end > visibleStartMs;
+    })
+    .sort((a, b) => {
+      const aStart = new Date(a.date).getTime();
+      const bStart = new Date(b.date).getTime();
+      if (aStart !== bStart) return aStart - bStart;
+      const aLen = new Date(a.end_date).getTime() - aStart;
+      const bLen = new Date(b.end_date).getTime() - bStart;
+      return bLen - aLen;
+    });
+
+  const laneEnds: number[] = [];
+  const segments: BarSegment[] = [];
+
+  for (const b of candidates) {
+    const bStart = new Date(b.date).getTime();
+    const bEnd = new Date(b.end_date).getTime();
+    const clipStart = Math.max(bStart, visibleStartMs);
+    const clipEnd = Math.min(bEnd, visibleEndMs);
+    if (clipEnd <= clipStart) continue;
+    const startCol = Math.floor((clipStart - weekStartMs) / MS_PER_DAY);
+    const endCol = Math.ceil((clipEnd - weekStartMs) / MS_PER_DAY);
+    const span = Math.max(1, endCol - startCol);
+
+    let lane = laneEnds.findIndex((endMs) => endMs <= clipStart);
+    if (lane === -1) lane = laneEnds.length;
+    laneEnds[lane] = clipEnd;
+
+    segments.push({
+      booking: b,
+      startCol,
+      span,
+      lane,
+      // Square off the ends when the booking extends past the visible
+      // (week ∩ month) range — covers both cross-week and cross-month cases.
+      continuesLeft: bStart < visibleStartMs,
+      continuesRight: bEnd > visibleEndMs,
+    });
+  }
+
+  return segments;
+}
 
 const MONTHS_BUFFER = 6;
 
@@ -29,19 +125,17 @@ function getMonthRange(center: Date, buffer: number) {
 }
 
 export default function MonthView() {
-  const { setCalendarDate, setCalendarView, openBookingForm, setTodayHandler, setScrollToCurrentMonth, setCalendarSearchOpen, setHeaderLeft, setHeaderRight } = useUIStore();
+  const { calendarDate, setCalendarDate, setCalendarView, openBookingForm, setTodayHandler, setScrollToCurrentMonth, setCalendarSearchOpen, setHeaderLeft, setHeaderRight } = useUIStore();
   const bookings = useBookingStore((s) => s.bookings);
   const getClient = useClientStore((s) => s.getClient);
 
-  // Always center the list on actual today at mount. `calendarDate` from
-  // the store can be stale: the user may have tapped an old booking, the
-  // agent may have navigated to a past date, or the PWA may have been
-  // backgrounded long enough for the store's initial `new Date()` (captured
-  // once at module load) to drift out of the current month. Rebuilding
-  // around a fresh `new Date()` on every mount guarantees today's month
-  // is always the scroll anchor.
-  const [months, setMonths] = useState(() => getMonthRange(new Date(), MONTHS_BUFFER));
-  const [visibleYear, setVisibleYear] = useState(() => new Date().getFullYear());
+  // Anchor the initial scroll on calendarDate — whatever month the user
+  // was last looking at (day view, agent navigation, tapped booking). The
+  // "Today" button is the dedicated path back to actual-today; it has its
+  // own handler further down that resets the list if today isn't in range.
+  const anchorDate = calendarDate ?? new Date();
+  const [months, setMonths] = useState(() => getMonthRange(anchorDate, MONTHS_BUFFER));
+  const [visibleYear, setVisibleYear] = useState(() => anchorDate.getFullYear());
   const scrollRef = useRef<HTMLDivElement>(null);
   const currentMonthRef = useRef<HTMLDivElement>(null);
   const hasScrolled = useRef(false);
@@ -174,9 +268,11 @@ export default function MonthView() {
     return () => setScrollToCurrentMonth(null);
   }, [setCalendarDate, setScrollToCurrentMonth]);
 
-  const getBookingsForDay = (day: Date) =>
+  // Pills = single-day timed bookings only. All-day/multi-day render as bars
+  // in a separate layer above the pill stack (see computeWeekBars).
+  const getPillsForDay = (day: Date) =>
     bookings
-      .filter((b) => isSameDay(new Date(b.date), day))
+      .filter((b) => !isBarBooking(b) && isSameDay(new Date(b.date), day))
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   const handleDayClick = (day: Date) => {
@@ -184,17 +280,13 @@ export default function MonthView() {
     setCalendarView('day');
   };
 
-  // "Current month" means actual today's month, NOT calendarDate's month.
-  // This is what drives currentMonthRef and the initial scroll anchor —
-  // using calendarDate here is how the scroll used to land on a stale
-  // month when the store's date had drifted.
-  const isCurrentMonth = (month: Date) => {
-    const today = new Date();
-    return (
-      month.getFullYear() === today.getFullYear() &&
-      month.getMonth() === today.getMonth()
-    );
-  };
+  // The "anchor month" is the month we want scrolled to on mount —
+  // derived from calendarDate so that pressing Month in day view returns
+  // to the same month. `currentMonthRef` below tracks this element.
+  const isAnchorMonth = (month: Date) => (
+    month.getFullYear() === anchorDate.getFullYear() &&
+    month.getMonth() === anchorDate.getMonth()
+  );
 
   // Register header buttons
   useEffect(() => {
@@ -251,7 +343,7 @@ export default function MonthView() {
           const gridStart = startOfWeek(monthStart, { weekStartsOn: 0 });
           const gridEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
           const days = eachDayOfInterval({ start: gridStart, end: gridEnd });
-          const isCurrent = isCurrentMonth(month);
+          const isCurrent = isAnchorMonth(month);
 
           return (
             <div
@@ -270,93 +362,169 @@ export default function MonthView() {
                 {format(month, 'MMMM')}
               </h2>
 
-              {/* Day grid */}
-              <div className="grid grid-cols-7">
-                {days.map((day) => {
-                  const inMonth = isSameMonth(day, month);
-                  const today = isToday(day);
-                  const dayBookings = inMonth ? getBookingsForDay(day) : [];
+              {/* Week rows. Splitting by week lets us compute per-week bar
+                  lane assignments for multi-day / all-day events — each week
+                  gets its own greedy packer so bars never collide within a
+                  week. Single-day timed bookings still render as pills below
+                  the bar stack. */}
+              {(() => {
+                const weeks: Date[][] = [];
+                for (let i = 0; i < days.length; i += 7) {
+                  weeks.push(days.slice(i, i + 7));
+                }
+                return weeks.map((weekDays, wIdx) => {
+                  const weekBars = computeWeekBars(weekDays, bookings, month);
+                  const laneCount = weekBars.reduce((max, s) => Math.max(max, s.lane + 1), 0);
+                  const lanesHeight = laneCount > 0
+                    ? laneCount * BAR_PX + Math.max(0, laneCount - 1) * BAR_GAP_PX
+                    : 0;
 
                   return (
-                    <button
-                      key={day.toISOString()}
-                      onClick={() => inMonth && handleDayClick(day)}
-                      disabled={!inMonth}
-                      className={`flex flex-col items-start px-0.5 py-0.5 min-h-[64px] border-b border-border/15 transition-colors lg:aspect-square lg:min-h-0 lg:overflow-hidden lg:px-1 lg:py-1 ${
-                        inMonth ? 'cursor-pointer active:bg-elevated/30' : 'opacity-0 pointer-events-none'
-                      }`}
-                    >
-                      {/* Date number */}
-                      <div className="w-full flex justify-center mb-1">
-                        <span
-                          className={`w-10 h-10 flex items-center justify-center rounded-full text-[20px] ${
-                            today
-                              ? 'bg-today text-white font-semibold'
-                              : inMonth
-                              ? 'text-text-p'
-                              : 'text-text-t'
-                          }`}
-                        >
-                          {format(day, 'd')}
-                        </span>
-                      </div>
+                    <div key={wIdx} className="relative grid grid-cols-7">
+                      {weekDays.map((day) => {
+                        const inMonth = isSameMonth(day, month);
+                        const today = isToday(day);
+                        const pills = inMonth ? getPillsForDay(day) : [];
 
-                      {/* Event badges — 2px gap on mobile (pills are tiny),
-                          wider gap on desktop so the larger BookingCard-style
-                          entries have breathing room. */}
-                      <div className="w-full flex flex-col gap-[2px] lg:gap-1.5 overflow-hidden">
-                        {dayBookings.slice(0, 3).map((b) => {
-                          const client = getClient(b.client_id ?? '');
-                          const name = getBookingLabel(b, client?.display_name || client?.name);
-                          return (
-                            <Fragment key={b.id}>
-                              {/* Mobile compact pill — unchanged from original. Desktop
-                                  variant below is display:none here via lg:hidden, so
-                                  mobile paint/layout cost is identical to before. */}
-                              <div
-                                className="lg:hidden rounded-sm px-1 py-[1px] text-[12px] leading-tight overflow-hidden whitespace-nowrap"
-                                style={{ backgroundColor: getTypeColorAlpha(b.type, 0.09), ...(b.rescheduled ? { outline: '1px solid var(--color-danger)', outlineOffset: -1 } : {}) }}
+                        return (
+                          <button
+                            key={day.toISOString()}
+                            onClick={() => inMonth && handleDayClick(day)}
+                            disabled={!inMonth}
+                            className={`flex flex-col items-start px-0.5 py-0.5 min-h-[64px] border-b border-border/15 transition-colors lg:aspect-square lg:min-h-0 lg:overflow-hidden lg:px-1 lg:py-1 ${
+                              inMonth ? 'cursor-pointer active:bg-elevated/30' : 'opacity-0 pointer-events-none'
+                            }`}
+                          >
+                            {/* Date number */}
+                            <div className="w-full flex justify-center mb-1">
+                              <span
+                                className={`w-10 h-10 flex items-center justify-center rounded-full text-[20px] ${
+                                  today
+                                    ? 'bg-today text-white font-semibold'
+                                    : inMonth
+                                    ? 'text-text-p'
+                                    : 'text-text-t'
+                                }`}
                               >
-                                <span style={{ color: getTypeColor(b.type), maskImage: 'linear-gradient(to right, black 70%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to right, black 70%, transparent 100%)', display: 'block' }}>
+                                {format(day, 'd')}
+                              </span>
+                            </div>
+
+                            {/* Spacer reserves vertical room for the absolute bar overlay below.
+                                Keeping it per-cell (rather than a row-level spacer) lets each cell's
+                                flex column keep the date → lanes → pills stacking intact. */}
+                            {lanesHeight > 0 && (
+                              <div style={{ height: lanesHeight, marginBottom: 2 }} />
+                            )}
+
+                            {/* Single-day pills — same dual-mode rendering as
+                                before (mobile compact, desktop BookingCard). */}
+                            <div className="w-full flex flex-col gap-[2px] lg:gap-1.5 overflow-hidden">
+                              {pills.slice(0, 3).map((b) => {
+                                const client = getClient(b.client_id ?? '');
+                                const name = getBookingLabel(b, client?.display_name || client?.name);
+                                return (
+                                  <Fragment key={b.id}>
+                                    <div
+                                      className="lg:hidden rounded-sm px-1 py-[1px] text-[12px] leading-tight overflow-hidden whitespace-nowrap"
+                                      style={{ backgroundColor: getTypeColorAlpha(b.type, 0.09), ...(b.rescheduled ? { outline: '1px solid var(--color-danger)', outlineOffset: -1 } : {}) }}
+                                    >
+                                      <span style={{ color: getTypeColor(b.type), maskImage: 'linear-gradient(to right, black 70%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to right, black 70%, transparent 100%)', display: 'block' }}>
+                                        {name}
+                                      </span>
+                                    </div>
+                                    <div
+                                      className="hidden lg:flex items-center gap-2 px-3 py-2 rounded-lg bg-surface/60 border border-border/40 overflow-hidden"
+                                      style={b.rescheduled ? { outline: '1px solid var(--color-danger)', outlineOffset: -1 } : {}}
+                                    >
+                                      <div
+                                        className="w-1 self-stretch rounded-full shrink-0"
+                                        style={{ backgroundColor: getTypeColor(b.type) }}
+                                      />
+                                      <div className="min-w-0 flex-1 text-left">
+                                        <div className="text-[15px] text-text-p truncate leading-tight">
+                                          {name} · {b.type}
+                                        </div>
+                                        <div className="text-[13px] text-text-t truncate leading-tight">
+                                          {format(new Date(b.date), 'h:mm a')} · {b.duration}h
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </Fragment>
+                                );
+                              })}
+                              {pills.length > 3 && (
+                                <div className="text-[12px] lg:text-[13px] text-text-t text-center lg:text-left lg:px-3">
+                                  {pills.length - 3} more
+                                </div>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+
+                      {/* Bar overlay: one element per BarSegment, rendered at
+                          the week level so the label can span the full width of
+                          a multi-day bar instead of being truncated per cell.
+                          Positioned over the per-cell spacer above — its `top`
+                          matches the date-block height (py-0.5 + h-10 + mb-1). */}
+                      {laneCount > 0 && (
+                        <div
+                          className="absolute left-0 right-0 pointer-events-none"
+                          style={{
+                            top: 'calc(0.125rem + 2.5rem + 0.25rem)',
+                            height: lanesHeight,
+                          }}
+                        >
+                          {weekBars.map((seg) => {
+                            const { booking, startCol, span, lane, continuesLeft, continuesRight } = seg;
+                            const client = getClient(booking.client_id ?? '');
+                            const name = getBookingLabel(booking, client?.display_name || client?.name);
+                            const isBlocking = booking.blocks_availability;
+                            return (
+                              <div
+                                key={booking.id + '-' + wIdx}
+                                className="absolute overflow-hidden whitespace-nowrap text-[12px] font-medium pointer-events-auto"
+                                style={{
+                                  left: `calc(${(startCol / 7) * 100}%)`,
+                                  width: `calc(${(span / 7) * 100}%)`,
+                                  top: lane * (BAR_PX + BAR_GAP_PX),
+                                  height: BAR_PX,
+                                  lineHeight: `${BAR_PX}px`,
+                                  backgroundColor: isBlocking
+                                    ? getTypeColorAlpha(booking.type, 0.28)
+                                    : getTypeColorAlpha(booking.type, 0.1),
+                                  color: getTypeColor(booking.type),
+                                  fontStyle: isBlocking ? 'normal' : 'italic',
+                                  borderTopLeftRadius: continuesLeft ? 0 : 'var(--radius-sm)',
+                                  borderBottomLeftRadius: continuesLeft ? 0 : 'var(--radius-sm)',
+                                  borderTopRightRadius: continuesRight ? 0 : 'var(--radius-sm)',
+                                  borderBottomRightRadius: continuesRight ? 0 : 'var(--radius-sm)',
+                                  paddingLeft: continuesLeft ? 2 : 4,
+                                  paddingRight: continuesRight ? 2 : 4,
+                                  ...(booking.rescheduled
+                                    ? { outline: '1px solid var(--color-danger)', outlineOffset: -1 }
+                                    : {}),
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    display: 'block',
+                                    maskImage: 'linear-gradient(to right, black 70%, transparent 100%)',
+                                    WebkitMaskImage: 'linear-gradient(to right, black 70%, transparent 100%)',
+                                  }}
+                                >
                                   {name}
                                 </span>
                               </div>
-                              {/* Desktop BookingCard-style card (matches agent's
-                                  scheduling search results): colored side strip +
-                                  client/type on top line, time on second line.
-                                  hidden on mobile so it does not render there.
-                                  Sizing mirrors BookingCard (bg-surface/60,
-                                  text-[15px]/[13px], w-1 strip, rounded-lg). */}
-                              <div
-                                className="hidden lg:flex items-center gap-2 px-3 py-2 rounded-lg bg-surface/60 border border-border/40 overflow-hidden"
-                                style={b.rescheduled ? { outline: '1px solid var(--color-danger)', outlineOffset: -1 } : {}}
-                              >
-                                <div
-                                  className="w-1 self-stretch rounded-full shrink-0"
-                                  style={{ backgroundColor: getTypeColor(b.type) }}
-                                />
-                                <div className="min-w-0 flex-1 text-left">
-                                  <div className="text-[15px] text-text-p truncate leading-tight">
-                                    {name} · {b.type}
-                                  </div>
-                                  <div className="text-[13px] text-text-t truncate leading-tight">
-                                    {format(new Date(b.date), 'h:mm a')} · {b.duration}h
-                                  </div>
-                                </div>
-                              </div>
-                            </Fragment>
-                          );
-                        })}
-                        {dayBookings.length > 3 && (
-                          <div className="text-[12px] lg:text-[13px] text-text-t text-center lg:text-left lg:px-3">
-                            {dayBookings.length - 3} more
-                          </div>
-                        )}
-                      </div>
-                    </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   );
-                })}
-              </div>
+                });
+              })()}
             </div>
           );
         })}

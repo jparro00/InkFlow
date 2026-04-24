@@ -82,7 +82,13 @@ export interface Booking {
   created_at: string;
   client_id: string | null;
   date: string;
+  /** Inclusive end timestamp. For timed bookings equals date + duration hours. */
+  end_date: string;
   duration: number;
+  /** True when the booking occupies whole calendar days (Personal type only). */
+  is_all_day: boolean;
+  /** When false, the schedule agent treats this as informational and ignores it for availability. */
+  blocks_availability: boolean;
   type: BookingType;
   estimate?: number;
   status: BookingStatus;
@@ -91,6 +97,28 @@ export interface Booking {
   quick_booking_raw?: string;
   /** Free-text label for Personal bookings (not tied to a client). Max 30 chars. */
   title?: string;
+}
+
+/** True when this booking's [date, end_date) interval overlaps the calendar day `day`. */
+export function bookingOverlapsDay(booking: Booking, day: Date): boolean {
+  const dayStart = new Date(day);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(dayStart);
+  dayEnd.setDate(dayEnd.getDate() + 1);
+  const start = new Date(booking.date);
+  const end = new Date(booking.end_date);
+  return start < dayEnd && end > dayStart;
+}
+
+/** True when the booking spans more than a single calendar day. */
+export function bookingIsMultiDay(booking: Booking): boolean {
+  const start = new Date(booking.date);
+  const end = new Date(booking.end_date);
+  const startDay = new Date(start); startDay.setHours(0, 0, 0, 0);
+  const endDay = new Date(end); endDay.setHours(0, 0, 0, 0);
+  // Treat end on next-day 00:00 (all-day single day) as not multi-day
+  if (end.getTime() === endDay.getTime() && (endDay.getTime() - startDay.getTime()) === 86400000) return false;
+  return endDay > startDay;
 }
 
 /**

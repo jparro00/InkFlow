@@ -20,26 +20,40 @@ import { useBookingStore } from '../../stores/bookingStore';
 import { useClientStore } from '../../stores/clientStore';
 import type { Booking } from '../../types';
 import { getTypeColor, getTypeColorAlpha, getBookingLabel } from '../../types';
+import { isBarBooking, getBarBookingsForDay } from '../../utils/bookingRanges';
 
 
 const hours = Array.from({ length: 24 }, (_, i) => i);
 const HOUR_HEIGHT = 48;
 const SWIPE_THRESHOLD = 50;
 const VELOCITY_THRESHOLD = 0.4;
+// All-day banner row (Outlook-style): one slim bar per overlapping all-day /
+// multi-day booking, stacked above the hour grid.
+const BANNER_BAR_H = 26;
+const BANNER_GAP = 4;
+const BANNER_PAD_Y = 6;
 
-// Full day panel: hour labels + grid lines + bookings
+// Full day panel: all-day banner + hour labels + grid lines + bookings.
+// Multi-day and all-day bookings render in the banner row at the top; only
+// single-day timed bookings render in the hour grid.
 function DayPanel({
-  day, bookings, getClient, onSlotClick, onBookingClick,
+  day, bookings, getClient, onSlotClick, onBookingClick, bannerHeight,
 }: {
   day: Date;
   bookings: Booking[];
   getClient: (id: string) => { name: string; display_name?: string } | undefined;
   onSlotClick: (hour: number, day: Date) => void;
   onBookingClick: (id: string) => void;
+  /** Shared reserved banner height (max across prev/curr/next) so the hour grid stays aligned across panels. */
+  bannerHeight: number;
 }) {
+  const bannerBookings = getBarBookingsForDay(day, bookings);
   const dayBookings = bookings
-    .filter((b) => isSameDay(new Date(b.date), day))
+    .filter((b) => !isBarBooking(b) && isSameDay(new Date(b.date), day))
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  const dayStart = new Date(day); dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(dayStart); dayEnd.setDate(dayEnd.getDate() + 1);
 
   // Compute side-by-side columns for overlapping bookings
   const layoutBookings = dayBookings.map((booking) => {
@@ -74,7 +88,55 @@ function DayPanel({
   }
 
   return (
-    <div className="shrink-0 relative" style={{ minHeight: hours.length * HOUR_HEIGHT, width: 'calc(100% / 3)' }}>
+    <div className="shrink-0 flex flex-col" style={{ width: 'calc(100% / 3)' }}>
+      {/* All-day banner row. Height is set by the parent to the max across
+          the 3 visible panels so the hour grid stays vertically aligned
+          during swipe animations. Sticky so it stays in view while the
+          user scrolls through the hour grid. */}
+      {bannerHeight > 0 && (
+        <div
+          className="shrink-0 px-3 sticky top-0 z-30 bg-bg"
+          style={{ height: bannerHeight, paddingTop: BANNER_PAD_Y, paddingBottom: BANNER_PAD_Y }}
+        >
+          <div className="flex flex-col" style={{ gap: BANNER_GAP }}>
+            {bannerBookings.map((b) => {
+              const client = getClient(b.client_id ?? '');
+              const label = getBookingLabel(b, client?.display_name || client?.name);
+              const isBlocking = b.blocks_availability;
+              const bStart = new Date(b.date);
+              const bEnd = new Date(b.end_date);
+              const continuesLeft = bStart < dayStart;
+              const continuesRight = bEnd > dayEnd;
+              return (
+                <button
+                  key={b.id}
+                  onClick={(e) => { e.stopPropagation(); onBookingClick(b.id); }}
+                  className="text-left px-2 rounded-[4px] overflow-hidden whitespace-nowrap flex items-center gap-1 text-md font-medium press-scale cursor-pointer"
+                  style={{
+                    height: BANNER_BAR_H,
+                    backgroundColor: isBlocking
+                      ? getTypeColorAlpha(b.type, 0.28)
+                      : getTypeColorAlpha(b.type, 0.1),
+                    color: getTypeColor(b.type),
+                    fontStyle: isBlocking ? 'normal' : 'italic',
+                    ...(b.rescheduled
+                      ? { outline: '1px solid var(--color-danger)', outlineOffset: -1 }
+                      : {}),
+                  }}
+                >
+                  {continuesLeft && <span className="opacity-60 shrink-0">‹</span>}
+                  <span className="truncate flex-1">{label}</span>
+                  {!isBlocking && <span className="text-[10px] opacity-70 shrink-0">Free</span>}
+                  {continuesRight && <span className="opacity-60 shrink-0">›</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Hour grid */}
+      <div className="relative" style={{ minHeight: hours.length * HOUR_HEIGHT }}>
       {hours.map((hour) => {
         const isOffHours = hour < 8;
         return (
@@ -141,6 +203,7 @@ function DayPanel({
           </button>
         );
       })}
+      </div>
     </div>
   );
 }
@@ -213,13 +276,25 @@ export default function DayView() {
   const prevWeekDate = panelOverride?.dir === -1 ? panelOverride.day : subWeeks(calendarDate, 1);
   const nextWeekDate = panelOverride?.dir === 1 ? panelOverride.day : addWeeks(calendarDate, 1);
 
+  // Reserve the same banner height across all 3 visible panels so the hour
+  // grid stays vertically aligned during horizontal swipes. Height grows with
+  // the noisiest day's all-day count; zero days of bars → no banner.
+  const maxBannerBars = Math.max(
+    getBarBookingsForDay(prevDay, bookings).length,
+    getBarBookingsForDay(calendarDate, bookings).length,
+    getBarBookingsForDay(nextDay, bookings).length,
+  );
+  const bannerHeight = maxBannerBars > 0
+    ? maxBannerBars * BANNER_BAR_H + (maxBannerBars - 1) * BANNER_GAP + 2 * BANNER_PAD_Y
+    : 0;
+
   const scrollToNow = useCallback(() => {
     if (!containerRef.current) return;
     const now = new Date();
     const currentHour = now.getHours() + now.getMinutes() / 60;
-    const targetScroll = currentHour * HOUR_HEIGHT - containerRef.current.offsetHeight / 2;
+    const targetScroll = bannerHeight + currentHour * HOUR_HEIGHT - containerRef.current.offsetHeight / 2;
     containerRef.current.scrollTo({ top: Math.max(0, targetScroll), behavior: 'smooth' });
-  }, []);
+  }, [bannerHeight]);
 
   // Scroll to current time (or 8am if not today) on first render
   useEffect(() => {
@@ -227,9 +302,9 @@ export default function DayView() {
       if (isToday(calendarDate)) {
         const now = new Date();
         const currentHour = now.getHours() + now.getMinutes() / 60;
-        containerRef.current.scrollTop = Math.max(0, currentHour * HOUR_HEIGHT - containerRef.current.offsetHeight / 2);
+        containerRef.current.scrollTop = Math.max(0, bannerHeight + currentHour * HOUR_HEIGHT - containerRef.current.offsetHeight / 2);
       } else {
-        containerRef.current.scrollTop = 8 * HOUR_HEIGHT;
+        containerRef.current.scrollTop = bannerHeight + 8 * HOUR_HEIGHT;
       }
       hasScrolledToStart.current = true;
     }
@@ -428,9 +503,9 @@ export default function DayView() {
       <div ref={containerRef} className="flex-1 overflow-y-auto overflow-x-hidden relative">
         <div {...timelineBind()} style={{ touchAction: 'pan-y' }}>
           <motion.div className="flex" style={{ x: stripX, width: '300%', marginLeft: '-100%' }}>
-            <DayPanel day={prevDay} bookings={bookings} getClient={getClient} onSlotClick={handleSlotClick} onBookingClick={handleBookingClick} />
-            <DayPanel day={calendarDate} bookings={bookings} getClient={getClient} onSlotClick={handleSlotClick} onBookingClick={handleBookingClick} />
-            <DayPanel day={nextDay} bookings={bookings} getClient={getClient} onSlotClick={handleSlotClick} onBookingClick={handleBookingClick} />
+            <DayPanel day={prevDay} bookings={bookings} getClient={getClient} onSlotClick={handleSlotClick} onBookingClick={handleBookingClick} bannerHeight={bannerHeight} />
+            <DayPanel day={calendarDate} bookings={bookings} getClient={getClient} onSlotClick={handleSlotClick} onBookingClick={handleBookingClick} bannerHeight={bannerHeight} />
+            <DayPanel day={nextDay} bookings={bookings} getClient={getClient} onSlotClick={handleSlotClick} onBookingClick={handleBookingClick} bannerHeight={bannerHeight} />
           </motion.div>
         </div>
       </div>

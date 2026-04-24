@@ -46,6 +46,15 @@ PERSONAL BOOKINGS (type="Personal"):
 - Do NOT set "client_name" for Personal bookings. A name in a Personal title/notes (e.g. "Joslyn", "Mom") is NOT a client — suppress it.
 - If the user doesn't specify a duration, omit "duration" — the form defaults Personal to 1 hour.
 
+ALL-DAY AND MULTI-DAY PERSONAL BOOKINGS:
+- is_all_day=true when the event has no specific time: "vacation", "trip", "out of town", "in town", "kids at camp", "day off", or a plain date like "june 10" with a non-tattoo noun.
+- end_date: set when the user describes a range ("may 10-14", "jun 7 to 9", "next wed thru fri"). For all-day: end_date = ISO midnight of the day AFTER the last covered day (exclusive-end convention — e.g. "jun 7-9" → date=2026-06-07T00:00:00, end_date=2026-06-10T00:00:00). For timed multi-day: use the explicit end instant.
+- blocks_availability: whether the artist is actually unavailable.
+  - TRUE (artist committed/unavailable): "I'm on vacation", "my dentist", "my surgery", "day off", timed Personal events, "out of the studio".
+  - FALSE (informational only, artist is still free): "John is in town", "husband out of town", "kids at camp", "mom visiting".
+  - DEFAULT for timed Personal: true. DEFAULT for all-day Personal: false.
+  - When ambiguous, stick with the default for the event kind rather than guessing.
+
 You must classify the intent into one of these agents and actions:
 
 AGENTS AND ACTIONS:
@@ -68,8 +77,11 @@ ENTITY EXTRACTION:
 Return raw client names as-is (do NOT try to match to IDs). The app handles matching locally.
 
 - client_name: The client name mentioned (raw text, e.g. "chris", "sarah jones")
-- date: ISO 8601 datetime. Day names mean the next STRICTLY FUTURE occurrence (always after today, never today itself). Examples if today is Thursday: "Thursday" = next Thursday (7 days), "Friday" = tomorrow, "Wednesday" = 6 days from now. Only "today" means today. Two adjacent digits like "52" mean month/day (e.g. "52" = May 2nd, "121" = December 1st).
-- duration: number (hours). ONLY if explicitly mentioned.
+- date: ISO 8601 datetime. Day names mean the next STRICTLY FUTURE occurrence (always after today, never today itself). Examples if today is Thursday: "Thursday" = next Thursday (7 days), "Friday" = tomorrow, "Wednesday" = 6 days from now. Only "today" means today. Two adjacent digits like "52" mean month/day (e.g. "52" = May 2nd, "121" = December 1st). For a date range ("may 10 to 14"), date = start.
+- end_date: ISO 8601 datetime. Only set for multi-day spans or all-day events. See ALL-DAY AND MULTI-DAY rules above.
+- is_all_day: boolean. See ALL-DAY AND MULTI-DAY rules above. Only meaningful for Personal.
+- blocks_availability: boolean. See ALL-DAY AND MULTI-DAY rules above. Only meaningful for Personal.
+- duration: number (hours). ONLY if explicitly mentioned. Omit when is_all_day is true.
 - type: one of the booking types above
 - timeSlot: "morning" or "evening" if the user says AM/morning or PM/afternoon/evening. If they give a specific time like "2pm", put it in the date field instead.
 - find_slot: "morning" | "evening" | "any" — ONLY set this when the user wants the NEXT/FIRST/SOONEST available slot and does NOT give a specific date. Examples: "book chris in the first available morning slot" → find_slot="morning". "book sarah next available" → find_slot="any". "next open evening" → find_slot="evening". If find_slot is set, DO NOT set date (the app will compute it).
@@ -310,6 +322,31 @@ Deno.serve(async (req: Request) => {
       !["morning", "evening", "any"].includes(parsed.entities.find_slot)
     ) {
       delete parsed.entities.find_slot;
+    }
+
+    // Validate is_all_day / blocks_availability — booleans, only for Personal
+    if (parsed.entities.is_all_day !== undefined) {
+      if (typeof parsed.entities.is_all_day !== "boolean" || parsed.entities.type !== "Personal") {
+        delete parsed.entities.is_all_day;
+      }
+    }
+    if (parsed.entities.blocks_availability !== undefined) {
+      if (typeof parsed.entities.blocks_availability !== "boolean" || parsed.entities.type !== "Personal") {
+        delete parsed.entities.blocks_availability;
+      }
+    }
+
+    // Validate end_date — ISO-ish string and >= date when both present
+    if (parsed.entities.end_date !== undefined) {
+      const ed = parsed.entities.end_date;
+      const validEd = typeof ed === "string" && !isNaN(new Date(ed).getTime());
+      if (!validEd) {
+        delete parsed.entities.end_date;
+      } else if (parsed.entities.date && typeof parsed.entities.date === "string") {
+        if (new Date(ed).getTime() < new Date(parsed.entities.date).getTime()) {
+          delete parsed.entities.end_date;
+        }
+      }
     }
 
     // Validate feedback_text — must be a reasonable-length string.

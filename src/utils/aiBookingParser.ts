@@ -4,12 +4,18 @@ import { supabase } from '../lib/supabase';
 export interface ParsedBooking {
   client_id?: string;
   date?: string;
+  /** ISO end datetime. For all-day events: midnight of the day AFTER the last covered day. */
+  end_date?: string;
   duration?: number;
+  is_all_day?: boolean;
+  /** False → informational (agent ignores for availability). Default true for timed, false for all-day. */
+  blocks_availability?: boolean;
   type?: string;
   estimate?: number;
   rescheduled?: boolean;
   timeSlot?: 'morning' | 'evening';
   notes?: string;
+  title?: string;
 }
 
 export async function parseBookingWithAI(text: string): Promise<ParsedBooking> {

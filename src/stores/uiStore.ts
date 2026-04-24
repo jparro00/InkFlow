@@ -28,7 +28,7 @@ interface UIStore {
   toasts: Toast[];
   addToast: (message: string, action?: Toast['action']) => void;
   removeToast: (id: string) => void;
-  prefillBookingData: Partial<{ client_id: string; date: string; duration: number; type: string; estimate: number; rescheduled: boolean; timeSlot: 'morning' | 'evening'; notes: string; title: string }> | null;
+  prefillBookingData: Partial<{ client_id: string; date: string; end_date: string; duration: number; is_all_day: boolean; blocks_availability: boolean; type: string; estimate: number; rescheduled: boolean; timeSlot: 'morning' | 'evening'; notes: string; title: string }> | null;
   setPrefillBookingData: (data: UIStore['prefillBookingData']) => void;
   todayHandler: (() => void) | null;
   setTodayHandler: (handler: (() => void) | null) => void;

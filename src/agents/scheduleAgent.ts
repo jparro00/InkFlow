@@ -17,12 +17,15 @@ export function executeScheduleQuery(data: ResolvedScheduleQuery) {
   const rangeStart = data.date_range_start ? new Date(data.date_range_start) : startOfWeek(now, { weekStartsOn: 1 });
   const rangeEnd = data.date_range_end ? new Date(data.date_range_end) : endOfWeek(now, { weekStartsOn: 1 });
 
-  // Filter bookings in range (exclude cancelled/no-show)
+  // Overlap-based range filter: a booking belongs in the range if its
+  // [date, end_date) interval intersects [rangeStart, rangeEnd].
+  // (Multi-day vacations starting outside the range still show up for days they cover.)
   const inRange = bookings.filter((b) => {
-    const d = new Date(b.date);
+    const start = new Date(b.date);
+    const end = new Date(b.end_date);
     return (
-      d >= rangeStart &&
-      d <= rangeEnd &&
+      start <= rangeEnd &&
+      end >= rangeStart &&
       b.status !== 'Cancelled' &&
       b.status !== 'No-show'
     );
@@ -84,26 +87,39 @@ export function executeScheduleQuery(data: ResolvedScheduleQuery) {
           continue;
         }
 
+        // Include any booking whose interval overlaps this day (not just starts on it),
+        // so multi-day vacations block all covered days.
+        const dayStart = new Date(day); dayStart.setHours(0, 0, 0, 0);
+        const dayEndDate = new Date(dayStart); dayEndDate.setDate(dayEndDate.getDate() + 1);
         const dayBookings = inRange
           .filter((b) => {
-            const bd = new Date(b.date);
-            return bd.toISOString().split('T')[0] === format(day, 'yyyy-MM-dd');
+            const start = new Date(b.date);
+            const end = new Date(b.end_date);
+            return start < dayEndDate && end > dayStart;
           })
           .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
         const dayLabel = format(day, 'EEEE, MMM d');
 
-        if (dayBookings.length === 0) {
+        // Non-blocking Personal events are informational only — ignore for availability.
+        const blockingBookings = dayBookings.filter(
+          (b) => !(b.type === 'Personal' && !b.blocks_availability)
+        );
+
+        if (blockingBookings.length === 0) {
           lines.push(`• ${dayLabel} — fully open`);
           continue;
         }
 
-        // Build occupied ranges
-        const occupied = dayBookings.map((b) => {
-          const d = new Date(b.date);
-          const start = d.getHours() * 60 + d.getMinutes();
-          const end = start + b.duration * 60;
-          return { start, end };
+        // Build occupied ranges, clipped to this day's [00:00, 24:00) window.
+        const occupied = blockingBookings.map((b) => {
+          const bStart = new Date(b.date);
+          const bEnd = new Date(b.end_date);
+          const clippedStart = bStart < dayStart ? dayStart : bStart;
+          const clippedEnd = bEnd > dayEndDate ? dayEndDate : bEnd;
+          const startMin = (clippedStart.getTime() - dayStart.getTime()) / 60000;
+          const endMin = (clippedEnd.getTime() - dayStart.getTime()) / 60000;
+          return { start: startMin, end: endMin };
         });
 
         // Morning block: dayStart → eveningStart
@@ -123,7 +139,7 @@ export function executeScheduleQuery(data: ResolvedScheduleQuery) {
         } else if (eveningFree) {
           lines.push(`• ${dayLabel} — evening free (morning booked)`);
         } else {
-          const count = dayBookings.length;
+          const count = blockingBookings.length;
           lines.push(`• ${dayLabel} — fully booked (${count} session${count === 1 ? '' : 's'})`);
         }
       }
@@ -214,17 +230,27 @@ export function findFirstAvailableSlot(
     const dow = day.getDay();
     if (!workingDays.includes(dow)) continue;
 
+    const dayStart = new Date(day); dayStart.setHours(0, 0, 0, 0);
+    const dayEndDate = new Date(dayStart); dayEndDate.setDate(dayEndDate.getDate() + 1);
+
+    // Overlap semantics + skip non-blocking Personal events.
     const dayBookings = bookings.filter((b) => {
       if (b.status === 'Cancelled' || b.status === 'No-show') return false;
-      const bd = new Date(b.date);
-      return format(bd, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd');
+      if (b.type === 'Personal' && !b.blocks_availability) return false;
+      const start = new Date(b.date);
+      const end = new Date(b.end_date);
+      return start < dayEndDate && end > dayStart;
     });
 
+    // Clip each booking's range to this day's [00:00, 24:00) window.
     const occupied: Array<{ start: number; end: number }> = dayBookings.map((b) => {
-      const d = new Date(b.date);
-      const start = d.getHours() * 60 + d.getMinutes();
-      const end = start + b.duration * 60;
-      return { start, end };
+      const bStart = new Date(b.date);
+      const bEnd = new Date(b.end_date);
+      const clippedStart = bStart < dayStart ? dayStart : bStart;
+      const clippedEnd = bEnd > dayEndDate ? dayEndDate : bEnd;
+      const startMin = (clippedStart.getTime() - dayStart.getTime()) / 60000;
+      const endMin = (clippedEnd.getTime() - dayStart.getTime()) / 60000;
+      return { start: startMin, end: endMin };
     });
 
     // If checking today, treat already-passed minutes as occupied so we never

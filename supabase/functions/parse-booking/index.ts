@@ -96,17 +96,26 @@ Today: ${now.toISOString().split("T")[0]} (${now.toLocaleDateString("en-US", { w
 
 Clients: ${clientList.map((c) => `${c.id}="${c.name}"`).join(", ")}
 
-Types: "Regular", "Touch Up", "Consultation", "Full Day", "Cover Up"
+Types: "Regular", "Touch Up", "Consultation", "Full Day", "Cover Up", "Personal"
+
+Use "Personal" for the artist's own non-tattoo calendar blocks: dentist, gym, lunch, trips, family events, kids, someone being in town, etc.
 
 JSON fields (omit any you can't determine, NEVER add error messages):
-- client_id: match to an ID above (fuzzy first-name match OK). If no match, omit this field entirely.
-- date: ISO 8601 datetime (e.g. "2026-04-15T14:00:00"). Day names like "Sunday" or "next Thursday" mean the NEXT upcoming occurrence from today. Two adjacent digits like "52" or "five two" mean month/day (e.g. "52" = May 2nd, "121" = December 1st, "415" = April 15th).
-- duration: number (hours). ONLY include if the user explicitly mentions a duration. Do NOT guess or infer a duration.
+- client_id: match to an ID above (fuzzy first-name match OK). If no match, omit this field entirely. Only for tattoo-type bookings; NEVER set for Personal.
+- date: ISO 8601 datetime (e.g. "2026-04-15T14:00:00"). Day names like "Sunday" or "next Thursday" mean the NEXT upcoming occurrence from today. Two adjacent digits like "52" or "five two" mean month/day (e.g. "52" = May 2nd, "121" = December 1st, "415" = April 15th). For a date range ("may 10 to 14", "jun 7-9"), date = start day of the range.
+- end_date: ISO 8601 datetime. Include ONLY when the user specifies a multi-day span or an all-day event. For all-day: set to 00:00 of the day AFTER the last covered day (exclusive-end convention). For timed multi-day: use the explicit end instant.
+- is_all_day: boolean. true when the user means whole calendar day(s) with no specific time — "vacation", "trip", "out of town", "in town", "kids at camp", "day off", a plain date like "june 10" for a Personal event. false when a specific time is given or implied.
+- blocks_availability: boolean. true = the artist is genuinely unavailable; false = informational only.
+  - true cues (the artist themself is committed/unavailable): "I'm on vacation", "dentist for me", "my surgery", "day off", "out of the studio", "gym", "lunch", timed Personal events default true.
+  - false cues (something is noted for context but artist is still free): "John is in town", "husband out of town", "kids at camp/school", "daughter's recital" (unless artist has to attend).
+  - When ambiguous on an all-day Personal event, default false. When ambiguous on a timed Personal event, default true.
+- duration: number (hours). ONLY include if the user explicitly mentions a duration. Do NOT guess or infer a duration. Omit when is_all_day is true.
 - type: one of the types above
-- estimate: number (dollars)
+- estimate: number (dollars) — NEVER for Personal
 - rescheduled: boolean (true ONLY if the user explicitly says this is a reschedule, rescheduled, or being moved from another date)
-- timeSlot: "morning" or "evening" — if the user says "morning", "AM", "morning appointment", use "morning". If they say "evening", "afternoon", "PM", "evening appointment", use "evening". This overrides the time in the date field. If they give a specific time like "2pm", do NOT use timeSlot — put the time in the date field instead.
+- timeSlot: "morning" or "evening" — only for timed bookings. Omit when is_all_day is true.
 - notes: string (ONLY verbatim details the user provided about the tattoo — placement, style, design, special requests. NEVER use this field to communicate with the user, store client names, or add any information the user did not explicitly say.)
+- title: short free-text label for Personal bookings (e.g. "Vacation", "John in town", "Dentist", "Lauren's graduation"). Max 30 chars. NEVER for tattoo types.
 
 CRITICAL: Always extract every field you can. A missing client match must NOT prevent you from extracting date, time, type, duration, estimate, or notes. Never put error messages or explanations in any field. Return ONLY valid JSON.`;
 
@@ -148,20 +157,28 @@ CRITICAL: Always extract every field you can. A missing client match must NOT pr
     const DURATION_PATTERN = /(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|h)\b/i;
     const result: Record<string, unknown> = {};
 
-    if (parsed.client_id && clientList.some((c) => c.id === parsed.client_id)) {
+    const isPersonal = parsed.type === "Personal";
+
+    if (!isPersonal && parsed.client_id && clientList.some((c) => c.id === parsed.client_id)) {
       result.client_id = parsed.client_id;
     }
     if (parsed.date) result.date = parsed.date;
+    if (parsed.end_date) result.end_date = parsed.end_date;
+    if (typeof parsed.is_all_day === "boolean") result.is_all_day = parsed.is_all_day;
+    if (typeof parsed.blocks_availability === "boolean") result.blocks_availability = parsed.blocks_availability;
     if (typeof parsed.duration === "number" && DURATION_PATTERN.test(text)) {
       result.duration = parsed.duration;
     }
-    if (parsed.type && ["Regular", "Touch Up", "Consultation", "Full Day", "Cover Up"].includes(parsed.type)) {
+    if (parsed.type && ["Regular", "Touch Up", "Consultation", "Full Day", "Cover Up", "Personal"].includes(parsed.type)) {
       result.type = parsed.type;
     }
-    if (typeof parsed.estimate === "number") result.estimate = parsed.estimate;
+    if (!isPersonal && typeof parsed.estimate === "number") result.estimate = parsed.estimate;
     if (parsed.rescheduled === true) result.rescheduled = true;
     if (parsed.timeSlot === "morning" || parsed.timeSlot === "evening") result.timeSlot = parsed.timeSlot;
     if (parsed.notes) result.notes = parsed.notes;
+    if (isPersonal && typeof parsed.title === "string" && parsed.title.trim()) {
+      result.title = parsed.title.trim().slice(0, 30);
+    }
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

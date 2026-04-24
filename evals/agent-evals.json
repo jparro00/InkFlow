@@ -739,6 +739,88 @@
       "expected_parse": { "agent": "booking", "action": "create", "entities": { "client_name": "Sam", "date": "friday 2pm ISO" } },
       "resolution": "agent-parse returns booking/create with client_name=Sam. resolveClient('Sam') → multiple matches → disambiguation cards. User either picks an existing Sam or (better UX) sees 'Create new client Sam' option. Current implementation shows disambiguation first.",
       "expected_outcome": "Panel shows 'Which Sam?' disambiguation. After selecting or creating, BookingForm opens with Friday 2pm."
+    },
+
+    {
+      "id": "booking-create-personal-allday-surgery",
+      "category": "booking/create",
+      "prompt": "block off may 5 for my surgery",
+      "context": "Single-day all-day blocking event. Artist-first phrasing ('my surgery') → artist unavailable.",
+      "expected_parse": { "agent": "booking", "action": "create", "entities": { "type": "Personal", "title": "Surgery", "date": "2026-05-05T00:00:00", "end_date": "2026-05-06T00:00:00", "is_all_day": true, "blocks_availability": true } },
+      "resolution": "type=Personal → skip client resolution. is_all_day=true with end_date=midnight of next day (exclusive-end). blocks_availability=true because the artist themself is the subject.",
+      "expected_outcome": "BookingForm opens with type=Personal, title=Surgery, is_all_day=true, blocks_availability=true, date=may 5, end_date=may 6 00:00 (exclusive). Schedule agent will count this day as unavailable."
+    },
+    {
+      "id": "booking-create-personal-allday-multi-day-vacation",
+      "category": "booking/create",
+      "prompt": "block off may 10-14 for vacation",
+      "context": "Multi-day all-day blocking event. 'Vacation' + 'block off' + 'for' implies the artist is unavailable across the whole range.",
+      "expected_parse": { "agent": "booking", "action": "create", "entities": { "type": "Personal", "title": "Vacation", "date": "2026-05-10T00:00:00", "end_date": "2026-05-15T00:00:00", "is_all_day": true, "blocks_availability": true } },
+      "resolution": "type=Personal → skip client resolution. end_date=midnight AFTER the last covered day (may 15 00:00 for a range ending may 14, exclusive-end convention). blocks_availability=true because it's the artist's own vacation.",
+      "expected_outcome": "BookingForm opens with an all-day bar spanning may 10-14 inclusive. Schedule agent treats all 5 days as unavailable."
+    },
+    {
+      "id": "booking-create-personal-allday-someone-in-town",
+      "category": "booking/create",
+      "prompt": "john is in town from jun 7 to 9",
+      "context": "Third-party informational event: someone ELSE is in town. Artist remains free to book. Default for all-day ambiguity leans to false but 'in town' is a strong non-blocking cue.",
+      "expected_parse": { "agent": "booking", "action": "create", "entities": { "type": "Personal", "date": "2026-06-07T00:00:00", "end_date": "2026-06-10T00:00:00", "is_all_day": true, "blocks_availability": false } },
+      "resolution": "type=Personal → skip client resolution entirely. 'john' is NOT a client_name (informational note, not a tattoo booking). Title should contain 'John' (e.g. 'John in town'). blocks_availability=false → schedule agent will NOT count these days as busy.",
+      "expected_outcome": "BookingForm opens with title like 'John in town', is_all_day=true, blocks_availability=false, dates jun 7-9. Renders as a non-blocking bar. Schedule agent still reports the artist as available those days."
+    },
+    {
+      "id": "booking-create-personal-allday-husband-out-of-town",
+      "category": "booking/create",
+      "prompt": "husband out of town next week",
+      "context": "Third-party informational event. Artist is still free — 'husband out of town' is a note, not a block. 'Next week' is a vague range; the model should still produce an end_date spanning the week.",
+      "expected_parse": { "agent": "booking", "action": "create", "entities": { "type": "Personal", "is_all_day": true, "blocks_availability": false } },
+      "resolution": "type=Personal, informational only. blocks_availability=false (third-party). Date/end_date should cover next week (exact days flexible — runner asserts informational flags, not exact range).",
+      "expected_outcome": "BookingForm opens with a title like 'Husband out of town', is_all_day=true, blocks_availability=false, spanning some portion of next week. Schedule agent remains unaffected."
+    },
+    {
+      "id": "booking-create-personal-allday-kids-camp",
+      "category": "booking/create",
+      "prompt": "kids at camp next mon through fri",
+      "context": "Third-party informational event across a multi-day range. Must not block availability. 'mon through fri' is an inclusive range — end_date = midnight of saturday (exclusive-end).",
+      "expected_parse": { "agent": "booking", "action": "create", "entities": { "type": "Personal", "is_all_day": true, "blocks_availability": false } },
+      "resolution": "type=Personal → skip client resolution. 'kids' is NOT a client_name. Title something like 'Kids at camp'. blocks_availability=false — informational.",
+      "expected_outcome": "BookingForm opens as a non-blocking all-day event spanning next Mon-Fri. Artist still shows free for bookings those days."
+    },
+    {
+      "id": "booking-create-personal-day-off",
+      "category": "booking/create",
+      "prompt": "may 20 is my day off",
+      "context": "Single-day all-day blocking event. 'Day off' is explicitly artist-unavailable — strong blocking cue even though it's all-day (which normally defaults to informational).",
+      "expected_parse": { "agent": "booking", "action": "create", "entities": { "type": "Personal", "title": "Day Off", "date": "2026-05-20T00:00:00", "end_date": "2026-05-21T00:00:00", "is_all_day": true, "blocks_availability": true } },
+      "resolution": "type=Personal → skip client resolution. 'day off' overrides the all-day default to blocks_availability=true — artist is unavailable.",
+      "expected_outcome": "BookingForm opens with is_all_day=true, blocks_availability=true, single-day range may 20. Schedule agent treats may 20 as unavailable."
+    },
+    {
+      "id": "booking-create-personal-timed-multi-day",
+      "category": "booking/create",
+      "prompt": "tattoo convention friday 9am to sunday 5pm",
+      "context": "Timed multi-day event. Even though 'tattoo' appears, 'convention' is a Personal calendar block (not a client session). Timed → blocks_availability defaults to true.",
+      "expected_parse": { "agent": "booking", "action": "create", "entities": { "type": "Personal", "is_all_day": false, "blocks_availability": true } },
+      "resolution": "type=Personal → skip client resolution. is_all_day=false because explicit times given. end_date = sunday 5pm ISO. Title like 'Tattoo Convention'. Timed Personal defaults to blocking.",
+      "expected_outcome": "BookingForm opens with timed multi-day Personal, blocks_availability=true. MonthView renders bar across days; DayView renders timed endpoints."
+    },
+    {
+      "id": "booking-create-personal-ambiguous-graduation",
+      "category": "booking/create",
+      "prompt": "lauren's graduation may 3",
+      "context": "Ambiguous case: 'graduation' is a non-tattoo noun → Personal. No time given → is_all_day=true. Whether the artist has to attend is unclear. Default for ambiguous all-day Personal: blocks_availability=false (informational).",
+      "expected_parse": { "agent": "booking", "action": "create", "entities": { "type": "Personal", "title": "Lauren's Graduation", "date": "2026-05-03T00:00:00", "end_date": "2026-05-04T00:00:00", "is_all_day": true, "blocks_availability": false } },
+      "resolution": "type=Personal → skip client resolution. 'Lauren' is NOT a client (graduation context → relative/friend). Title keeps the name. is_all_day=true, blocks_availability defaults to false for ambiguous all-day.",
+      "expected_outcome": "BookingForm opens with title='Lauren's Graduation', is_all_day=true, blocks_availability=false, single-day range. Artist can override blocking in the form."
+    },
+    {
+      "id": "booking-create-personal-timed-single-day",
+      "category": "booking/create",
+      "prompt": "dentist appointment may 12 at 10am",
+      "context": "Timed single-day event (NOT multi-day, NOT all-day). Should NOT set end_date or is_all_day. blocks_availability defaults to true (timed Personal, artist-first).",
+      "expected_parse": { "agent": "booking", "action": "create", "entities": { "type": "Personal", "title": "Dentist", "date": "2026-05-12T10:00:00" } },
+      "resolution": "type=Personal → skip client resolution. Timed → is_all_day should NOT be set (or set to false). end_date should NOT be set for same-day timed events — duration handles that. blocks_availability default true but may be omitted if not explicit.",
+      "expected_outcome": "BookingForm opens with type=Personal, title=Dentist, date=may 12 10am, 1-hour default duration, NO all-day toggle, NO multi-day range."
     }
   ]
 }
