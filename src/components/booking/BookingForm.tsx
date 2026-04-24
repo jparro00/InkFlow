@@ -275,52 +275,6 @@ export default function BookingForm() {
       canCollapse={dirty}
     >
       <div className="space-y-6">
-        {/* Type — placed first so the Personal-only fields below (title, all-day, end-date) reveal themselves when the user picks Personal */}
-        <div>
-          <label className={labelClass}>Type{changedLabel('type')}</label>
-          <div className="grid grid-cols-2 gap-3">
-            {bookingTypes.map((t) => {
-              const color = getTypeColor(t);
-              const selected = form.type === t;
-              return (
-                <button
-                  key={t}
-                  onClick={() => {
-                    setForm((f) => {
-                      const switchingToPersonal = t === 'Personal' && f.type !== 'Personal';
-                      const switchingFromPersonal = t !== 'Personal' && f.type === 'Personal';
-                      return {
-                        ...f,
-                        type: t,
-                        duration: typeDuration[t],
-                        client_id: switchingToPersonal ? '' : f.client_id,
-                        title: switchingFromPersonal ? '' : f.title,
-                      };
-                    });
-                    if (t === 'Personal') setClientSearch('');
-                    setMissingFields((s) => {
-                      const n = new Set(s);
-                      n.delete('type');
-                      if (t === 'Personal') n.delete('client'); else n.delete('title');
-                      return n;
-                    });
-                  }}
-                  className={`px-4 py-3.5 text-base rounded-md transition-all cursor-pointer press-scale min-h-[48px] flex items-center gap-2.5 ${
-                    selected
-                      ? 'border border-border/60 text-text-p bg-text-p/[0.06]'
-                      : missingFields.has('type')
-                        ? 'border-2 border-danger/60 text-text-s'
-                        : 'border border-border/60 text-text-s active:text-text-p active:bg-elevated'
-                  }`}
-                >
-                  <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                  {t}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
         {/* Client or Title (Personal bookings use a free-text title instead of a client) */}
         {form.type === 'Personal' ? (
           <div className="relative">
@@ -405,34 +359,32 @@ export default function BookingForm() {
           />
         </div>
 
-        {/* Personal-only: All-day + Show As toggles */}
+        {/* Personal-only: All-day + Show-as-busy checkboxes */}
         {form.type === 'Personal' && (
-          <div className="flex gap-3">
+          <div className="space-y-1">
             <button
               type="button"
               onClick={() => setForm((f) => {
                 const nextAllDay = !f.is_all_day;
-                // Toggling all-day flips default Show-As: timed=Busy, all-day=Free
+                // Toggling all-day flips default Show-as-busy: timed=busy, all-day=free
                 return { ...f, is_all_day: nextAllDay, blocks_availability: !nextAllDay };
               })}
-              className={`flex-1 px-4 py-3 text-sm rounded-md border transition-all cursor-pointer press-scale min-h-[44px] ${
-                form.is_all_day
-                  ? 'border-accent/60 text-accent bg-accent/8'
-                  : 'border-border/60 text-text-s active:text-text-p active:bg-elevated'
-              }`}
+              className={`flex items-center gap-3 w-full text-left py-1 cursor-pointer press-scale min-h-[44px] transition-colors ${form.is_all_day ? 'text-accent' : 'text-text-s'}`}
             >
-              All-day
+              <span className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${form.is_all_day ? 'border-accent bg-accent/20' : 'border-border'}`}>
+                {form.is_all_day && <span className="text-accent text-xs font-bold">✓</span>}
+              </span>
+              <span className="text-base">All-day</span>
             </button>
             <button
               type="button"
               onClick={() => setForm((f) => ({ ...f, blocks_availability: !f.blocks_availability }))}
-              className={`flex-1 px-4 py-3 text-sm rounded-md border transition-all cursor-pointer press-scale min-h-[44px] ${
-                form.blocks_availability
-                  ? 'border-accent/60 text-accent bg-accent/8'
-                  : 'border-border/60 text-text-s active:text-text-p active:bg-elevated'
-              }`}
+              className={`flex items-center gap-3 w-full text-left py-1 cursor-pointer press-scale min-h-[44px] transition-colors ${form.blocks_availability ? 'text-accent' : 'text-text-s'}`}
             >
-              {form.blocks_availability ? 'Show as Busy' : 'Show as Free'}
+              <span className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${form.blocks_availability ? 'border-accent bg-accent/20' : 'border-border'}`}>
+                {form.blocks_availability && <span className="text-accent text-xs font-bold">✓</span>}
+              </span>
+              <span className="text-base">Show as busy</span>
             </button>
           </div>
         )}
@@ -536,6 +488,54 @@ export default function BookingForm() {
           />
         </div>
         )}
+
+        {/* Type */}
+        <div>
+          <label className={labelClass}>Type{changedLabel('type')}</label>
+          <div className="grid grid-cols-2 gap-3">
+            {bookingTypes.map((t) => {
+              const color = getTypeColor(t);
+              const selected = form.type === t;
+              return (
+                <button
+                  key={t}
+                  onClick={() => {
+                    setForm((f) => {
+                      const switchingToPersonal = t === 'Personal' && f.type !== 'Personal';
+                      const switchingFromPersonal = t !== 'Personal' && f.type === 'Personal';
+                      return {
+                        ...f,
+                        type: t,
+                        duration: typeDuration[t],
+                        client_id: switchingToPersonal ? '' : f.client_id,
+                        title: switchingFromPersonal ? '' : f.title,
+                      };
+                    });
+                    if (t === 'Personal') setClientSearch('');
+                    setMissingFields((s) => {
+                      const n = new Set(s);
+                      n.delete('type');
+                      if (t === 'Personal') n.delete('client'); else n.delete('title');
+                      return n;
+                    });
+                  }}
+                  className={`px-4 py-3.5 text-base rounded-md transition-all cursor-pointer press-scale min-h-[48px] flex items-center gap-2.5 ${
+                    selected
+                      ? 'border border-border/60 text-text-p bg-text-p/[0.06]'
+                      : missingFields.has('type')
+                        ? 'border-2 border-danger/60 text-text-s'
+                        : 'border border-border/60 text-text-s active:text-text-p active:bg-elevated'
+                  }`}
+                >
+                  <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                  {t}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="h-px bg-border/40" />
 
         {/* Estimate */}
         <div>
