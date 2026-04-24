@@ -66,7 +66,10 @@ export interface Database {
           created_at: string;
           client_id: string | null;
           date: string;
+          end_date: string;
           duration: number;
+          is_all_day: boolean;
+          blocks_availability: boolean;
           type: string;
           estimate: number | null;
           status: string;
@@ -81,7 +84,10 @@ export interface Database {
           created_at?: string;
           client_id?: string | null;
           date: string;
+          end_date: string;
           duration: number;
+          is_all_day?: boolean;
+          blocks_availability?: boolean;
           type: string;
           estimate?: number | null;
           status?: string;
@@ -96,7 +102,10 @@ export interface Database {
           created_at?: string;
           client_id?: string | null;
           date?: string;
+          end_date?: string;
           duration?: number;
+          is_all_day?: boolean;
+          blocks_availability?: boolean;
           type?: string;
           estimate?: number | null;
           status?: string;

@@ -101,7 +101,9 @@ function d(day: number, hour: number, min = 0): string {
   return new Date(2026, 3, day, hour, min).toISOString();
 }
 
-export const mockBookings: Booking[] = [
+type MockBookingSeed = Omit<Booking, 'end_date' | 'is_all_day' | 'blocks_availability'>;
+
+const mockBookingSeeds: MockBookingSeed[] = [
   {
     id: 'b1',
     created_at: '2026-03-20T10:00:00Z',
@@ -293,3 +295,10 @@ export const mockBookings: Booking[] = [
     notes: 'First session done. Good coverage, needs second session.',
   },
 ];
+
+export const mockBookings: Booking[] = mockBookingSeeds.map((seed) => ({
+  ...seed,
+  end_date: new Date(new Date(seed.date).getTime() + seed.duration * 60 * 60 * 1000).toISOString(),
+  is_all_day: false,
+  blocks_availability: true,
+}));

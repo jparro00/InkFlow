@@ -47,15 +47,26 @@ export const useBookingStore = create<BookingStore>()(persist((set, get) => ({
     get().bookings.filter((b) => b.client_id === clientId),
 
   getBookingsForDate: (date) => {
-    const day = date.toDateString();
-    return get().bookings.filter((b) => new Date(b.date).toDateString() === day);
+    // Overlap semantics: include multi-day events that cover this day,
+    // not just those that start on it.
+    const dayStart = new Date(date); dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(dayStart); dayEnd.setDate(dayEnd.getDate() + 1);
+    return get().bookings.filter((b) => {
+      const start = new Date(b.date);
+      const end = new Date(b.end_date);
+      return start < dayEnd && end > dayStart;
+    });
   },
 
-  getBookingsForMonth: (year, month) =>
-    get().bookings.filter((b) => {
-      const d = new Date(b.date);
-      return d.getFullYear() === year && d.getMonth() === month;
-    }),
+  getBookingsForMonth: (year, month) => {
+    const monthStart = new Date(year, month, 1);
+    const monthEnd = new Date(year, month + 1, 1);
+    return get().bookings.filter((b) => {
+      const start = new Date(b.date);
+      const end = new Date(b.end_date);
+      return start < monthEnd && end > monthStart;
+    });
+  },
 
   addBooking: async (data, id) => {
     const bookingId = id ?? crypto.randomUUID();

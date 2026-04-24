@@ -13,7 +13,10 @@ function toBooking(row: BookingRow): Booking {
     created_at: row.created_at,
     client_id: row.client_id ?? null,
     date: row.date,
+    end_date: row.end_date,
     duration: row.duration,
+    is_all_day: row.is_all_day ?? false,
+    blocks_availability: row.blocks_availability ?? true,
     type: row.type as Booking['type'],
     estimate: row.estimate ?? undefined,
     status: row.status as Booking['status'],
@@ -42,7 +45,10 @@ export async function createBooking(
     ...(id ? { id } : {}),
     client_id: booking.client_id ?? null,
     date: booking.date,
+    end_date: booking.end_date,
     duration: booking.duration,
+    is_all_day: booking.is_all_day,
+    blocks_availability: booking.blocks_availability,
     type: booking.type,
     estimate: booking.estimate ?? null,
     status: booking.status,
@@ -70,7 +76,10 @@ export async function updateBooking(
 
   if (updates.client_id !== undefined) payload.client_id = updates.client_id ?? null;
   if (updates.date !== undefined) payload.date = updates.date;
+  if (updates.end_date !== undefined) payload.end_date = updates.end_date;
   if (updates.duration !== undefined) payload.duration = updates.duration;
+  if (updates.is_all_day !== undefined) payload.is_all_day = updates.is_all_day;
+  if (updates.blocks_availability !== undefined) payload.blocks_availability = updates.blocks_availability;
   if (updates.type !== undefined) payload.type = updates.type;
   if (updates.estimate !== undefined) payload.estimate = updates.estimate ?? null;
   if (updates.status !== undefined) payload.status = updates.status;

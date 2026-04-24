@@ -188,10 +188,14 @@ export default function BookingForm() {
   const handleSave = async () => {
     const dateTime = new Date(`${form.date}T${form.time}`);
     const isPersonal = form.type === 'Personal';
+    const endDateTime = new Date(dateTime.getTime() + form.duration * 60 * 60 * 1000);
     const data: Omit<Booking, 'id' | 'created_at'> = {
       client_id: isPersonal ? null : (form.client_id || null),
       date: dateTime.toISOString(),
+      end_date: endDateTime.toISOString(),
       duration: form.duration,
+      is_all_day: false,
+      blocks_availability: true,
       type: form.type,
       estimate: form.estimate ? parseFloat(form.estimate) : undefined,
       status: form.status,
