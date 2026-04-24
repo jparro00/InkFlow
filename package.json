@@ -19,6 +19,8 @@
     "eval:messaging": "node scripts/run-evals.mjs messaging"
   },
   "dependencies": {
+    "@fontsource/dm-sans": "^5.2.8",
+    "@fontsource/dm-serif-display": "^5.2.8",
     "@supabase/supabase-js": "^2.103.0",
     "@tailwindcss/vite": "^4.2.2",
     "@use-gesture/react": "^10.3.1",

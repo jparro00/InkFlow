@@ -20,23 +20,39 @@ export default function DataLoader({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!session) return;
+
+    // Critical data — fire in parallel so the slowest fetch sets the floor,
+    // not the sum.
+    const imagesDone = fetchImages();
     fetchClients();
     fetchBookings();
-    // Re-enqueue uploads that were interrupted by a previous app close once
-    // fetchImages resolves and the store reflects the latest remote status.
-    fetchImages().then(() => resumePendingImageUploads());
     fetchDocuments();
     fetchConversations();
     startRealtime();
-    // Prefetch all lazy-loaded route chunks so tab switches are instant.
-    // Without this, the first visit to each tab on PWA/mobile stalls 3-5s
-    // while the browser downloads the JS chunk over the network.
-    import('../pages/Clients');
-    import('../pages/ClientDetail');
-    import('../pages/Messages');
-    import('../pages/Settings');
-    import('../pages/Theme');
-    import('../pages/Feedback');
+
+    // Non-critical work — wait for the browser to be idle so we don't
+    // compete with the critical fetches for bandwidth / main-thread time.
+    const idle = (cb: () => void) => {
+      if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+        (window as Window & { requestIdleCallback: (cb: () => void, opts?: { timeout: number }) => void })
+          .requestIdleCallback(cb, { timeout: 2000 });
+      } else {
+        setTimeout(cb, 200);
+      }
+    };
+    idle(() => {
+      // Re-enqueue uploads interrupted by a previous app close. Waits on
+      // fetchImages so the upload queue sees the latest remote status.
+      imagesDone.then(() => resumePendingImageUploads());
+      // Prefetch lazy route chunks so tab switches feel instant.
+      import('../pages/Clients');
+      import('../pages/ClientDetail');
+      import('../pages/Messages');
+      import('../pages/Settings');
+      import('../pages/Theme');
+      import('../pages/Feedback');
+    });
+
     return () => stopRealtime();
   }, [session, fetchClients, fetchBookings, fetchImages, fetchDocuments, fetchConversations, startRealtime, stopRealtime]);
 
