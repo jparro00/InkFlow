@@ -182,7 +182,7 @@ function DayPanel({
         return (
           <button
             key={booking.id}
-            className="absolute rounded-[4px] pt-1.5 px-2 pb-1 border border-border/30 cursor-pointer press-scale transition-all active:shadow-glow text-left overflow-hidden flex flex-col justify-start"
+            className="absolute rounded-[4px] pt-1 px-2 pb-0.5 border border-border/30 cursor-pointer press-scale transition-all active:shadow-glow text-left overflow-hidden flex flex-col justify-start"
             style={{
               top,
               height: Math.max(height, 48),
@@ -194,10 +194,10 @@ function DayPanel({
             }}
             onClick={(e) => { e.stopPropagation(); onBookingClick(booking.id); }}
           >
-            <div className="text-md text-text-p font-medium truncate">
+            <div className="text-md text-text-p font-medium leading-tight truncate">
               {getBookingLabel(booking, client?.display_name || client?.name)}
             </div>
-            <div className="text-base text-text-s mt-0.5 truncate">
+            <div className="text-base text-text-s leading-tight truncate">
               {format(d, 'h:mm a')} · {booking.duration}h
             </div>
           </button>
