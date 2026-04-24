@@ -20,9 +20,9 @@ import {
   getTypeColor,
   getTypeColorAlpha,
   getBookingLabel,
-  bookingIsMultiDay,
   type Booking,
 } from '../../types';
+import { isBarBooking } from '../../utils/bookingRanges';
 
 const MS_PER_DAY = 86400000;
 // Bar visual height. Keep tight so a week row can stack 2-3 bars without
@@ -42,10 +42,6 @@ interface BarSegment {
   continuesLeft: boolean;
   /** Booking ends in a later week — right side should stay square (no right radius). */
   continuesRight: boolean;
-}
-
-function isBarBooking(b: Booking): boolean {
-  return b.is_all_day || bookingIsMultiDay(b);
 }
 
 /**
