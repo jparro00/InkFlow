@@ -90,7 +90,7 @@ Dev is the default target. Never deploy to prod without explicit user permission
 
 Keep this section updated as changes land on dev but haven't shipped to prod.
 
-_No pending changes — dev is in sync with prod as of 2026-04-24 (1-hour slot text fix)._
+_No pending changes — dev is in sync with prod as of 2026-04-25 (cold-start perf batch: SVG favicon + 10 KB icons, lazy-loaded AppShell modals + agent orchestrator, optimistic auth from localStorage, Supabase deferred off cold path, Rolldown chunking fix that was hiding React's runtime inside framer-motion's chunk, Navigation Preload + Supabase-GET timeout in the SW, Playwright PWA audit harness)._
 
 ## Known caveats
 
