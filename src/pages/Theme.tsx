@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { THEMES, getTheme, applyTheme, type ThemeId } from '../lib/theme';
+import Logo from '../components/common/Logo';
 
 // --- Color helpers ---
 function hexToRgb(hex: string) {
@@ -254,11 +255,7 @@ export default function ThemePage() {
 
         {/* Brand */}
         <div className="flex items-center gap-4 mb-10">
-          <img
-            src={import.meta.env.BASE_URL + 'inkbloop_logo.png'}
-            alt="Ink Bloop"
-            className="w-14 h-14 rounded-lg"
-          />
+          <Logo className="w-14 h-14" />
           <div className="flex-1">
             <h1 className="font-display text-2xl text-text-p">Ink Bloop</h1>
             <p className="text-sm text-text-t">Theme Reference</p>

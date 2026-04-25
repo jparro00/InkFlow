@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { Calendar, Users, MessageCircle, Search, Palette, Settings } from 'lucide-react';
 import { useUIStore } from '../../stores/uiStore';
+import Logo from '../common/Logo';
 
 const navItems = [
   { to: '/', icon: Calendar, label: 'Calendar', action: undefined },
@@ -22,7 +23,7 @@ export default function Sidebar() {
     >
       {/* Logo */}
       <div className={`flex items-center gap-3 h-16 border-b border-border/40 ${sidebarCollapsed ? 'justify-center px-0' : 'px-6'}`}>
-        <img src={`${import.meta.env.BASE_URL}inkbloop_logo.png`} alt="Ink Bloop" className="w-6 h-6 shrink-0" />
+        <Logo className="w-6 h-6 shrink-0" />
         {!sidebarCollapsed && (
           <span className="font-display text-md text-text-p font-bold tracking-wide">
             Ink Bloop

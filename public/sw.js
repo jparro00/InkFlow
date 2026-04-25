@@ -22,17 +22,55 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys()
-      .then((keys) =>
+    Promise.all([
+      caches.keys().then((keys) =>
         Promise.all(
           keys
             .filter((key) => key !== CACHE_NAME)
             .map((key) => caches.delete(key))
         )
-      )
-      .then(() => self.clients.claim())
+      ),
+      // Navigation Preload runs the network fetch for navigations in parallel
+      // with SW boot, instead of waiting for the SW to wake up first. Saves
+      // 250-500 ms on cold revisits when the SW is idle.
+      self.registration.navigationPreload?.enable(),
+    ]).then(() => self.clients.claim())
   );
 });
+
+// Network-first with timeout. Used for Supabase GETs so a slow Supabase
+// doesn't stall the boot path indefinitely — falls back to cache after the
+// configured timeout.
+function networkFirstWithTimeout(request, timeoutMs) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (response) => {
+      if (settled) return;
+      settled = true;
+      resolve(response);
+    };
+
+    const timer = setTimeout(async () => {
+      const cached = await caches.match(request);
+      if (cached) finish(cached);
+    }, timeoutMs);
+
+    fetch(request)
+      .then((response) => {
+        clearTimeout(timer);
+        if (response && response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+        }
+        finish(response);
+      })
+      .catch(async () => {
+        clearTimeout(timer);
+        const cached = await caches.match(request);
+        finish(cached || Response.error());
+      });
+  });
+}
 
 self.addEventListener('fetch', (event) => {
   const { request } = event;
@@ -40,25 +78,38 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
 
-  if (url.hostname.includes('supabase')) return;
+  // Supabase: stale-tolerant network-first for GETs (so a slow PostgREST
+  // call doesn't block the boot path). Auth and write methods fall through
+  // to the network unhandled — we never want to serve stale auth state.
+  if (url.hostname.includes('supabase')) {
+    if (request.method === 'GET' && !url.pathname.startsWith('/auth/')) {
+      event.respondWith(networkFirstWithTimeout(request, 3000));
+    }
+    return;
+  }
 
   // SPA navigation: serve cached shell instantly, revalidate in background.
   if (request.mode === 'navigate') {
-    event.respondWith(
-      caches.open(CACHE_NAME).then((cache) =>
-        cache.match('/index.html').then((cached) => {
-          const networkFetch = fetch(request)
-            .then((response) => {
-              if (response && response.ok) {
-                cache.put('/index.html', response.clone());
-              }
-              return response;
-            })
-            .catch(() => cached);
-          return cached || networkFetch;
-        })
-      )
-    );
+    event.respondWith((async () => {
+      const cache = await caches.open(CACHE_NAME);
+      const cached = await cache.match('/index.html');
+      if (cached) {
+        // Background revalidate using the navigation preload response when
+        // available — saves a redundant fetch when the browser already
+        // started the network request in parallel with SW boot.
+        event.waitUntil((async () => {
+          try {
+            const fresh = (await event.preloadResponse) || (await fetch(request));
+            if (fresh && fresh.ok) cache.put('/index.html', fresh.clone());
+          } catch {
+            /* offline — keep cached shell */
+          }
+        })());
+        return cached;
+      }
+      const preloaded = await event.preloadResponse;
+      return preloaded || fetch(request);
+    })());
     return;
   }
 
@@ -99,4 +150,31 @@ self.addEventListener('fetch', (event) => {
       })
     )
   );
+});
+
+// Page → SW message channel: lazy vendor chunk precache.
+// On first successful render, the page sends 'cacheVendors' with the URL
+// list it knows are needed (from the dist manifest). The SW caches them
+// without blocking install — so first install stays fast and the second
+// cold load can serve all vendor JS from the cache instead of the network.
+self.addEventListener('message', (event) => {
+  const data = event.data;
+  if (!data || typeof data !== 'object') return;
+  if (data.type === 'cacheVendors' && Array.isArray(data.urls)) {
+    event.waitUntil((async () => {
+      const cache = await caches.open(CACHE_NAME);
+      await Promise.all(
+        data.urls.map((url) =>
+          cache.match(url).then((hit) => {
+            if (hit) return;
+            return fetch(url, { cache: 'reload' })
+              .then((res) => (res && res.ok ? cache.put(url, res) : null))
+              .catch(() => null);
+          })
+        )
+      );
+    })());
+  } else if (data.type === 'skipWaiting') {
+    self.skipWaiting();
+  }
 });

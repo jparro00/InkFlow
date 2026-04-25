@@ -27,9 +27,10 @@ export function writeServiceWorker({ distDir = 'dist' }: { distDir?: string } = 
         /^\/$/,
         /^\/index\.html$/,
         /^\/manifest\.json$/,
+        /^\/favicon\.svg$/,
         /^\/assets\/index-[^/]+\.(js|css)$/, // main entry bundle + CSS
-        /^\/inkbloop_logo\.png$/,
-        /^\/apple-touch-icon(?:-\d+x\d+)?\.png$/,
+        /^\/apple-touch-icon-180x180\.png$/,
+        /^\/icon-(?:192|512)(?:-maskable)?\.png$/,
       ];
       const filtered = [...urls].filter((u) => {
         if (u.startsWith('/simulator/')) return false;

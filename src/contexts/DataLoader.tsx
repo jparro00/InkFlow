@@ -21,17 +21,14 @@ export default function DataLoader({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!session) return;
 
-    // Critical data — fire in parallel so the slowest fetch sets the floor,
-    // not the sum.
-    const imagesDone = fetchImages();
+    // Calendar (the default route) only needs bookings + clients to render.
+    // Every other store has `persist` middleware, so its previous-session
+    // snapshot is already on screen instantly; the fresh fetches update
+    // it once the browser is idle. This keeps first useful paint off the
+    // critical path of whichever Supabase round-trip is slowest today.
     fetchClients();
     fetchBookings();
-    fetchDocuments();
-    fetchConversations();
-    startRealtime();
 
-    // Non-critical work — wait for the browser to be idle so we don't
-    // compete with the critical fetches for bandwidth / main-thread time.
     const idle = (cb: () => void) => {
       if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
         (window as Window & { requestIdleCallback: (cb: () => void, opts?: { timeout: number }) => void })
@@ -41,6 +38,12 @@ export default function DataLoader({ children }: { children: ReactNode }) {
       }
     };
     idle(() => {
+      // Non-critical store fetches — Calendar already rendered against the
+      // persisted snapshot; these refresh in the background.
+      const imagesDone = fetchImages();
+      fetchDocuments();
+      fetchConversations();
+      startRealtime();
       // Re-enqueue uploads interrupted by a previous app close. Waits on
       // fetchImages so the upload queue sees the latest remote status.
       imagesDone.then(() => resumePendingImageUploads());

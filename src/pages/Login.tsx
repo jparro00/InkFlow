@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabase';
+import Logo from '../components/common/Logo';
 
 type Phase = 'credentials' | 'totp';
 
@@ -87,21 +87,12 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-bg p-5 relative overflow-hidden">
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[400px] h-[400px] rounded-full bg-accent/[0.03] blur-[100px] pointer-events-none" />
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: 'easeOut' }}
-        className="w-full max-w-sm relative z-10"
-      >
-        <motion.div
-          className="text-center mb-10"
-          animate={{ scale: [1, 1.02, 1] }}
-          transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-        >
-          <img src={`${import.meta.env.BASE_URL}inkbloop_logo.png`} alt="Ink Bloop" className="w-9 h-9 mx-auto" />
+      <div className="w-full max-w-sm relative z-10 login-fade-in">
+        <div className="text-center mb-10 login-pulse">
+          <Logo className="w-9 h-9 mx-auto" />
           <h1 className="font-display text-2xl text-text-p mt-3">Ink Bloop</h1>
           <p className="text-xs text-text-t mt-1.5 tracking-wider uppercase">Studio Management</p>
-        </motion.div>
+        </div>
 
         <div className="bg-surface/60 border border-border/30 rounded-xl p-6 backdrop-blur-sm">
           <form onSubmit={handleLogin} className="space-y-4">
@@ -136,7 +127,7 @@ export default function LoginPage() {
             )}
 
             {phase === 'totp' && (
-              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
+              <div className="login-slide-in">
                 <label className="text-xs text-text-t uppercase tracking-wider mb-1.5 block font-medium">
                   Authentication Code
                 </label>
@@ -152,7 +143,7 @@ export default function LoginPage() {
                 <p className="text-xs text-text-t mt-3 text-center">
                   Enter the code from your authenticator app
                 </p>
-              </motion.div>
+              </div>
             )}
 
             {error && (
@@ -173,7 +164,7 @@ export default function LoginPage() {
             </button>
           </form>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }

@@ -1,23 +1,27 @@
 import { Outlet } from 'react-router-dom';
 import { Bot } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import Sidebar from './Sidebar';
 import AppHeader from './AppHeader';
 import MobileTabBar from './MobileTabBar';
 import { useUIStore } from '../../stores/uiStore';
-import BookingDrawer from '../booking/BookingDrawer';
-import BookingForm from '../booking/BookingForm';
-import CreateClientForm from '../client/CreateClientForm';
-import ClientForm from '../client/ClientForm';
-import AgentPanel from '../agent/AgentPanel';
-import AgentFeedbackPrompt from '../agent/AgentFeedbackPrompt';
-import SearchOverlay from '../../pages/Search';
-import ConversationDrawer from '../messaging/ConversationDrawer';
-import ToastContainer from '../common/Toast';
 import { useClientStore } from '../../stores/clientStore';
 import { useAgentStore } from '../../stores/agentStore';
-import { handleSelection as agentHandleSelection } from '../../agents/orchestrator';
+
+// Lazy-load every modal/drawer + the agent UI. Each is hidden by default,
+// so there's no reason to parse their code (and the framer-motion they
+// pull in transitively) on the first render of AppShell. They're imported
+// in parallel the moment the user opens whichever surface they need.
+const BookingDrawer = lazy(() => import('../booking/BookingDrawer'));
+const BookingForm = lazy(() => import('../booking/BookingForm'));
+const CreateClientForm = lazy(() => import('../client/CreateClientForm'));
+const ClientForm = lazy(() => import('../client/ClientForm'));
+const AgentPanel = lazy(() => import('../agent/AgentPanel'));
+const AgentFeedbackPrompt = lazy(() => import('../agent/AgentFeedbackPrompt'));
+const SearchOverlay = lazy(() => import('../../pages/Search'));
+const ConversationDrawer = lazy(() => import('../messaging/ConversationDrawer'));
+const ToastContainer = lazy(() => import('../common/Toast'));
 
 export default function AppShell() {
   const {
@@ -91,59 +95,69 @@ export default function AppShell() {
         </main>
       </div>
 
-      <AnimatePresence>
-        {selectedBookingId && <BookingDrawer />}
-      </AnimatePresence>
+      {/* Modals & drawers — null fallback because they're invisible until
+          their open flag is set; no need to flash a spinner. */}
+      <Suspense fallback={null}>
+        <AnimatePresence>
+          {selectedBookingId && <BookingDrawer />}
+        </AnimatePresence>
 
-      <AnimatePresence>
-        {bookingFormOpen && <BookingForm />}
-      </AnimatePresence>
+        <AnimatePresence>
+          {bookingFormOpen && <BookingForm />}
+        </AnimatePresence>
 
-      <AnimatePresence>
-        {agentPanelOpen && <AgentPanel />}
-      </AnimatePresence>
+        <AnimatePresence>
+          {agentPanelOpen && <AgentPanel />}
+        </AnimatePresence>
 
-      <AnimatePresence>
-        {searchOpen && <SearchOverlay />}
-      </AnimatePresence>
+        <AnimatePresence>
+          {searchOpen && <SearchOverlay />}
+        </AnimatePresence>
 
-      <AnimatePresence>
-        {selectedConversationId && <ConversationDrawer />}
-      </AnimatePresence>
+        <AnimatePresence>
+          {selectedConversationId && <ConversationDrawer />}
+        </AnimatePresence>
 
-      <AnimatePresence>
-        {createClientFormOpen && (
-          <CreateClientForm
-            onClose={() => {
-              setCreateClientFormOpen(false);
-              useUIStore.getState().setPrefillClientData(null);
-            }}
-            initialData={useUIStore.getState().prefillClientData
-              ? { name: useUIStore.getState().prefillClientData?.name }
-              : undefined
-            }
-            onCreated={(newClientId) => {
-              // Compound flow: if there's a pending agent booking/create intent,
-              // resume it with the new client_id so the user flows straight into
-              // the booking form without typing again.
-              const agent = useAgentStore.getState();
-              const pending = agent.pendingIntent;
-              if (
-                pending &&
-                pending.agent === 'booking' &&
-                pending.action === 'create'
-              ) {
-                agent.logTrace('compound_continue', { newClientId });
-                agentHandleSelection('client', newClientId);
+        <AnimatePresence>
+          {createClientFormOpen && (
+            <CreateClientForm
+              onClose={() => {
+                setCreateClientFormOpen(false);
+                useUIStore.getState().setPrefillClientData(null);
+              }}
+              initialData={useUIStore.getState().prefillClientData
+                ? { name: useUIStore.getState().prefillClientData?.name }
+                : undefined
               }
-            }}
-          />
-        )}
-      </AnimatePresence>
+              onCreated={async (newClientId) => {
+                // Compound flow: if there's a pending agent booking/create
+                // intent, resume it with the new client_id so the user
+                // flows straight into the booking form without typing
+                // again. Dynamic import keeps the orchestrator (1k+ lines
+                // + 5 agent files) off the AppShell boot bundle.
+                const agent = useAgentStore.getState();
+                const pending = agent.pendingIntent;
+                if (
+                  pending &&
+                  pending.agent === 'booking' &&
+                  pending.action === 'create'
+                ) {
+                  agent.logTrace('compound_continue', { newClientId });
+                  const { handleSelection } = await import('../../agents/orchestrator');
+                  handleSelection('client', newClientId);
+                }
+              }}
+            />
+          )}
+        </AnimatePresence>
 
-      <AnimatePresence>
-        {editingClient && <ClientForm client={editingClient} onClose={() => setEditingClientId(null)} />}
-      </AnimatePresence>
+        <AnimatePresence>
+          {editingClient && <ClientForm client={editingClient} onClose={() => setEditingClientId(null)} />}
+        </AnimatePresence>
+
+        <AgentFeedbackPrompt />
+        <ToastContainer />
+      </Suspense>
 
       {/* Agent FAB — hidden during page-level confirm dialogs so the button
           doesn't sit visually on top of a "Yes, delete" action. */}
@@ -157,10 +171,7 @@ export default function AppShell() {
         </button>
       )}
 
-      <AgentFeedbackPrompt />
-
       <MobileTabBar />
-      <ToastContainer />
     </div>
   );
 }
