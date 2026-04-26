@@ -142,6 +142,12 @@ export default function MonthView() {
   const topSentinelRef = useRef<HTMLDivElement>(null);
   const bottomSentinelRef = useRef<HTMLDivElement>(null);
   const monthRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  // Today's actual day-cell element (the in-month button, not a spillover).
+  // Used by the Today handler to scope its "is it visible?" check to the day
+  // row, not just the month container — otherwise scrolling that has the
+  // month header on screen but today's row off-screen still counts as
+  // visible, and one tap jumps straight to day view.
+  const todayCellRef = useRef<HTMLButtonElement | null>(null);
 
   // Scroll to today's month on mount. useLayoutEffect (not useEffect) so
   // the scroll lands synchronously before paint — otherwise the
@@ -218,30 +224,41 @@ export default function MonthView() {
     return () => yearObserver.disconnect();
   }, [months]);
 
-  // Register Today handler: if current month visible → open day view on today, else scroll to current month
+  // Register Today handler. Two-tap pattern (Apple Calendar–style):
+  //   1) today's day cell is visible → switch to day view
+  //   2) today's day cell is off-screen → scroll it into view, stay in month view
+  //   3) today's month not in DOM yet → set the date and let the list re-anchor
+  // We check visibility against the day cell, not the month container, because
+  // the month spans many rows — a user with the month header at the top but
+  // today's row scrolled past the bottom should still get a "scroll first" tap.
   useEffect(() => {
     const handler = () => {
       const today = new Date();
-      const todayKey = format(today, 'yyyy-MM');
-      const todayEl = monthRefs.current.get(todayKey);
+      const todayCell = todayCellRef.current;
 
-      if (todayEl && scrollRef.current) {
+      if (todayCell && scrollRef.current) {
         const container = scrollRef.current;
-        const elRect = todayEl.getBoundingClientRect();
+        const cellRect = todayCell.getBoundingClientRect();
         const containerRect = container.getBoundingClientRect();
-        const isVisible = elRect.top < containerRect.bottom && elRect.bottom > containerRect.top;
+        const isVisible =
+          cellRect.top < containerRect.bottom && cellRect.bottom > containerRect.top;
 
         if (isVisible) {
-          // Current month is visible — go to day view on today
           setCalendarDate(today);
           setCalendarView('day');
         } else {
-          // Scroll to current month
-          todayEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          todayCell.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
       } else {
-        // Current month not in DOM yet — set date and let it load
-        setCalendarDate(today);
+        // Today's month isn't rendered — fall back to the month-level scroll
+        // path, then let the next tap promote to day view.
+        const todayKey = format(today, 'yyyy-MM');
+        const todayMonthEl = monthRefs.current.get(todayKey);
+        if (todayMonthEl) {
+          todayMonthEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else {
+          setCalendarDate(today);
+        }
       }
     };
     setTodayHandler(handler);
@@ -389,6 +406,7 @@ export default function MonthView() {
                         return (
                           <button
                             key={day.toISOString()}
+                            ref={today && inMonth ? todayCellRef : undefined}
                             onClick={() => inMonth && handleDayClick(day)}
                             disabled={!inMonth}
                             className={`flex flex-col items-start px-0.5 py-0.5 min-h-[64px] border-b border-border/15 transition-colors lg:aspect-square lg:min-h-0 lg:overflow-hidden lg:px-1 lg:py-1 ${

@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ink Bloop — Theme Token Reference</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    background: #0a0a0a;
+    color: rgba(255,255,255,0.87);
+    font-family: 'DM Sans', 'Segoe UI', system-ui, sans-serif;
+    min-height: 100vh;
+  }
+  body { padding: 32px; }
+  h1 { font-size: 24px; margin-bottom: 6px; font-weight: 600; }
+  .subtitle {
+    color: rgba(255,255,255,0.55);
+    margin-bottom: 28px;
+    font-size: 13px;
+    max-width: 760px;
+    line-height: 1.55;
+  }
+  .subtitle code {
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: 11.5px;
+    background: rgba(255,255,255,0.06);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: rgba(255,255,255,0.85);
+  }
+
+  /* =====================================================================
+     THEME VARIABLE DEFINITIONS — mirror of src/index.css.
+     Single source of truth for every swatch on this page. Edit a value
+     here (or in src/index.css and re-paste) and every column updates.
+     ===================================================================== */
+  [data-theme="crimson"] {
+    --color-bg: #110D18;
+    --color-surface: #1A1525;
+    --color-elevated: #241E30;
+    --color-input: #2A2337;
+    --color-border: #342D42;
+    --color-border-s: #3E3650;
+    --color-accent: #DE0000;
+    --color-accent-dim: #CC0068;
+    --color-danger: #FE0000;
+    --color-success: #FECA00;
+    --color-today: #EE4700;
+    --color-type-regular: #B813FF;
+    --color-type-touchup: #F67100;
+    --color-type-consult: #FE84FF;
+    --color-type-fullday: #FF00AC;
+    --color-type-coverup: #1E90FF;
+    --color-type-personal: #10D897;
+  }
+  [data-theme="violet"] {
+    --color-bg: #0D0614;
+    --color-surface: #16102A;
+    --color-elevated: #1F1838;
+    --color-input: #261D42;
+    --color-border: #2E244F;
+    --color-border-s: #38305C;
+    --color-accent: #8B5CF6;
+    --color-accent-dim: #6D28D9;
+    --color-danger: #EF4444;
+    --color-success: #10B981;
+    --color-today: #F59E0B;
+    --color-type-regular: #EC4899;
+    --color-type-touchup: #F97316;
+    --color-type-consult: #22D3EE;
+    --color-type-fullday: #F43F5E;
+    --color-type-coverup: #3B82F6;
+    --color-type-personal: #22C55E;
+  }
+  [data-theme="dracula"] {
+    --color-bg: #282A36;
+    --color-surface: #2E3040;
+    --color-elevated: #363849;
+    --color-input: #3D3F54;
+    --color-border: #44475A;
+    --color-border-s: #50536E;
+    --color-accent: #BD93F9;
+    --color-accent-dim: #9061E3;
+    --color-danger: #FF5555;
+    --color-success: #50FA7B;
+    --color-today: #FFB86C;
+    --color-type-regular: #FF79C6;
+    --color-type-touchup: #FFB86C;
+    --color-type-consult: #8BE9FD;
+    --color-type-fullday: #F1FA8C;
+    --color-type-coverup: #60A5FA;
+    --color-type-personal: #50FA7B;
+  }
+  [data-theme="gruvbox"] {
+    --color-bg: #282828;
+    --color-surface: #32302F;
+    --color-elevated: #3C3836;
+    --color-input: #504945;
+    --color-border: #665C54;
+    --color-border-s: #7C6F64;
+    --color-accent: #FE8019;
+    --color-accent-dim: #D65D0E;
+    --color-danger: #FB4934;
+    --color-success: #B8BB26;
+    --color-today: #FABD2F;
+    --color-type-regular: #D3869B;
+    --color-type-touchup: #FABD2F;
+    --color-type-consult: #B16286;
+    --color-type-fullday: #FB4934;
+    --color-type-coverup: #83A598;
+    --color-type-personal: #8EC07C;
+  }
+  [data-theme="green"] {
+    --color-bg: #121212;
+    --color-surface: #1E1E1E;
+    --color-elevated: #272727;
+    --color-input: #2C2C2C;
+    --color-border: #333333;
+    --color-border-s: #383838;
+    --color-accent: #4ADE80;
+    --color-accent-dim: #16A34A;
+    --color-danger: #CF6679;
+    --color-success: #22D3EE;
+    --color-today: #E8453C;
+    --color-type-regular: #C084FC;
+    --color-type-touchup: #FB923C;
+    --color-type-consult: #FACC15;
+    --color-type-fullday: #F472B6;
+    --color-type-coverup: #60A5FA;
+    --color-type-personal: #2DD4BF;
+  }
+  [data-theme="noir"] {
+    --color-bg: #0A0A0A;
+    --color-surface: #141414;
+    --color-elevated: #1F1F1F;
+    --color-input: #262626;
+    --color-border: #2E2E2E;
+    --color-border-s: #3A3A3A;
+    --color-accent: #E5E5E5;
+    --color-accent-dim: #A3A3A3;
+    --color-danger: #F87171;
+    --color-success: #A3E635;
+    --color-today: #FB7185;
+    --color-type-regular: #A78BFA;
+    --color-type-touchup: #FBBF24;
+    --color-type-consult: #F9A8D4;
+    --color-type-fullday: #FB7185;
+    --color-type-coverup: #60A5FA;
+    --color-type-personal: #6EE7B7;
+  }
+  [data-theme="electric"] {
+    --color-bg: #0A0E1A;
+    --color-surface: #131826;
+    --color-elevated: #1C2233;
+    --color-input: #232A3D;
+    --color-border: #2D3449;
+    --color-border-s: #3A425C;
+    --color-accent: #38BDF8;
+    --color-accent-dim: #0EA5E9;
+    --color-danger: #F87171;
+    --color-success: #34D399;
+    --color-today: #FBBF24;
+    --color-type-regular: #A855F7;
+    --color-type-touchup: #F97316;
+    --color-type-consult: #EC4899;
+    --color-type-fullday: #F43F5E;
+    --color-type-coverup: #6366F1;
+    --color-type-personal: #10B981;
+  }
+  [data-theme="sepia"] {
+    --color-bg: #1A1410;
+    --color-surface: #251C16;
+    --color-elevated: #30241C;
+    --color-input: #3A2D23;
+    --color-border: #453629;
+    --color-border-s: #504030;
+    --color-accent: #F59E0B;
+    --color-accent-dim: #B45309;
+    --color-danger: #E11D48;
+    --color-success: #84CC16;
+    --color-today: #F97316;
+    --color-type-regular: #A855F7;
+    --color-type-touchup: #FB923C;
+    --color-type-consult: #EC4899;
+    --color-type-fullday: #DC2626;
+    --color-type-coverup: #6366F1;
+    --color-type-personal: #65A30D;
+  }
+
+  /* =====================================================================
+     Grid layout
+     ===================================================================== */
+  .grid {
+    display: grid;
+    grid-template-columns: 130px repeat(8, 1fr);
+    gap: 10px;
+    align-items: stretch;
+    min-width: 1180px;
+  }
+
+  .head, .row-label, .cell {
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+
+  .head {
+    background: var(--color-bg);
+    text-align: center;
+    color: rgba(255,255,255,0.92);
+    font-weight: 600;
+    border: 1px solid rgba(255,255,255,0.08);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: center;
+    justify-content: center;
+    min-height: 56px;
+  }
+  .head .accent-bar {
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--color-accent);
+  }
+  .head .name { font-size: 13px; }
+  .head .bg-hex {
+    font-size: 10px;
+    color: rgba(255,255,255,0.45);
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    letter-spacing: 0.02em;
+  }
+
+  .row-label {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    font-weight: 500;
+    color: rgba(255,255,255,0.78);
+    background: rgba(255,255,255,0.03);
+  }
+  .row-label .sub {
+    font-size: 9px;
+    color: rgba(255,255,255,0.4);
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-weight: 400;
+    margin-top: 2px;
+    letter-spacing: 0.02em;
+  }
+
+  .cell {
+    background: var(--color-bg);
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+
+  /* Booking swatch — mimics calendar booking pill (border-left + 7% alpha fill) */
+  .swatch-booking {
+    border-radius: 4px;
+    padding: 6px 8px;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-left-width: 3px;
+    border-left-color: var(--swatch-color);
+    background: color-mix(in srgb, var(--swatch-color) 7%, transparent);
+    font-size: 11px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.92);
+    line-height: 1.25;
+  }
+
+  /* Solid swatch — for surfaces/accent/status tokens */
+  .swatch-solid {
+    height: 36px;
+    border-radius: 4px;
+    background: var(--swatch-color);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .hex {
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: 10px;
+    color: rgba(255,255,255,0.5);
+    letter-spacing: 0.02em;
+    text-align: center;
+  }
+
+  /* Section divider — spans all columns */
+  .section-divider {
+    grid-column: 1 / -1;
+    margin-top: 18px;
+    padding-top: 14px;
+    padding-bottom: 2px;
+    border-top: 1px solid rgba(255,255,255,0.12);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: rgba(255,255,255,0.6);
+  }
+  .section-divider:first-of-type {
+    margin-top: 0;
+    border-top: none;
+    padding-top: 0;
+  }
+  .section-divider .meta {
+    color: rgba(255,255,255,0.35);
+    font-weight: 500;
+    font-size: 10px;
+    text-transform: none;
+    letter-spacing: 0.04em;
+    margin-left: 8px;
+  }
+
+  /* =====================================================================
+     Full-palette section (Dracula + Gruvbox)
+     ===================================================================== */
+  .palettes {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 32px;
+    min-width: 1180px;
+  }
+  .palette-card {
+    background: var(--color-bg);
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.08);
+    padding: 20px;
+  }
+  .palette-card h2 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .palette-card .palette-sub {
+    font-size: 11px;
+    color: rgba(255,255,255,0.55);
+    margin-bottom: 18px;
+  }
+  .palette-group { margin-bottom: 16px; }
+  .palette-group:last-child { margin-bottom: 0; }
+  .palette-group h3 {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255,255,255,0.5);
+    margin-bottom: 8px;
+  }
+  .palette-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .palette-swatch {
+    width: 92px;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .palette-swatch .pcolor { height: 44px; }
+  .palette-swatch .plabel {
+    padding: 6px 8px;
+    background: rgba(0,0,0,0.4);
+  }
+  .palette-swatch .pname {
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.9);
+    margin-bottom: 1px;
+  }
+  .palette-swatch .phex {
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: 9px;
+    color: rgba(255,255,255,0.55);
+    letter-spacing: 0.02em;
+  }
+</style>
+</head>
+<body>
+<h1>Theme tokens × themes</h1>
+<p class="subtitle">
+  Every swatch resolves through CSS variables defined in the <code>[data-theme=…]</code> blocks above (mirror of <code>src/index.css</code>). Cell backgrounds use each theme's <code>--color-bg</code>; booking swatches use <code>color-mix</code> for the 7% alpha fill that DayView paints. Hex labels are read from <code>getComputedStyle</code> on the rendered swatch — they reflect what the browser actually paints, so a single edit to a theme variable updates every cell in the column.
+</p>
+
+<div class="grid" id="grid"></div>
+
+<div class="palettes">
+  <!-- Dracula full palette (official spec — not theme tokens) -->
+  <div class="palette-card" data-theme="dracula">
+    <h2>Dracula — full palette</h2>
+    <div class="palette-sub">Official spec · draculatheme.com</div>
+
+    <div class="palette-group">
+      <h3>UI</h3>
+      <div class="palette-row">
+        <div class="palette-swatch">
+          <div class="pcolor" style="background:#282A36"></div>
+          <div class="plabel"><div class="pname">Background</div><div class="phex">#282A36</div></div>
+        </div>
+        <div class="palette-swatch">
+          <div class="pcolor" style="background:#44475A"></div>
+          <div class="plabel"><div class="pname">Current Line</div><div class="phex">#44475A</div></div>
+        </div>
+        <div class="palette-swatch">
+          <div class="pcolor" style="background:#F8F8F2"></div>
+          <div class="plabel"><div class="pname">Foreground</div><div class="phex">#F8F8F2</div></div>
+        </div>
+        <div class="palette-swatch">
+          <div class="pcolor" style="background:#6272A4"></div>
+          <div class="plabel"><div class="pname">Comment</div><div class="phex">#6272A4</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="palette-group">
+      <h3>Accents</h3>
+      <div class="palette-row">
+        <div class="palette-swatch">
+          <div class="pcolor" style="background:#8BE9FD"></div>
+          <div class="plabel"><div class="pname">Cyan</div><div class="phex">#8BE9FD</div></div>
+        </div>
+        <div class="palette-swatch">
+          <div class="pcolor" style="background:#50FA7B"></div>
+          <div class="plabel"><div class="pname">Green</div><div class="phex">#50FA7B</div></div>
+        </div>
+        <div class="palette-swatch">
+          <div class="pcolor" style="background:#FFB86C"></div>
+          <div class="plabel"><div class="pname">Orange</div><div class="phex">#FFB86C</div></div>
+        </div>
+        <div class="palette-swatch">
+          <div class="pcolor" style="background:#FF79C6"></div>
+          <div class="plabel"><div class="pname">Pink</div><div class="phex">#FF79C6</div></div>
+        </div>
+        <div class="palette-swatch">
+          <div class="pcolor" style="background:#BD93F9"></div>
+          <div class="plabel"><div class="pname">Purple</div><div class="phex">#BD93F9</div></div>
+        </div>
+        <div class="palette-swatch">
+          <div class="pcolor" style="background:#FF5555"></div>
+          <div class="plabel"><div class="pname">Red</div><div class="phex">#FF5555</div></div>
+        </div>
+        <div class="palette-swatch">
+          <div class="pcolor" style="background:#F1FA8C"></div>
+          <div class="plabel"><div class="pname">Yellow</div><div class="phex">#F1FA8C</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gruvbox medium full palette (official spec — not theme tokens) -->
+  <div class="palette-card" data-theme="gruvbox">
+    <h2>Gruvbox medium (dark) — full palette</h2>
+    <div class="palette-sub">github.com/morhetz/gruvbox · medium-contrast bg0 (#282828)</div>
+
+    <div class="palette-group">
+      <h3>Backgrounds</h3>
+      <div class="palette-row">
+        <div class="palette-swatch">
+          <div class="pcolor" style="background:#1D2021"></div>
+          <div class="plabel"><div class="pname">bg0_h (hard)</div><div class="phex">#1D2021</div></div>
+        </div>
+        <div class="palette-swatch">
+          <div class="pcolor" style="background:#282828"></div>
+          <div class="plabel"><div class="pname">bg0 (medium)</div><div class="phex">#282828</div></div>
+        </div>
+        <div class="palette-swatch">
+          <div class="pcolor" style="background:#32302F"></div>
+          <div class="plabel"><div class="pname">bg0_s (soft)</div><div class="phex">#32302F</div></div>
+        </div>
+        <div class="palette-swatch">
+          <div class="pcolor" style="background:#3C3836"></div>
+          <div class="plabel"><div class="pname">bg1</div><div class="phex">#3C3836</div></div>
+        </div>
+        <div class="palette-swatch">
+          <div class="pcolor" style="background:#504945"></div>
+          <div class="plabel"><div class="pname">bg2</div><div class="phex">#504945</div></div>
+        </div>
+        <div class="palette-swatch">
+          <div class="pcolor" style="background:#665C54"></div>
+          <div class="plabel"><div class="pname">bg3</div><div class="phex">#665C54</div></div>
+        </div>
+        <div class="palette-swatch">
+          <div class="pcolor" style="background:#7C6F64"></div>
+          <div class="plabel"><div class="pname">bg4</div><div class="phex">#7C6F64</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="palette-group">
+      <h3>Foregrounds</h3>
+      <div class="palette-row">
+        <div class="palette-swatch">
+          <div class="pcolor" style="background:#FBF1C7"></div>
+          <div class="plabel"><div class="pname">fg0</div><div class="phex">#FBF1C7</div></div>
+        </div>
+        <div class="palette-swatch">
+          <div class="pcolor" style="background:#EBDBB2"></div>
+          <div class="plabel"><div class="pname">fg1</div><div class="phex">#EBDBB2</div></div>
+        </div>
+        <div class="palette-swatch">
+          <div class="pcolor" style="background:#D5C4A1"></div>
+          <div class="plabel"><div class="pname">fg2</div><div class="phex">#D5C4A1</div></div>
+        </div>
+        <div class="palette-swatch">
+          <div class="pcolor" style="background:#BDAE93"></div>
+          <div class="plabel"><div class="pname">fg3</div><div class="phex">#BDAE93</div></div>
+        </div>
+        <div class="palette-swatch">
+          <div class="pcolor" style="background:#A89984"></div>
+          <div class="plabel"><div class="pname">fg4</div><div class="phex">#A89984</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="palette-group">
+      <h3>Hues — faded / bright (dark mode pairs)</h3>
+      <div class="palette-row">
+        <div class="palette-swatch">
+          <div class="pcolor" style="background:#CC241D"></div>
+          <div class="plabel"><div class="pname">red faded</div><div class="phex">#CC241D</div></div>
+        </div>
+        <div class="palette-swatch">
+          <div class="pcolor" style="background:#FB4934"></div>
+          <div class="plabel"><div class="pname">red bright</div><div class="phex">#FB4934</div></div>
+        </div>
+        <div class="palette-swatch">
+          <div class="pcolor" style="background:#98971A"></div>
+          <div class="plabel"><div class="pname">green faded</div><div class="phex">#98971A</div></div>
+        </div>
+        <div class="palette-swatch">
+          <div class="pcolor" style="background:#B8BB26"></div>
+          <div class="plabel"><div class="pname">green bright</div><div class="phex">#B8BB26</div></div>
+        </div>
+        <div class="palette-swatch">
+          <div class="pcolor" style="background:#D79921"></div>
+          <div class="plabel"><div class="pname">yellow faded</div><div class="phex">#D79921</div></div>
+        </div>
+        <div class="palette-swatch">
+          <div class="pcolor" style="background:#FABD2F"></div>
+          <div class="plabel"><div class="pname">yellow bright</div><div class="phex">#FABD2F</div></div>
+        </div>
+        <div class="palette-swatch">
+          <div class="pcolor" style="background:#458588"></div>
+          <div class="plabel"><div class="pname">blue faded</div><div class="phex">#458588</div></div>
+        </div>
+        <div class="palette-swatch">
+          <div class="pcolor" style="background:#83A598"></div>
+          <div class="plabel"><div class="pname">blue bright</div><div class="phex">#83A598</div></div>
+        </div>
+        <div class="palette-swatch">
+          <div class="pcolor" style="background:#B16286"></div>
+          <div class="plabel"><div class="pname">purple faded</div><div class="phex">#B16286</div></div>
+        </div>
+        <div class="palette-swatch">
+          <div class="pcolor" style="background:#D3869B"></div>
+          <div class="plabel"><div class="pname">purple bright</div><div class="phex">#D3869B</div></div>
+        </div>
+        <div class="palette-swatch">
+          <div class="pcolor" style="background:#689D6A"></div>
+          <div class="plabel"><div class="pname">aqua faded</div><div class="phex">#689D6A</div></div>
+        </div>
+        <div class="palette-swatch">
+          <div class="pcolor" style="background:#8EC07C"></div>
+          <div class="plabel"><div class="pname">aqua bright</div><div class="phex">#8EC07C</div></div>
+        </div>
+        <div class="palette-swatch">
+          <div class="pcolor" style="background:#D65D0E"></div>
+          <div class="plabel"><div class="pname">orange faded</div><div class="phex">#D65D0E</div></div>
+        </div>
+        <div class="palette-swatch">
+          <div class="pcolor" style="background:#FE8019"></div>
+          <div class="plabel"><div class="pname">orange bright</div><div class="phex">#FE8019</div></div>
+        </div>
+        <div class="palette-swatch">
+          <div class="pcolor" style="background:#928374"></div>
+          <div class="plabel"><div class="pname">gray</div><div class="phex">#928374</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Themes (column order matches Settings → Theme picker)
+  const THEMES = [
+    { id: 'crimson',  name: 'Crimson' },
+    { id: 'violet',   name: 'Violet' },
+    { id: 'dracula',  name: 'Dracula' },
+    { id: 'gruvbox',  name: 'Gruvbox' },
+    { id: 'green',    name: 'Moss' },
+    { id: 'noir',     name: 'Noir' },
+    { id: 'electric', name: 'Electric' },
+    { id: 'sepia',    name: 'Sepia' },
+  ];
+
+  // Sections — each row is a token. The cell sets --swatch-color = var(...)
+  // inline so the swatch CSS can read it without per-token rules.
+  const SECTIONS = [
+    {
+      title: 'Booking types',
+      meta: 'border-left + 7% alpha fill (matches DayView)',
+      style: 'booking',
+      rows: [
+        { label: 'Regular',      var: '--color-type-regular' },
+        { label: 'Touch Up',     var: '--color-type-touchup' },
+        { label: 'Consultation', var: '--color-type-consult' },
+        { label: 'Full Day',     var: '--color-type-fullday' },
+        { label: 'Cover Up',     var: '--color-type-coverup' },
+        { label: 'Personal',     var: '--color-type-personal' },
+      ],
+    },
+    {
+      title: 'Surfaces',
+      meta: 'elevation system — bg ↓ to border-s',
+      style: 'solid',
+      rows: [
+        { label: 'BG',         var: '--color-bg' },
+        { label: 'Surface',    var: '--color-surface' },
+        { label: 'Elevated',   var: '--color-elevated' },
+        { label: 'Input',      var: '--color-input' },
+        { label: 'Border',     var: '--color-border' },
+        { label: 'Border-S',   var: '--color-border-s' },
+      ],
+    },
+    {
+      title: 'Accent',
+      meta: 'primary brand color',
+      style: 'solid',
+      rows: [
+        { label: 'Accent',     var: '--color-accent' },
+        { label: 'Accent dim', var: '--color-accent-dim' },
+      ],
+    },
+    {
+      title: 'Status',
+      meta: 'semantic UI states',
+      style: 'solid',
+      rows: [
+        { label: 'Danger',     var: '--color-danger' },
+        { label: 'Success',    var: '--color-success' },
+        { label: 'Today',      var: '--color-today' },
+      ],
+    },
+  ];
+
+  // Build the grid
+  const grid = document.getElementById('grid');
+  const html = [];
+
+  // Header row: empty corner + 8 theme heads
+  html.push('<div></div>');
+  THEMES.forEach(t => {
+    html.push(
+      `<div class="head" data-theme="${t.id}">` +
+        `<span class="accent-bar"></span>` +
+        `<span class="name">${t.name}</span>` +
+        `<span class="bg-hex"></span>` +
+      `</div>`
+    );
+  });
+
+  // Sections
+  SECTIONS.forEach(section => {
+    html.push(
+      `<div class="section-divider">${section.title}` +
+        (section.meta ? `<span class="meta">${section.meta}</span>` : '') +
+      `</div>`
+    );
+    section.rows.forEach(row => {
+      html.push(
+        `<div class="row-label">` +
+          `<span>${row.label}</span>` +
+          `<span class="sub">${row.var}</span>` +
+        `</div>`
+      );
+      THEMES.forEach(t => {
+        const swatchClass = section.style === 'booking' ? 'swatch-booking' : 'swatch-solid';
+        const swatchInner = section.style === 'booking' ? row.label : '';
+        html.push(
+          `<div class="cell" data-theme="${t.id}" style="--swatch-color: var(${row.var})">` +
+            `<div class="${swatchClass}">${swatchInner}</div>` +
+            `<div class="hex"></div>` +
+          `</div>`
+        );
+      });
+    });
+  });
+
+  grid.innerHTML = html.join('');
+
+  // ---------------------------------------------------------------------
+  // Auto-fill hex labels by reading what the browser actually paints.
+  // No mapping table — getComputedStyle resolves through var() chains and
+  // reflects whatever the active theme/var values produce.
+  // ---------------------------------------------------------------------
+  function rgbToHex(s) {
+    const m = s.match(/^rgba?\((\d+(?:\.\d+)?),\s*(\d+(?:\.\d+)?),\s*(\d+(?:\.\d+)?)/);
+    if (!m) return s;
+    const h = n => Math.round(parseFloat(n)).toString(16).padStart(2, '0').toUpperCase();
+    return '#' + h(m[1]) + h(m[2]) + h(m[3]);
+  }
+
+  document.querySelectorAll('.cell').forEach(cell => {
+    const swatch = cell.querySelector('.swatch-booking, .swatch-solid');
+    const hexEl = cell.querySelector('.hex');
+    if (!swatch || !hexEl) return;
+    const cs = getComputedStyle(swatch);
+    const color = swatch.classList.contains('swatch-booking') ? cs.borderLeftColor : cs.backgroundColor;
+    hexEl.textContent = rgbToHex(color);
+  });
+
+  document.querySelectorAll('.head').forEach(head => {
+    const bgHex = head.querySelector('.bg-hex');
+    if (!bgHex) return;
+    bgHex.textContent = rgbToHex(getComputedStyle(head).backgroundColor);
+  });
+</script>
+</body>
+</html>

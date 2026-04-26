@@ -125,7 +125,7 @@ export default function BookingForm() {
         if (prefillBookingData.timeSlot) {
           formData.time = prefillBookingData.timeSlot === 'morning'
             ? (localStorage.getItem('inkbloop-morning-time') ?? '10:00')
-            : (localStorage.getItem('inkbloop-evening-time') ?? '14:00');
+            : (localStorage.getItem('inkbloop-evening-time') ?? '18:00');
         }
         if (prefillBookingData.notes) formData.notes = prefillBookingData.notes;
         if (prefillBookingData.title) formData.title = prefillBookingData.title.slice(0, TITLE_MAX);
@@ -164,7 +164,7 @@ export default function BookingForm() {
       if (prefillBookingData.timeSlot) {
         const slotTime = prefillBookingData.timeSlot === 'morning'
           ? (localStorage.getItem('inkbloop-morning-time') ?? '10:00')
-          : (localStorage.getItem('inkbloop-evening-time') ?? '14:00');
+          : (localStorage.getItem('inkbloop-evening-time') ?? '18:00');
         updates.time = slotTime;
       }
       if (prefillBookingData.notes) updates.notes = prefillBookingData.notes;
@@ -426,7 +426,7 @@ export default function BookingForm() {
           {['Morning', 'Evening'].map((slot) => {
             const time = slot === 'Morning'
               ? (localStorage.getItem('inkbloop-morning-time') ?? '10:00')
-              : (localStorage.getItem('inkbloop-evening-time') ?? '14:00');
+              : (localStorage.getItem('inkbloop-evening-time') ?? '18:00');
             const isActive = form.time === time;
             const [h, m] = time.split(':').map(Number);
             const label = format(new Date(2026, 0, 1, h, m), 'h:mm a');

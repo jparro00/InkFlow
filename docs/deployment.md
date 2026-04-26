@@ -90,7 +90,11 @@ Dev is the default target. Never deploy to prod without explicit user permission
 
 Keep this section updated as changes land on dev but haven't shipped to prod.
 
-_No pending changes — dev is in sync with prod as of 2026-04-25 (cold-start perf batch: SVG favicon + 10 KB icons, lazy-loaded AppShell modals + agent orchestrator, optimistic auth from localStorage, Supabase deferred off cold path, Rolldown chunking fix that was hiding React's runtime inside framer-motion's chunk, Navigation Preload + Supabase-GET timeout in the SW, Playwright PWA audit harness)._
+**Migration `00022_feedback_delete_policy.sql`** — adds a DELETE RLS policy on `feedback` so the owner can remove their own entries. Applied to dev 2026-04-25; pending prod. Apply on next prod deploy with `supabase db push --linked`.
+
+Frontend dev→prod (also pending): four feedback-driven fixes shipped to dev on 2026-04-25 — two-tap Today button in month view, fuzzy alternatives surfaced when an exact client match has credible near-misses, evening default moved from 2pm to 6pm (and `workingHours.end` extended to 21:00), and explicit booking→walk-in conversion before client delete.
+
+_(Prior batch shipped 2026-04-25: cold-start perf — SVG favicon + 10 KB icons, lazy-loaded AppShell modals + agent orchestrator, optimistic auth from localStorage, Supabase deferred off cold path, Rolldown chunking fix, Navigation Preload + Supabase-GET timeout in the SW, Playwright PWA audit harness.)_
 
 ## Known caveats
 

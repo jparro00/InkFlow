@@ -7,21 +7,43 @@ import type { ClientResolution, BookingResolution, ConversationResolution } from
  *
  * Priority:
  * 1. Exact full-name match (case-insensitive) → exact
+ *    — promoted to `multiple` if any other client scores high on fuzzy,
+ *    since voice transcription can produce a name that exactly matches an
+ *    existing client but is actually a misheard "Jon" / "Joan" / "Johnny".
  * 2. Single partial/first-name match → single
  * 3. Multiple partial matches → multiple (disambiguation needed)
  * 4. Fuzzy matches (typos, voice-to-text errors) → none with suggestions
  * 5. No matches at all → none with empty suggestions
  */
+// Score floor for "credible alternative" — see fuzzyScore for the scale:
+//   8 = a meaningful prefix match (e.g. "jon" vs "john")
+//   8 = first-name bonus + small bonus
+// Below this we treat the alternative as noise and don't risk extra friction.
+const CREDIBLE_ALT_SCORE = 8;
+const MAX_ALTS = 4;
+
 export function resolveClient(query: string, clients: Client[]): ClientResolution {
   if (!query || !query.trim()) {
     return { type: 'none', query: query || '', suggestions: [] };
   }
 
   const q = query.trim().toLowerCase();
+  const queryWords = q.split(/\s+/);
 
-  // 1. Exact full name match
+  // 1. Exact full name match — but check for credible fuzzy collisions first
   const exactMatch = clients.find((c) => c.name.toLowerCase() === q);
   if (exactMatch) {
+    const alternatives = clients
+      .filter((c) => c.id !== exactMatch.id)
+      .map((c) => ({ client: c, score: fuzzyScore(q, queryWords, c.name.toLowerCase()) }))
+      .filter((r) => r.score >= CREDIBLE_ALT_SCORE)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, MAX_ALTS)
+      .map((r) => r.client);
+
+    if (alternatives.length > 0) {
+      return { type: 'multiple', clients: [exactMatch, ...alternatives] };
+    }
     return { type: 'exact', client: exactMatch };
   }
 
@@ -41,7 +63,6 @@ export function resolveClient(query: string, clients: Client[]): ClientResolutio
   }
 
   // 4. Fuzzy matching — handles typos, voice-to-text errors, phonetic mismatches
-  const queryWords = q.split(/\s+/);
   const fuzzy = clients
     .map((c) => ({ client: c, score: fuzzyScore(q, queryWords, c.name.toLowerCase()) }))
     .filter((r) => r.score > 0)

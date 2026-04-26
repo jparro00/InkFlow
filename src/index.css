@@ -268,9 +268,9 @@ html[data-theme="sepia"] {
   --color-success: #84CC16;
   --color-today: #F97316;
 
-  /* Booking types — spread across the wheel with cool pops to contrast the warm brown base; Cover Up indigo (not sky) to stay distinct from cyan Touch Up */
+  /* Booking types — spread across the wheel; Touch Up is orange (consistent with the other themes), Cover Up indigo to stay distinct from amber accent + orange today */
   --color-type-regular: #A855F7;
-  --color-type-touchup: #22D3EE;
+  --color-type-touchup: #FB923C;
   --color-type-consult: #EC4899;
   --color-type-fullday: #DC2626;
   --color-type-coverup: #6366F1;

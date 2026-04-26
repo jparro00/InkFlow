@@ -9,7 +9,7 @@ export const scheduleConfig = {
   workingDays: [1, 2, 3, 4, 5] as number[],
 
   /** Your working hours window */
-  workingHours: { start: '10:00', end: '20:00' },
+  workingHours: { start: '10:00', end: '21:00' },
 
   /** Default session length in hours (used when calculating gaps) */
   defaultSessionDuration: 3,
@@ -25,5 +25,5 @@ export const scheduleConfig = {
    * overlapping an existing booking.
    */
   morningStart: '10:00',
-  eveningStart: '14:00',
+  eveningStart: '18:00',
 };

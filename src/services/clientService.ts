@@ -216,11 +216,21 @@ export async function deleteClientAvatar(clientId: string): Promise<void> {
 }
 
 export async function deleteClient(id: string): Promise<void> {
+  // Convert this client's bookings to walk-ins first. The bookings FK is
+  // ON DELETE SET NULL on prod so the delete would propagate the same way,
+  // but doing it explicitly survives schema drift (dev has reportedly
+  // failed delete-client on bookings) and keeps the booking history intact
+  // either way.
+  const { error: updateError } = await supabase
+    .from('bookings')
+    .update({ client_id: null })
+    .eq('client_id', id);
+  if (updateError) throw updateError;
+
   const { error } = await supabase
     .from('clients')
     .delete()
     .eq('id', id);
-
   if (error) throw error;
 }
 

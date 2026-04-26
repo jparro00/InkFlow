@@ -24,7 +24,7 @@ export default function SettingsPage() {
   const [passwordSaving, setPasswordSaving] = useState(false);
 
   const [morningTime, setMorningTime] = useState(() => localStorage.getItem('inkbloop-morning-time') ?? '10:00');
-  const [eveningTime, setEveningTime] = useState(() => localStorage.getItem('inkbloop-evening-time') ?? '14:00');
+  const [eveningTime, setEveningTime] = useState(() => localStorage.getItem('inkbloop-evening-time') ?? '18:00');
   const [timesSaved, setTimesSaved] = useState(false);
 
   const [theme, setTheme] = useState<ThemeId>(() => getTheme());
