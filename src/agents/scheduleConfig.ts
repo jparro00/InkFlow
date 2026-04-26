@@ -25,5 +25,5 @@ export const scheduleConfig = {
    * overlapping an existing booking.
    */
   morningStart: '10:00',
-  eveningStart: '14:00',
+  eveningStart: '18:00',
 };
