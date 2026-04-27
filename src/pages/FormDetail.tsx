@@ -319,6 +319,8 @@ export default function FormDetailPage() {
 
       <BookingPickerDrawer
         open={pickerOpen}
+        submissionId={submission.id}
+        prefillName={consentSubmissionDisplayName(submission)}
         onClose={() => setPickerOpen(false)}
         onPick={handleApprove}
         busy={busy}

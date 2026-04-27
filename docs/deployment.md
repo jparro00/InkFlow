@@ -91,7 +91,16 @@ Dev is the default target. Never deploy to prod without explicit user permission
 
 Keep this section updated as changes land on dev but haven't shipped to prod.
 
-_No pending changes — dev is in sync with prod as of 2026-04-25 (feedback batch: two-tap Today button in month view, fuzzy alternatives surfaced when an exact client match has credible near-misses, evening default moved from 2pm to 6pm with `workingHours.end` extended to 21:00, explicit booking→walk-in conversion before client delete, plus migration 00022 adding DELETE RLS policy on `feedback`)._
+**Consent forms feature (phases 1–4) — landed on dev 2026-04-27, not yet shipped to prod.**
+
+When ready to ship to prod:
+- migration `00023_consent_submissions.sql` (db push)
+- secrets: `AWS_TEXTRACT_REGION`, `AWS_TEXTRACT_ACCESS_KEY_ID`, `AWS_TEXTRACT_SECRET_ACCESS_KEY` (existing R2_* secrets are reused; no new R2 secrets needed)
+- edge fns: `consent-upload-url`, `consent-submit`, `consent-reject`, `consent-analyze-id` (4 new functions)
+- workers/images: redeploy with `consent` prefix added to `authz.ts` and cache-control map
+- frontend: `npm run deploy:prod` (only after the above)
+
+See [forms.md](./forms.md) for the feature map.
 
 ## Known caveats
 

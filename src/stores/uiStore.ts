@@ -65,6 +65,13 @@ interface UIStore {
   // dictated text pre-populated for review.
   prefillFeedbackText: string | null;
   setPrefillFeedbackText: (text: string | null) => void;
+  // When set, BookingForm.handleSave will attach the newly-created booking
+  // to this consent submission (status submitted → approved_pending) and
+  // clear the field. Used by the consent-form approval flow's "Create new
+  // booking" affordance — the consent UI hands off to BookingForm and lets
+  // BookingForm complete the round-trip on save.
+  pendingConsentSubmissionId: string | null;
+  setPendingConsentSubmissionId: (id: string | null) => void;
 }
 
 export const useUIStore = create<UIStore>((set) => ({
@@ -174,4 +181,6 @@ export const useUIStore = create<UIStore>((set) => ({
   setConfirmDialogOpen: (open) => set({ confirmDialogOpen: open }),
   prefillFeedbackText: null,
   setPrefillFeedbackText: (text) => set({ prefillFeedbackText: text }),
+  pendingConsentSubmissionId: null,
+  setPendingConsentSubmissionId: (id) => set({ pendingConsentSubmissionId: id }),
 }));

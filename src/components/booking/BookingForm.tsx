@@ -13,6 +13,7 @@ import { useUIStore } from '../../stores/uiStore';
 import { useBookingStore } from '../../stores/bookingStore';
 import { useClientStore } from '../../stores/clientStore';
 import { useImageStore } from '../../stores/imageStore';
+import { useConsentSubmissionStore } from '../../stores/consentSubmissionStore';
 import { useBookingImages } from '../../hooks/useBookingImages';
 import type { Booking, BookingType, BookingStatus } from '../../types';
 import { getTypeColor } from '../../types';
@@ -52,6 +53,9 @@ const defaultForm = {
 
 export default function BookingForm() {
   const { editingBookingId, closeBookingForm, prefillBookingData } = useUIStore();
+  const pendingConsentSubmissionId = useUIStore((s) => s.pendingConsentSubmissionId);
+  const setPendingConsentSubmissionId = useUIStore((s) => s.setPendingConsentSubmissionId);
+  const approveConsentSubmission = useConsentSubmissionStore((s) => s.approveSubmission);
   const booking = useBookingStore((s) => editingBookingId ? s.bookings.find((b) => b.id === editingBookingId) : undefined);
   const addBooking = useBookingStore((s) => s.addBooking);
   const updateBooking = useBookingStore((s) => s.updateBooking);
@@ -253,6 +257,17 @@ export default function BookingForm() {
       } else {
         const newBooking = await addBooking(data, tempBookingId.current);
         remapBookingImages(tempBookingId.current, newBooking.id);
+        // If we got here via the consent-form approval flow's "Create new
+        // booking" affordance, attach the new booking to the consent
+        // submission and clear the handoff.
+        if (pendingConsentSubmissionId) {
+          try {
+            await approveConsentSubmission(pendingConsentSubmissionId, newBooking.id);
+          } catch (consentErr) {
+            console.error('Failed to attach consent submission to new booking', consentErr);
+          }
+          setPendingConsentSubmissionId(null);
+        }
       }
       closeBookingForm();
     } catch (e) {
