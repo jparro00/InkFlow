@@ -13,10 +13,15 @@ import { Camera, RotateCcw, Loader2, ImageIcon } from 'lucide-react';
 
 // Display + saved aspect ratio. Roughly the ID-1 license format (8.56 × 5.4 cm).
 const TARGET_ASPECT = 1.586;
-// Output sizing: width in pixels of the saved JPEG. License text reads
-// cleanly at 1200px and Textract handles it without issue, while the file
-// stays well under 300 KB. Bump this if OCR accuracy ever regresses.
-const OUTPUT_WIDTH = 1200;
+// Output sizing: width in pixels of the saved JPEG. 600 px on a well-framed
+// ID-1 card works out to ~178 DPI — above Textract's 150 DPI floor and well
+// above the 15 px text-height floor (~24 px at this size). Final JPEG lands
+// around 50 KB, ~70% smaller than 1200 px.
+//
+// This is only safe because we show framing brackets in the live preview
+// that nudge users to fill the rectangle. Reduce again only if those guides
+// stay; raise it if AnalyzeID confidence ever drops on real captures.
+const OUTPUT_WIDTH = 600;
 const OUTPUT_QUALITY = 0.85;
 
 interface Props {
@@ -114,8 +119,9 @@ export default function CameraCapture({ previewUrl, onCapture }: Props) {
     const cropY = (vh - cropH) / 2;
 
     // Down-sample to OUTPUT_WIDTH so the upload + Textract round-trip stays
-    // snappy. License text is comfortably legible at this width and the JPEG
-    // payload lands around 100–200 KB.
+    // snappy. License text is comfortably legible at this width (see the
+    // OUTPUT_WIDTH comment for the DPI math) and the JPEG payload lands
+    // around 50 KB.
     const outW = Math.min(OUTPUT_WIDTH, Math.round(cropW));
     const outH = Math.round(outW / TARGET_ASPECT);
 
@@ -188,9 +194,23 @@ export default function CameraCapture({ previewUrl, onCapture }: Props) {
           </div>
         )}
 
-        {/* Streaming overlay: shutter + cancel */}
+        {/* Streaming overlay: framing brackets, shutter, cancel. The brackets
+            sit at the inside edges of the box so the user has a clear "fill
+            this rectangle with your ID" cue — necessary because we save at
+            600 px wide and rely on a well-framed shot to stay above 150 DPI. */}
         {state.kind === 'streaming' && (
           <>
+            <div className="absolute inset-2 pointer-events-none">
+              <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-white/85 rounded-tl-md" />
+              <div className="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-white/85 rounded-tr-md" />
+              <div className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-white/85 rounded-bl-md" />
+              <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-white/85 rounded-br-md" />
+            </div>
+
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-md bg-bg/70 backdrop-blur-sm text-xs text-text-p whitespace-nowrap pointer-events-none">
+              Fill the frame with your ID
+            </div>
+
             <button
               type="button"
               onClick={captureFrame}
