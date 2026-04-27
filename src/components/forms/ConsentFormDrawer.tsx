@@ -15,7 +15,6 @@ import { format } from 'date-fns';
 import { Check, X, Trash2, AlertTriangle } from 'lucide-react';
 import Modal from '../common/Modal';
 import ConsentForm from './ConsentForm';
-import FinalizeFormDrawer from './FinalizeFormDrawer';
 import { useConsentSubmissionStore } from '../../stores/consentSubmissionStore';
 import { useBookingStore } from '../../stores/bookingStore';
 import { useClientStore } from '../../stores/clientStore';
@@ -83,6 +82,7 @@ function DrawerBody({ submission }: { submission: ConsentSubmission }) {
   const setAttachToBookingSubmissionId = useUIStore(
     (s) => s.setAttachToBookingSubmissionId,
   );
+  const setFinalizeSubmissionId = useUIStore((s) => s.setFinalizeSubmissionId);
 
   const attachedBooking = useMemo(() => {
     if (!submission.booking_id) return undefined;
@@ -94,7 +94,6 @@ function DrawerBody({ submission }: { submission: ConsentSubmission }) {
     return clients.find((c) => c.id === attachedBooking.client_id)?.name;
   }, [attachedBooking, clients]);
 
-  const [finalizeOpen, setFinalizeOpen] = useState(false);
   const [confirmReject, setConfirmReject] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -106,6 +105,14 @@ function DrawerBody({ submission }: { submission: ConsentSubmission }) {
     const id = submission.id;
     setSelectedConsentSubmissionId(null);
     setAttachToBookingSubmissionId(id);
+  };
+
+  // Same handoff for the payment + tattoo step — close this drawer, then
+  // open the finalize sheet at the root.
+  const onFinalize = () => {
+    const id = submission.id;
+    setSelectedConsentSubmissionId(null);
+    setFinalizeSubmissionId(id);
   };
 
   const handleReject = async () => {
@@ -195,9 +202,10 @@ function DrawerBody({ submission }: { submission: ConsentSubmission }) {
         </section>
       )}
 
-      {/* Inline action footer — at the natural bottom of the form, no sticky
-          overlay. The Finalize step still uses an overlay (FinalizeFormDrawer)
-          since it needs its own modal-style entry. */}
+      {/* Inline action footer — at the natural bottom of the form. Both the
+          approve and finalize triggers hand off to AppShell-level drawers
+          (BookingPickerDrawer, FinalizeFormDrawer) after dismissing this one,
+          so they never stack. */}
       <div className="pt-2">
         <ActionFooter
           submission={submission}
@@ -207,15 +215,9 @@ function DrawerBody({ submission }: { submission: ConsentSubmission }) {
           onAskReject={() => setConfirmReject(true)}
           onConfirmReject={handleReject}
           onAskApprove={onApprove}
-          onAskFinalize={() => setFinalizeOpen(true)}
+          onAskFinalize={onFinalize}
         />
       </div>
-
-      <FinalizeFormDrawer
-        open={finalizeOpen}
-        submission={submission}
-        onClose={() => setFinalizeOpen(false)}
-      />
     </div>
   );
 }

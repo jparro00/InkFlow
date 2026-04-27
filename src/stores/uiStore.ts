@@ -86,6 +86,12 @@ interface UIStore {
   // picks (or creates) a booking.
   attachToBookingSubmissionId: string | null;
   setAttachToBookingSubmissionId: (id: string | null) => void;
+  // Submission whose "Payment & tattoo" finalize sheet is open. Same handoff
+  // pattern as the booking picker: tapping "Enter payment & tattoo details"
+  // in the consent drawer closes that drawer and opens this sheet at the
+  // AppShell root, so they don't stack.
+  finalizeSubmissionId: string | null;
+  setFinalizeSubmissionId: (id: string | null) => void;
 }
 
 export const useUIStore = create<UIStore>((set) => ({
@@ -212,5 +218,13 @@ export const useUIStore = create<UIStore>((set) => ({
       return;
     }
     set({ attachToBookingSubmissionId: id });
+  },
+  finalizeSubmissionId: null,
+  setFinalizeSubmissionId: (id) => {
+    if (id && useUIStore.getState().modalCollapsed) {
+      set((s) => ({ blockedOpenTrigger: s.blockedOpenTrigger + 1 }));
+      return;
+    }
+    set({ finalizeSubmissionId: id });
   },
 }));

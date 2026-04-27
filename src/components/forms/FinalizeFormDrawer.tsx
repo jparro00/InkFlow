@@ -1,19 +1,23 @@
+// Sheet for entering payment + tattoo details on an approved submission.
+// Rendered at AppShell root and driven by uiStore.finalizeSubmissionId — the
+// consent drawer dismisses itself before opening this so they don't stack.
+
 import { useState } from 'react';
 import Modal, { useModalDismiss } from '../common/Modal';
 import { useConsentSubmissionStore } from '../../stores/consentSubmissionStore';
 import { useUIStore } from '../../stores/uiStore';
 import type { ConsentSubmission } from '../../types';
 
-interface Props {
-  open: boolean;
-  submission: ConsentSubmission;
-  onClose: () => void;
-}
-
 const PAYMENT_TYPES = ['Cash', 'Card', 'Venmo', 'Zelle', 'Other'];
 
-export default function FinalizeFormDrawer({ open, submission, onClose }: Props) {
-  if (!open) return null;
+export default function FinalizeFormDrawer() {
+  const submissionId = useUIStore((s) => s.finalizeSubmissionId);
+  const setFinalizeSubmissionId = useUIStore((s) => s.setFinalizeSubmissionId);
+  const submission = useConsentSubmissionStore((s) =>
+    submissionId ? s.submissions.find((sub) => sub.id === submissionId) : undefined,
+  );
+  if (!submissionId || !submission) return null;
+  const onClose = () => setFinalizeSubmissionId(null);
   return (
     <Modal title="Payment & tattoo details" onClose={onClose}>
       <FinalizeFormBody submission={submission} />
@@ -25,6 +29,7 @@ function FinalizeFormBody({ submission }: { submission: ConsentSubmission }) {
   const dismiss = useModalDismiss();
   const finalizeSubmission = useConsentSubmissionStore((s) => s.finalizeSubmission);
   const addToast = useUIStore((s) => s.addToast);
+  const setFinalizeSubmissionId = useUIStore((s) => s.setFinalizeSubmissionId);
 
   const [paymentType, setPaymentType] = useState(submission.payment_type ?? '');
   const [paymentAmount, setPaymentAmount] = useState(
@@ -58,7 +63,11 @@ function FinalizeFormBody({ submission }: { submission: ConsentSubmission }) {
         tattoo_description: tattooDescription.trim(),
       });
       addToast('Form finalized');
+      // Animate out, then make sure the uiStore state is cleared. dismiss()
+      // already calls onClose (which clears the id), but call it explicitly
+      // for symmetry with other AppShell-level drawers.
       dismiss();
+      setFinalizeSubmissionId(null);
     } catch (e) {
       console.error(e);
       setError('Failed to save. Try again.');

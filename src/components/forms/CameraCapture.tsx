@@ -11,6 +11,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { Camera, RotateCcw, Loader2, ImageIcon } from 'lucide-react';
 
+// Display + saved aspect ratio. Roughly the ID-1 license format (8.56 × 5.4 cm).
+const TARGET_ASPECT = 1.586;
+// Output sizing: width in pixels of the saved JPEG. License text reads
+// cleanly at 1200px and Textract handles it without issue, while the file
+// stays well under 300 KB. Bump this if OCR accuracy ever regresses.
+const OUTPUT_WIDTH = 1200;
+const OUTPUT_QUALITY = 0.85;
+
 interface Props {
   /** Currently-displayed preview (data URL or blob URL). null = no capture yet. */
   previewUrl: string | null;
@@ -82,12 +90,43 @@ export default function CameraCapture({ previewUrl, onCapture }: Props) {
   const captureFrame = () => {
     const v = videoRef.current;
     if (!v || !v.videoWidth) return;
+
+    const vw = v.videoWidth;
+    const vh = v.videoHeight;
+
+    // Mirror the on-screen `object-cover` crop on the saved file so we save
+    // exactly what the user framed in the rectangle — not the full sensor
+    // frame. Whichever axis exceeds the target aspect gets trimmed equally
+    // from both sides.
+    const sourceAspect = vw / vh;
+    let cropW: number;
+    let cropH: number;
+    if (sourceAspect > TARGET_ASPECT) {
+      // Wider than target → trim the sides.
+      cropH = vh;
+      cropW = vh * TARGET_ASPECT;
+    } else {
+      // Taller than target → trim top/bottom.
+      cropW = vw;
+      cropH = vw / TARGET_ASPECT;
+    }
+    const cropX = (vw - cropW) / 2;
+    const cropY = (vh - cropH) / 2;
+
+    // Down-sample to OUTPUT_WIDTH so the upload + Textract round-trip stays
+    // snappy. License text is comfortably legible at this width and the JPEG
+    // payload lands around 100–200 KB.
+    const outW = Math.min(OUTPUT_WIDTH, Math.round(cropW));
+    const outH = Math.round(outW / TARGET_ASPECT);
+
     const canvas = document.createElement('canvas');
-    canvas.width = v.videoWidth;
-    canvas.height = v.videoHeight;
+    canvas.width = outW;
+    canvas.height = outH;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(v, cropX, cropY, cropW, cropH, 0, 0, outW, outH);
     canvas.toBlob(
       (blob) => {
         if (!blob) return;
@@ -97,7 +136,7 @@ export default function CameraCapture({ previewUrl, onCapture }: Props) {
         setState({ kind: 'idle' });
       },
       'image/jpeg',
-      0.92,
+      OUTPUT_QUALITY,
     );
   };
 

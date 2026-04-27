@@ -23,6 +23,7 @@ const SearchOverlay = lazy(() => import('../../pages/Search'));
 const ConversationDrawer = lazy(() => import('../messaging/ConversationDrawer'));
 const ConsentFormDrawer = lazy(() => import('../forms/ConsentFormDrawer'));
 const BookingPickerDrawer = lazy(() => import('../forms/BookingPickerDrawer'));
+const FinalizeFormDrawer = lazy(() => import('../forms/FinalizeFormDrawer'));
 const ToastContainer = lazy(() => import('../common/Toast'));
 
 export default function AppShell() {
@@ -38,6 +39,7 @@ export default function AppShell() {
     selectedConversationId,
     selectedConsentSubmissionId,
     attachToBookingSubmissionId,
+    finalizeSubmissionId,
     confirmDialogOpen,
   } = useUIStore();
   const editingClient = useClientStore((s) => editingClientId ? s.clients.find((c) => c.id === editingClientId) : undefined);
@@ -128,6 +130,10 @@ export default function AppShell() {
 
         <AnimatePresence>
           {attachToBookingSubmissionId && <BookingPickerDrawer />}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {finalizeSubmissionId && <FinalizeFormDrawer />}
         </AnimatePresence>
 
         <AnimatePresence>
