@@ -67,6 +67,25 @@ interface UploadUrlResponse {
   client_user_agent?: string;
 }
 
+async function callConsentWhoami(): Promise<{ client_ip: string; client_user_agent: string } | null> {
+  // Best-effort pre-flight so the audit fields land in state before the user
+  // reaches the signing step. Failure is non-fatal — the upload-url echo
+  // still backfills IP/UA when the license uploads.
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/consent-whoami`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
 async function callConsentUploadUrl(params: {
   artist_id: string;
   submission_id: string;
@@ -193,11 +212,23 @@ export default function ConsentSubmitPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Audit data captured from the upload-url response (cf-connecting-ip /
-  // x-forwarded-for / user-agent the edge fn saw). Latched on first response;
-  // re-checks just keep it in sync if subsequent calls return different data.
+  // Audit data captured server-side. Filled in by the consent-whoami pre-flight
+  // on mount AND re-confirmed on each upload-url call so we always have it
+  // before the user hits "Adopt and Sign" (without it, the PDF's audit
+  // metadata is empty and the user perceived the first submit as failing
+  // because of the timing race against the license upload).
   const [clientIp, setClientIp] = useState<string>('');
   const [clientUserAgent, setClientUserAgent] = useState<string>('');
+
+  useEffect(() => {
+    let cancelled = false;
+    callConsentWhoami().then((res) => {
+      if (cancelled || !res) return;
+      if (res.client_ip) setClientIp(res.client_ip);
+      if (res.client_user_agent) setClientUserAgent(res.client_user_agent);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   // Live PDF preview blob URL for the iframe in review_and_sign.
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);

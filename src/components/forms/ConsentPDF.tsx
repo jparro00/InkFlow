@@ -321,16 +321,17 @@ export async function buildConsentPdfBytes(
   }
 
   // Date text sits in the date column at roughly the same vertical center as
-  // the signature image so they read as a paired row.
-  if (opts.finalize) {
-    page.drawText(dateStr, {
-      x: dateColX,
-      y: sigImageBottomY + 9,
-      size: 11,
-      font: helv,
-      color: C_BLACK,
-    });
-  }
+  // the signature image so they read as a paired row. Always populated —
+  // during preview the user wants to see the date they're agreeing to. The
+  // visible bytes between preview and final differ only by the signature
+  // image content; everything else (date, name, waiver state) is shared.
+  page.drawText(dateStr, {
+    x: dateColX,
+    y: sigImageBottomY + 9,
+    size: 11,
+    font: helv,
+    color: C_BLACK,
+  });
 
   cursor = sigImageBottomY - 2;
 
@@ -384,6 +385,8 @@ export async function buildConsentPdfBytes(
 
   // --- Footer (visible) ---------------------------------------------------
   // Always near the bottom edge, regardless of how the content laid out.
+  // The date renders constantly so the user can see during preview the date
+  // they're committing to — same date appears on the final signed PDF.
   const footerY = MARGIN - 10;
   page.drawLine({
     start: { x: MARGIN, y: footerY + 12 },
@@ -391,10 +394,7 @@ export async function buildConsentPdfBytes(
     thickness: 0.5,
     color: C_LINE,
   });
-  const footerText = opts.finalize
-    ? `Signed ${dateStr}.`
-    : 'Document not yet signed.';
-  page.drawText(footerText, {
+  page.drawText(`Document date: ${dateStr}.`, {
     x: MARGIN,
     y: footerY,
     size: 8,
