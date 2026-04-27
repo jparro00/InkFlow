@@ -30,7 +30,6 @@ import {
 import { format } from 'date-fns';
 import {
   WAIVER_ITEMS,
-  applyStudioName,
   type WaiverChecksValue,
   type LicenseFieldsValue,
   type TattooDetailsValue,
@@ -163,7 +162,11 @@ export async function buildConsentPdfBytes(
   let cursor = PAGE_H - MARGIN;
 
   // --- Header -------------------------------------------------------------
-  const headerTitle = data.studioName.trim() || 'Tattoo Studio';
+  // Fallback to "Green Man Tattoo" rather than a generic placeholder: v1 is
+  // built for them specifically, and the consent statements below already
+  // reference the studio by name. A mismatched header would look broken.
+  // Multi-studio support will replace this with a template-driven default.
+  const headerTitle = data.studioName.trim() || 'Green Man Tattoo';
   page.drawText(headerTitle, {
     x: MARGIN,
     y: cursor - 16,
@@ -271,8 +274,7 @@ export async function buildConsentPdfBytes(
 
   for (const item of WAIVER_ITEMS) {
     const checked = data.waiver[item.key] === true;
-    const label = applyStudioName(item.label, data.studioName);
-    const lines = wrapText(label, textWidth, helv, 10);
+    const lines = wrapText(item.label, textWidth, helv, 10);
     drawCheckbox(page, MARGIN, cursor, boxSize, checked);
     let lineY = cursor - 9;
     for (const line of lines) {

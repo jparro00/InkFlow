@@ -14,7 +14,6 @@ import CameraCapture from './CameraCapture';
 import SignaturePad, { type SignaturePadHandle } from './SignaturePad';
 import {
   WAIVER_ITEMS,
-  applyStudioName,
   type LicenseFieldsValue,
   type TattooDetailsValue,
   type WaiverChecksValue,
@@ -226,12 +225,9 @@ interface WaiverChecksSectionProps {
   mode: 'fill' | 'review';
   value: WaiverChecksValue;
   onChange?: (next: WaiverChecksValue) => void;
-  /** Studio name substituted into `{studio}` placeholders in waiver labels.
-   *  When undefined or empty, labels render with the "the studio" fallback. */
-  studioName?: string;
 }
 
-export function WaiverChecksSection({ mode, value, onChange, studioName }: WaiverChecksSectionProps) {
+export function WaiverChecksSection({ mode, value, onChange }: WaiverChecksSectionProps) {
   return (
     <section>
       <h2 className={sectionTitleClass}>Consent</h2>
@@ -241,12 +237,11 @@ export function WaiverChecksSection({ mode, value, onChange, studioName }: Waive
       <ul className="space-y-4">
         {WAIVER_ITEMS.map((item) => {
           const checked = value[item.key] === true;
-          const label = applyStudioName(item.label, studioName ?? '');
           if (mode === 'review') {
             return (
               <li key={item.key} className="flex items-center gap-3">
                 <span className={`text-md leading-relaxed flex-1 ${checked ? 'text-text-s' : 'text-text-t'}`}>
-                  {label}
+                  {item.label}
                 </span>
                 {checked ? (
                   <span className="w-10 h-10 rounded-md bg-success/20 border border-success/40 flex items-center justify-center shrink-0">
@@ -263,7 +258,7 @@ export function WaiverChecksSection({ mode, value, onChange, studioName }: Waive
           return (
             <li key={item.key}>
               <label className="flex items-center gap-3 cursor-pointer">
-                <span className="text-md text-text-s leading-relaxed flex-1">{label}</span>
+                <span className="text-md text-text-s leading-relaxed flex-1">{item.label}</span>
                 <input
                   type="checkbox"
                   checked={checked}

@@ -609,7 +609,7 @@ export default function ConsentSubmitPage() {
             )}
 
             <TattooDetailsSection value={tattoo} onChange={setTattoo} />
-            <WaiverChecksSection mode="fill" value={waiver} onChange={setWaiver} studioName={studioName} />
+            <WaiverChecksSection mode="fill" value={waiver} onChange={setWaiver} />
 
             {error && <div className="text-base text-danger">{error}</div>}
 

@@ -65,15 +65,17 @@ export interface WaiverItem {
   required: boolean;
 }
 
-// Statement labels carry a `{studio}` placeholder that gets substituted with
-// the artist's studio name at render time (see applyStudioName below). When
-// the studio name isn't set, the substitution falls back to "the studio" —
-// grammatical at sentence-start (lowercase t) is slightly off but acceptable
-// for the unconfigured case.
-//
 // All items are required. ESIGN consent (right to paper, right to withdraw)
 // lives in the wizard's dedicated `disclosure` step, NOT here — see
 // ConsentDisclosure.tsx.
+//
+// The studio name is intentionally hardcoded into the statement text rather
+// than templated. v1 of this app is built specifically for Green Man Tattoo,
+// and the consent statements ARE Green Man Tattoo's — copying them onto
+// another studio's form with a substituted name would be wrong both legally
+// (the statements were drafted for them) and stylistically. When the app
+// adds per-studio configurable templates, those templates will carry their
+// own statement text with the studio's name baked in the same way.
 export const WAIVER_ITEMS: WaiverItem[] = [
   {
     key: 'understands_risks',
@@ -83,12 +85,12 @@ export const WAIVER_ITEMS: WaiverItem[] = [
   {
     key: 'release_liability',
     required: true,
-    label: 'I agree to release, discharge, and forever hold harmless the tattoo artist, {studio}, and all employees from any and all claims, damages, or legal actions connected in any way with my tattoo.',
+    label: 'I agree to release, discharge, and forever hold harmless the tattoo artist, Green Man Tattoo, and all employees from any and all claims, damages, or legal actions connected in any way with my tattoo.',
   },
   {
     key: 'questions_answered',
     required: true,
-    label: '{studio} has given me the opportunity to ask any questions about the procedure and application of my tattoo, and all of my questions, if any, have been answered to my satisfaction.',
+    label: 'Green Man Tattoo has given me the opportunity to ask any questions about the procedure and application of my tattoo, and all of my questions, if any, have been answered to my satisfaction.',
   },
   {
     key: 'aftercare_responsibility',
@@ -98,7 +100,7 @@ export const WAIVER_ITEMS: WaiverItem[] = [
   {
     key: 'no_alcohol_or_drugs',
     required: true,
-    label: 'I am not under the influence of alcohol or drugs, and I am voluntarily submitting to be tattooed by {studio} without duress or coercion.',
+    label: 'I am not under the influence of alcohol or drugs, and I am voluntarily submitting to be tattooed by Green Man Tattoo without duress or coercion.',
   },
   {
     key: 'medical_conditions',
@@ -108,7 +110,7 @@ export const WAIVER_ITEMS: WaiverItem[] = [
   {
     key: 'not_responsible_spelling',
     required: true,
-    label: '{studio} is not responsible for the meaning or spelling of any design, text, or symbols chosen by me.',
+    label: 'Green Man Tattoo is not responsible for the meaning or spelling of any design, text, or symbols chosen by me.',
   },
   {
     key: 'color_variations_fade',
@@ -123,12 +125,12 @@ export const WAIVER_ITEMS: WaiverItem[] = [
   {
     key: 'photography_release',
     required: true,
-    label: 'I release {studio} to use any photographs taken of me and my tattoo in print or electronic form.',
+    label: 'I release Green Man Tattoo to use any photographs taken of me and my tattoo in print or electronic form.',
   },
   {
     key: 'no_refund_policy',
     required: true,
-    label: 'I agree that {studio} has a NO REFUND policy on tattoos.',
+    label: 'I agree that Green Man Tattoo has a NO REFUND policy on tattoos.',
   },
   {
     key: 'age_18_plus',
@@ -138,16 +140,3 @@ export const WAIVER_ITEMS: WaiverItem[] = [
 ];
 
 export const REQUIRED_WAIVER_KEYS = WAIVER_ITEMS.filter((i) => i.required).map((i) => i.key);
-
-/**
- * Substitute `{studio}` placeholders in a waiver label with the artist's
- * studio name. Falls back to "the studio" when no name is configured.
- *
- * Used by both the HTML wizard rendering and the PDF rendering — the
- * substituted text is what the user sees AND what gets baked into the
- * signed PDF, so the displayed and stored bytes match.
- */
-export function applyStudioName(text: string, studioName: string): string {
-  const name = studioName.trim() || 'the studio';
-  return text.replace(/\{studio\}/g, name);
-}
