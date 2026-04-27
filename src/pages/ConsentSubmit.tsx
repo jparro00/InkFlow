@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
-import { Camera, RotateCcw, Check, FileSignature } from 'lucide-react';
+import { Camera, RotateCcw, Check, FileSignature, Loader2, Sparkles } from 'lucide-react';
 import SignaturePad, { type SignaturePadHandle } from '../components/forms/SignaturePad';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
@@ -109,6 +109,34 @@ async function uploadToR2(url: string, headers: Record<string, string>, blob: Bl
   }
 }
 
+async function callConsentAnalyzeId(params: {
+  artist_id: string;
+  submission_id: string;
+  license_key: string;
+}): Promise<{ fields: Partial<LicenseFields>; raw: unknown } | null> {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/consent-analyze-id`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(params),
+    });
+    if (!res.ok) {
+      // Soft-fail: OCR is best-effort. Returning null lets the user fall
+      // through to manual entry without an error message.
+      console.warn('analyze-id failed', res.status, await res.text().catch(() => ''));
+      return null;
+    }
+    return res.json();
+  } catch (e) {
+    console.warn('analyze-id error', e);
+    return null;
+  }
+}
+
 async function callConsentSubmit(payload: {
   artist_id: string;
   submission_id: string;
@@ -124,6 +152,7 @@ async function callConsentSubmit(payload: {
   };
   form_data: FormData;
   signature_image_key: string | null;
+  license_raw_data?: unknown;
 }): Promise<{ id: string }> {
   const res = await fetch(`${SUPABASE_URL}/functions/v1/consent-submit`, {
     method: 'POST',
@@ -154,6 +183,10 @@ export default function ConsentSubmitPage() {
   const [step, setStep] = useState<Step>('welcome');
   const [licenseFile, setLicenseFile] = useState<File | null>(null);
   const [licenseDataUrl, setLicenseDataUrl] = useState<string | null>(null);
+  const [licenseKey, setLicenseKey] = useState<string | null>(null);
+  const [licenseRaw, setLicenseRaw] = useState<unknown>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [ocrSucceeded, setOcrSucceeded] = useState(false);
   const [licenseFields, setLicenseFields] = useState<LicenseFields>(emptyLicense);
   const [formData, setFormData] = useState<FormData>(emptyForm);
   const [signatureEmpty, setSignatureEmpty] = useState(true);
@@ -173,9 +206,60 @@ export default function ConsentSubmitPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     setLicenseFile(file);
+    setLicenseKey(null);
+    setLicenseRaw(null);
+    setOcrSucceeded(false);
     const reader = new FileReader();
     reader.onload = () => setLicenseDataUrl(typeof reader.result === 'string' ? reader.result : null);
     reader.readAsDataURL(file);
+  };
+
+  /**
+   * Upload the license to R2 and run Textract. Done in the background as soon
+   * as the user taps Next on the license step, so the Info step can land with
+   * fields already pre-filled.
+   */
+  const uploadAndAnalyzeLicense = async () => {
+    if (!licenseFile) return;
+    setAnalyzing(true);
+    setError(null);
+    try {
+      const upload = await callConsentUploadUrl({
+        artist_id: artistId,
+        submission_id: submissionId,
+        kind: 'license',
+        content_type: licenseFile.type || 'image/jpeg',
+        content_length: licenseFile.size,
+      });
+      await uploadToR2(upload.url, upload.headers, licenseFile);
+      setLicenseKey(upload.key);
+
+      const analyzed = await callConsentAnalyzeId({
+        artist_id: artistId,
+        submission_id: submissionId,
+        license_key: upload.key,
+      });
+      if (analyzed?.fields) {
+        const f = analyzed.fields;
+        setLicenseFields({
+          first_name: f.first_name ?? '',
+          last_name: f.last_name ?? '',
+          dob: f.dob ?? '',
+          number: f.number ?? '',
+          state: (f.state ?? '').toUpperCase().slice(0, 2),
+          expiry: f.expiry ?? '',
+          address: f.address ?? '',
+        });
+        setLicenseRaw(analyzed.raw);
+        setOcrSucceeded(true);
+      }
+    } catch (e) {
+      console.error(e);
+      // Don't block the user — they can still type the fields by hand.
+      setError(e instanceof Error ? e.message : 'License upload failed');
+    } finally {
+      setAnalyzing(false);
+    }
   };
 
   const allRequiredChecked = REQUIRED_CHECKS.every((c) => formData[c.key] === true);
@@ -190,9 +274,12 @@ export default function ConsentSubmitPage() {
     setError(null);
     setSubmitting(true);
     try {
-      // 1. Upload license (if any)
-      let licenseKey: string | null = null;
-      if (licenseFile) {
+      // 1. License: already uploaded in uploadAndAnalyzeLicense() during the
+      // license → info transition. If that failed for any reason (offline,
+      // analyzer error), upload it now as a last-chance fallback so the form
+      // still has an image attached.
+      let licenseKeyToSubmit = licenseKey;
+      if (!licenseKeyToSubmit && licenseFile) {
         const upload = await callConsentUploadUrl({
           artist_id: artistId,
           submission_id: submissionId,
@@ -201,10 +288,10 @@ export default function ConsentSubmitPage() {
           content_length: licenseFile.size,
         });
         await uploadToR2(upload.url, upload.headers, licenseFile);
-        licenseKey = upload.key;
+        licenseKeyToSubmit = upload.key;
       }
 
-      // 2. Upload signature
+      // 2. Signature
       let signatureKey: string | null = null;
       const sigBlob = await signatureRef.current?.toBlob();
       if (sigBlob) {
@@ -223,9 +310,10 @@ export default function ConsentSubmitPage() {
       await callConsentSubmit({
         artist_id: artistId,
         submission_id: submissionId,
-        license: { image_key: licenseKey, ...licenseFields },
+        license: { image_key: licenseKeyToSubmit, ...licenseFields },
         form_data: formData,
         signature_image_key: signatureKey,
+        license_raw_data: licenseRaw,
       });
 
       setStep('done');
@@ -309,7 +397,12 @@ export default function ConsentSubmitPage() {
                 Back
               </button>
               <button
-                onClick={() => setStep('info')}
+                onClick={() => {
+                  setStep('info');
+                  // Kick off the upload + Textract analysis in the background
+                  // so the Info step lands with fields already filled in.
+                  if (!licenseKey) uploadAndAnalyzeLicense();
+                }}
                 disabled={!licenseFile}
                 className="flex-1 py-3.5 text-base bg-accent text-bg rounded-md font-medium cursor-pointer press-scale transition-all shadow-glow active:shadow-glow-strong disabled:opacity-40 min-h-[48px]"
               >
@@ -325,6 +418,21 @@ export default function ConsentSubmitPage() {
               <h2 className="font-display text-xl text-text-p mb-2">Your details</h2>
               <p className="text-sm text-text-t">Confirm the details from your ID and how to reach you.</p>
             </div>
+
+            {analyzing && (
+              <div className="bg-surface/60 rounded-lg border border-border/30 p-4 flex items-center gap-3">
+                <Loader2 size={18} className="text-accent animate-spin shrink-0" />
+                <div className="text-sm text-text-s">Reading your ID…</div>
+              </div>
+            )}
+            {!analyzing && ocrSucceeded && (
+              <div className="bg-success/10 border border-success/30 rounded-lg p-3 flex items-center gap-3">
+                <Sparkles size={16} className="text-success shrink-0" />
+                <div className="text-sm text-text-s">
+                  We pulled these from your ID — please double-check.
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-3">
               <div>

@@ -63,7 +63,8 @@ npx supabase secrets set SECRET_NAME=<value> --project-ref <ref>
 Current secrets in use:
 - `API_KEY_SECRET` — AES-GCM key for encrypting per-user Anthropic API keys
 - `GROQ_API_KEY` — shared Groq key used by `transcribe-audio` edge function
-- `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` — used by `r2-upload-url` to mint presigned R2 PUT URLs. See [r2-migration-plan.md](./r2-migration-plan.md).
+- `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` — used by `r2-upload-url`, `consent-upload-url`, `consent-reject`, `consent-analyze-id`. See [r2-migration-plan.md](./r2-migration-plan.md).
+- `AWS_TEXTRACT_REGION`, `AWS_TEXTRACT_ACCESS_KEY_ID`, `AWS_TEXTRACT_SECRET_ACCESS_KEY` — used by `consent-analyze-id` to call AWS Textract `AnalyzeID`. The IAM user only needs `textract:AnalyzeID` permission. Region defaults to `us-east-1` if unset.
 
 ### Deploy the CF images Worker
 

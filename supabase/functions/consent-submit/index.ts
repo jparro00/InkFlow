@@ -108,6 +108,14 @@ Deno.serve(async (req: Request) => {
   const licenseState = asTrimmedString(license.state, 32);
   const licenseExpiry = asDate(license.expiry);
   const signatureImageKey = asTrimmedString(body.signature_image_key, 500);
+  // Raw Textract response, kept verbatim so future schema additions can be
+  // backfilled from existing rows without re-OCRing. Only accept objects
+  // (not arrays, not primitives) — anything weirder gets stored as null.
+  const licenseRawData =
+    body.license_raw_data && typeof body.license_raw_data === "object" &&
+      !Array.isArray(body.license_raw_data)
+      ? body.license_raw_data
+      : null;
 
   // Sanity-check that any provided image keys actually live under this
   // submission's path. Otherwise a malicious submitter could reference an
@@ -158,6 +166,7 @@ Deno.serve(async (req: Request) => {
     license_address: licenseAddress,
     license_state: licenseState,
     license_expiry: licenseExpiry,
+    license_raw_data: licenseRawData,
     form_data: formData,
     signature_image_key: signatureImageKey,
     client_ip: clientIp || null,
