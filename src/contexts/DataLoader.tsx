@@ -19,6 +19,8 @@ export default function DataLoader({ children }: { children: ReactNode }) {
   const startRealtime = useMessageStore((s) => s.startRealtime);
   const stopRealtime = useMessageStore((s) => s.stopRealtime);
   const fetchSubmissions = useConsentSubmissionStore((s) => s.fetchSubmissions);
+  const startConsentRealtime = useConsentSubmissionStore((s) => s.startRealtime);
+  const stopConsentRealtime = useConsentSubmissionStore((s) => s.stopRealtime);
 
   useEffect(() => {
     if (!session) return;
@@ -47,6 +49,7 @@ export default function DataLoader({ children }: { children: ReactNode }) {
       fetchConversations();
       fetchSubmissions();
       startRealtime();
+      startConsentRealtime();
       // Re-enqueue uploads interrupted by a previous app close. Waits on
       // fetchImages so the upload queue sees the latest remote status.
       imagesDone.then(() => resumePendingImageUploads());
@@ -60,8 +63,11 @@ export default function DataLoader({ children }: { children: ReactNode }) {
       import('../pages/Forms');
     });
 
-    return () => stopRealtime();
-  }, [session, fetchClients, fetchBookings, fetchImages, fetchDocuments, fetchConversations, fetchSubmissions, startRealtime, stopRealtime]);
+    return () => {
+      stopRealtime();
+      stopConsentRealtime();
+    };
+  }, [session, fetchClients, fetchBookings, fetchImages, fetchDocuments, fetchConversations, fetchSubmissions, startRealtime, stopRealtime, startConsentRealtime, stopConsentRealtime]);
 
   return <>{children}</>;
 }

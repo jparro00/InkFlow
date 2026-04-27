@@ -1,6 +1,6 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileSignature, ChevronRight } from 'lucide-react';
+import { FileSignature, ChevronRight, RefreshCw } from 'lucide-react';
 import { useUIStore } from '../stores/uiStore';
 import { useConsentSubmissionStore } from '../stores/consentSubmissionStore';
 import { consentSubmissionDisplayName } from '../types';
@@ -40,15 +40,38 @@ export default function FormsPage() {
   const submissions = useConsentSubmissionStore((s) => s.submissions);
   const isLoading = useConsentSubmissionStore((s) => s.isLoading);
   const fetchSubmissions = useConsentSubmissionStore((s) => s.fetchSubmissions);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try { await fetchSubmissions(true); } finally { setRefreshing(false); }
+  };
 
   useEffect(() => {
     setHeaderLeft(null);
-    setHeaderRight(null);
+    setHeaderRight(
+      <button
+        onClick={handleRefresh}
+        disabled={refreshing}
+        className="w-12 h-12 flex items-center justify-center text-text-s active:text-accent transition-colors cursor-pointer press-scale disabled:opacity-40"
+        aria-label="Refresh forms"
+      >
+        <RefreshCw size={20} strokeWidth={1.75} className={refreshing ? 'animate-spin' : ''} />
+      </button>,
+    );
     return () => { setHeaderLeft(null); setHeaderRight(null); };
-  }, [setHeaderLeft, setHeaderRight]);
+    // handleRefresh + refreshing change every render; we only want this to
+    // run on mount and on refreshing transitions, so depend on refreshing
+    // but stable references are managed by useUIStore setters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setHeaderLeft, setHeaderRight, refreshing]);
 
   useEffect(() => {
-    fetchSubmissions();
+    // Always force-fetch when the user opens the Forms tab. Realtime keeps
+    // it live after, but a fresh fetch on mount catches anything that was
+    // submitted while the tab was off-screen and the connection was dropped
+    // (subway, screen lock, etc.).
+    fetchSubmissions(true);
   }, [fetchSubmissions]);
 
   const grouped = useMemo(() => {
