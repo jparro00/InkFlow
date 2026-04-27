@@ -16,6 +16,7 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Eye, EyeOff, FileText, Maximize2, X, Loader2 } from 'lucide-react';
 import { LicenseImageSection } from './ConsentFormSections';
+import PdfPreviewFrame from './PdfPreviewFrame';
 import { useR2Image } from '../../hooks/useR2Image';
 import type { ConsentSubmission } from '../../types';
 
@@ -111,22 +112,15 @@ function PdfPreviewSection({ pdfUrl, hasPdf, onFullscreen }: PdfPreviewSectionPr
         )}
       </div>
       {pdfUrl ? (
-        // Tap-to-fullscreen wrapper. The iframe itself sits behind a
-        // pointer-events:none overlay so the parent button captures the tap
-        // (otherwise the browser's native PDF viewer eats it).
+        // PdfPreviewFrame already disables pointer events on its iframe so
+        // the parent button captures the tap.
         <button
           type="button"
           onClick={onFullscreen}
-          className="relative block w-full rounded-md overflow-hidden border border-border/40 bg-white cursor-pointer press-scale transition-all"
-          style={{ aspectRatio: '8.5 / 11' }}
+          className="block w-full rounded-md overflow-hidden border border-border/40 cursor-pointer press-scale transition-all"
           aria-label="View full screen"
         >
-          <iframe
-            src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0&view=Fit`}
-            title="Signed consent PDF"
-            className="absolute inset-0 w-full h-full pointer-events-none"
-          />
-          <div className="absolute inset-0 bg-transparent" />
+          <PdfPreviewFrame src={pdfUrl} title="Signed consent PDF" />
         </button>
       ) : hasPdf ? (
         <div className="rounded-md border border-border/40 bg-bg/40 p-6 flex items-center justify-center text-sm text-text-t">

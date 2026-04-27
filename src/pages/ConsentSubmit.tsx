@@ -47,6 +47,7 @@ import {
 } from '../components/forms/consentFormSchema';
 import SignaturePad, { type SignaturePadHandle } from '../components/forms/SignaturePad';
 import ConsentDisclosure from '../components/forms/ConsentDisclosure';
+import PdfPreviewFrame from '../components/forms/PdfPreviewFrame';
 import {
   buildConsentPdfBytes,
   sha256Hex,
@@ -594,18 +595,14 @@ export default function ConsentSubmitPage() {
               </p>
             </div>
 
-            <div
-              className="rounded-md border border-border/40 bg-white overflow-hidden"
-              style={{ aspectRatio: '8.5 / 11' }}
-            >
+            <div className="rounded-md border border-border/40 overflow-hidden">
               {pdfPreviewUrl ? (
-                <iframe
-                  src={`${pdfPreviewUrl}#toolbar=0&navpanes=0&scrollbar=0&view=Fit`}
-                  title="Consent form preview"
-                  className="block w-full h-full"
-                />
+                <PdfPreviewFrame src={pdfPreviewUrl} title="Consent form preview" />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-text-t text-sm">
+                <div
+                  className="w-full bg-white flex items-center justify-center text-text-t text-sm"
+                  style={{ aspectRatio: '8.5 / 11' }}
+                >
                   <Loader2 size={20} className="animate-spin mr-2" /> Building preview…
                 </div>
               )}
