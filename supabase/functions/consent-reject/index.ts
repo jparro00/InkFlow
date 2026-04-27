@@ -79,7 +79,7 @@ Deno.serve(async (req: Request) => {
   // Fetch the row through the user-scoped client so RLS gates ownership for us.
   const { data: row, error: fetchErr } = await supabase
     .from("consent_submissions")
-    .select("id, license_image_key, signature_image_key")
+    .select("id, license_image_key, signature_image_key, pdf_key")
     .eq("id", id)
     .maybeSingle();
 
@@ -103,7 +103,7 @@ Deno.serve(async (req: Request) => {
       service: "s3",
       region: "auto",
     });
-    const keys = [row.license_image_key, row.signature_image_key].filter(
+    const keys = [row.license_image_key, row.signature_image_key, row.pdf_key].filter(
       (k): k is string => typeof k === "string" && k.length > 0,
     );
     await Promise.all(

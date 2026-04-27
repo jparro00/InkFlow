@@ -194,9 +194,15 @@ export interface ConsentSubmission {
 
   form_data: Record<string, unknown>;
   signature_image_key?: string;
+  /** Signed consent PDF, generated client-side at submit time. R2 key. */
+  pdf_key?: string;
 
   booking_id?: string;
 
+  /** Payment is artist-entered post-tattoo for bookkeeping. The tattoo
+   *  location/description are CLIENT-entered during the wizard and baked into
+   *  the signed PDF — they're stored on the row for queryability but the PDF
+   *  is the legal record. */
   payment_type?: string;
   payment_amount?: number;
   tattoo_location?: string;
@@ -221,8 +227,6 @@ export function consentSubmissionIsComplete(s: ConsentSubmission): boolean {
   return Boolean(
     s.booking_id &&
     s.payment_type &&
-    s.payment_amount !== undefined && s.payment_amount !== null &&
-    s.tattoo_location &&
-    s.tattoo_description
+    s.payment_amount !== undefined && s.payment_amount !== null
   );
 }

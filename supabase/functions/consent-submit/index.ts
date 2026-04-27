@@ -108,6 +108,12 @@ Deno.serve(async (req: Request) => {
   const licenseState = asTrimmedString(license.state, 32);
   const licenseExpiry = asDate(license.expiry);
   const signatureImageKey = asTrimmedString(body.signature_image_key, 500);
+  const pdfKey = asTrimmedString(body.pdf_key, 500);
+  // Tattoo details are now CLIENT-entered during the wizard (so they can be
+  // included in the signed PDF). Description allows the longer free-text cap;
+  // location is short-form ("Right forearm").
+  const tattooLocation = asTrimmedString(body.tattoo_location, MAX_TEXT);
+  const tattooDescription = asTrimmedString(body.tattoo_description, 1000);
   // Raw Textract response, kept verbatim so future schema additions can be
   // backfilled from existing rows without re-OCRing. Only accept objects
   // (not arrays, not primitives) — anything weirder gets stored as null.
@@ -126,6 +132,9 @@ Deno.serve(async (req: Request) => {
   }
   if (signatureImageKey && !signatureImageKey.startsWith(expectedPrefix)) {
     return jsonResponse(400, { error: "signature image_key outside submission path" });
+  }
+  if (pdfKey && !pdfKey.startsWith(expectedPrefix)) {
+    return jsonResponse(400, { error: "pdf_key outside submission path" });
   }
 
   const supabase = createClient(
@@ -169,6 +178,9 @@ Deno.serve(async (req: Request) => {
     license_raw_data: licenseRawData,
     form_data: formData,
     signature_image_key: signatureImageKey,
+    pdf_key: pdfKey,
+    tattoo_location: tattooLocation,
+    tattoo_description: tattooDescription,
     client_ip: clientIp || null,
     client_user_agent: userAgent,
   };

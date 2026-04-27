@@ -57,6 +57,12 @@ export default function SettingsPage() {
   const [eveningTime, setEveningTime] = useState(() => localStorage.getItem('inkbloop-evening-time') ?? '18:00');
   const [timesSaved, setTimesSaved] = useState(false);
 
+  // Studio name shown at the top of generated consent PDFs. Persisted to
+  // localStorage for now; will move to a profile/template table when
+  // configurable templates land. Empty falls back to a generic title.
+  const [studioName, setStudioName] = useState(() => localStorage.getItem('inkbloop-studio-name') ?? '');
+  const [studioNameSaved, setStudioNameSaved] = useState(false);
+
   const [theme, setTheme] = useState<ThemeId>(() => getTheme());
 
   const [apiKeyInput, setApiKeyInput] = useState('');
@@ -210,6 +216,39 @@ export default function SettingsPage() {
         <section className={sectionClass}>
           <h2 className="text-md text-text-p font-display mb-3">Consent forms</h2>
           <div className={cardClass}>
+            <div>
+              <div className="text-base text-text-s mb-1">Studio / artist name</div>
+              <div className="text-sm text-text-t mb-3">
+                Shown at the top of the consent PDF clients sign and download.
+              </div>
+              <div className="flex gap-3">
+                <input
+                  type="text"
+                  value={studioName}
+                  onChange={(e) => setStudioName(e.target.value)}
+                  placeholder="e.g. Black Anchor Tattoo"
+                  className={`${inputClass} flex-1`}
+                  maxLength={80}
+                />
+                <button
+                  onClick={() => {
+                    const trimmed = studioName.trim();
+                    if (trimmed) {
+                      localStorage.setItem('inkbloop-studio-name', trimmed);
+                    } else {
+                      localStorage.removeItem('inkbloop-studio-name');
+                    }
+                    setStudioName(trimmed);
+                    setStudioNameSaved(true);
+                    setTimeout(() => setStudioNameSaved(false), 2000);
+                  }}
+                  className="shrink-0 px-5 py-3.5 text-base bg-accent text-bg rounded-md cursor-pointer press-scale transition-all min-h-[48px]"
+                >
+                  {studioNameSaved ? 'Saved!' : 'Save'}
+                </button>
+              </div>
+            </div>
+
             <div>
               <div className="text-base text-text-s mb-1">Your QR code</div>
               <div className="text-sm text-text-t mb-4">

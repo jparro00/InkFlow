@@ -21,6 +21,7 @@ function toConsentSubmission(row: Row): ConsentSubmission {
     license_raw_data: row.license_raw_data ?? undefined,
     form_data: (row.form_data as Record<string, unknown>) ?? {},
     signature_image_key: row.signature_image_key ?? undefined,
+    pdf_key: row.pdf_key ?? undefined,
     booking_id: row.booking_id ?? undefined,
     payment_type: row.payment_type ?? undefined,
     payment_amount: row.payment_amount ?? undefined,
@@ -112,15 +113,14 @@ export async function approveConsentSubmission(
 
 /**
  * Finalize transitions approved_pending → finalized once the artist has
- * filled in payment + tattoo location + description. Stamps finalized_at.
+ * entered payment. Tattoo location/description are no longer captured here —
+ * they're client-entered during the wizard and on the signed PDF.
  */
 export async function finalizeConsentSubmission(
   id: string,
   fields: {
     payment_type: string;
     payment_amount: number;
-    tattoo_location: string;
-    tattoo_description: string;
   },
 ): Promise<ConsentSubmission> {
   return updateConsentSubmission(id, {

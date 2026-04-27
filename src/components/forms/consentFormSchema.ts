@@ -17,6 +17,18 @@ export const emptyLicenseFields: LicenseFieldsValue = {
   dob: '',
 };
 
+/** Free-text fields describing the tattoo being consented to. Client-entered
+ *  during the wizard so they can be baked into the signed PDF. */
+export interface TattooDetailsValue {
+  location: string;
+  description: string;
+}
+
+export const emptyTattooDetails: TattooDetailsValue = {
+  location: '',
+  description: '',
+};
+
 export interface WaiverChecksValue {
   age_18_plus: boolean;
   no_alcohol_24h: boolean;
@@ -25,6 +37,9 @@ export interface WaiverChecksValue {
   understands_permanence: boolean;
   understands_risks: boolean;
   release_liability: boolean;
+  /** ESIGN Act element: affirmative consent to sign electronically. Required
+   *  for the e-signature to carry the same legal weight as a wet signature. */
+  electronic_signature_consent: boolean;
   photography_release: boolean;
 }
 
@@ -36,6 +51,7 @@ export const emptyWaiverChecks: WaiverChecksValue = {
   understands_permanence: false,
   understands_risks: false,
   release_liability: false,
+  electronic_signature_consent: false,
   photography_release: false,
 };
 
@@ -53,6 +69,7 @@ export const WAIVER_ITEMS: WaiverItem[] = [
   { key: 'understands_permanence', required: true, label: 'I understand that a tattoo is a permanent modification to my body.' },
   { key: 'understands_risks', required: true, label: 'I have been informed of the risks (allergic reaction, infection, scarring, etc.) and accept them.' },
   { key: 'release_liability', required: true, label: 'I release the artist and studio from liability for results and procedure-related complications, except in the case of negligence.' },
+  { key: 'electronic_signature_consent', required: true, label: 'I consent to sign this form electronically. I understand I may request a paper copy of the signed form from the studio.' },
   { key: 'photography_release', required: false, label: 'I consent to photographs of the finished tattoo being used for portfolio and social media (optional).' },
 ];
 

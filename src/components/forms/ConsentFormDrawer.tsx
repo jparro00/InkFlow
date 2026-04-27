@@ -167,11 +167,13 @@ function DrawerBody({ submission }: { submission: ConsentSubmission }) {
         </section>
       )}
 
-      {/* Payment & tattoo — once finalize info is present */}
+      {/* Payment — artist-entered post-tattoo for bookkeeping. Tattoo
+          location/description used to live here too but they're now
+          client-entered and visible on the signed PDF above. */}
       {submission.status !== 'submitted' && (
         <section className={cardClass}>
           <div className="text-xs text-text-t uppercase tracking-wider mb-2">
-            Payment &amp; tattoo
+            Payment
           </div>
           <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
             <div>
@@ -184,18 +186,6 @@ function DrawerBody({ submission }: { submission: ConsentSubmission }) {
               <dt className="text-xs text-text-t mb-0.5">Amount</dt>
               <dd className="text-sm text-text-p">
                 {submission.payment_amount != null ? `$${submission.payment_amount.toFixed(2)}` : <span className="text-text-t italic">—</span>}
-              </dd>
-            </div>
-            <div className="col-span-2">
-              <dt className="text-xs text-text-t mb-0.5">Tattoo location</dt>
-              <dd className="text-sm text-text-p">
-                {submission.tattoo_location || <span className="text-text-t italic">—</span>}
-              </dd>
-            </div>
-            <div className="col-span-2">
-              <dt className="text-xs text-text-t mb-0.5">Description</dt>
-              <dd className="text-sm text-text-p">
-                {submission.tattoo_description || <span className="text-text-t italic">—</span>}
               </dd>
             </div>
           </dl>
@@ -296,7 +286,7 @@ function ActionFooter({
         className="w-full py-3.5 text-base bg-accent text-bg rounded-md font-medium cursor-pointer press-scale transition-all shadow-glow active:shadow-glow-strong disabled:opacity-40 min-h-[48px] flex items-center justify-center gap-2"
       >
         <Check size={18} />
-        Enter payment &amp; tattoo details
+        Enter payment
       </button>
     );
   }

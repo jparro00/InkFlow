@@ -8,23 +8,27 @@
 //                    below. Submit fires straight from here; there's no
 //                    review step (the artist reviews on their side).
 
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
-import { Check, FileSignature } from 'lucide-react';
+import { Check, Download, FileSignature } from 'lucide-react';
 import {
   LicenseImageSection,
   LicenseFieldsSection,
+  TattooDetailsSection,
   WaiverChecksSection,
   SignatureSection,
 } from '../components/forms/ConsentFormSections';
 import {
   REQUIRED_WAIVER_KEYS,
   emptyLicenseFields,
+  emptyTattooDetails,
   emptyWaiverChecks,
   type LicenseFieldsValue,
+  type TattooDetailsValue,
   type WaiverChecksValue,
 } from '../components/forms/consentFormSchema';
 import type { SignaturePadHandle } from '../components/forms/SignaturePad';
+import { blobToDataUrl, generateConsentPdfBlob } from '../components/forms/ConsentPDF';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
@@ -34,7 +38,7 @@ type Step = 'welcome' | 'snap_id' | 'fill_form' | 'done';
 async function callConsentUploadUrl(params: {
   artist_id: string;
   submission_id: string;
-  kind: 'license' | 'signature';
+  kind: 'license' | 'signature' | 'pdf';
   content_type: string;
   content_length: number;
 }): Promise<{ url: string; key: string; headers: Record<string, string> }> {
@@ -91,6 +95,9 @@ async function callConsentSubmit(payload: {
   license: { image_key: string | null; first_name: string; last_name: string; dob: string };
   form_data: WaiverChecksValue;
   signature_image_key: string | null;
+  pdf_key: string | null;
+  tattoo_location: string;
+  tattoo_description: string;
   license_raw_data?: unknown;
 }): Promise<{ id: string }> {
   const res = await fetch(`${SUPABASE_URL}/functions/v1/consent-submit`, {
@@ -129,6 +136,7 @@ export default function ConsentSubmitPage() {
 
   // Form state
   const [licenseFields, setLicenseFields] = useState<LicenseFieldsValue>(emptyLicenseFields);
+  const [tattoo, setTattoo] = useState<TattooDetailsValue>(emptyTattooDetails);
   const [waiver, setWaiver] = useState<WaiverChecksValue>(emptyWaiverChecks);
 
   // Signature: ref grabs the blob lazily inside handleSubmit. We don't keep
@@ -138,6 +146,17 @@ export default function ConsentSubmitPage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // The signed PDF kept in memory after submit so the client can download
+  // their copy from the done screen. R2 reads require an artist JWT (the
+  // images worker), so we can't fetch the uploaded blob back from the public
+  // page — keeping the local Blob URL is the only download path.
+  const [pdfDownloadUrl, setPdfDownloadUrl] = useState<string | null>(null);
+  useEffect(() => {
+    return () => {
+      if (pdfDownloadUrl) URL.revokeObjectURL(pdfDownloadUrl);
+    };
+  }, [pdfDownloadUrl]);
 
   if (!artistId || !isUuid(artistId)) {
     return <Navigate to="/login" replace />;
@@ -204,8 +223,9 @@ export default function ConsentSubmitPage() {
     licenseFields.first_name.trim() &&
     licenseFields.last_name.trim() &&
     licenseFields.dob;
+  const tattooFilled = tattoo.location.trim() && tattoo.description.trim();
 
-  const canSubmitFill = personalInfoFilled && allRequiredChecked && !signatureEmpty;
+  const canSubmitFill = personalInfoFilled && tattooFilled && allRequiredChecked && !signatureEmpty;
 
   const handleSubmit = async () => {
     setError(null);
@@ -240,6 +260,50 @@ export default function ConsentSubmitPage() {
         signatureKey = upload.key;
       }
 
+      // Generate the signed consent PDF locally and upload it to R2. The PDF
+      // is the legal record — structured fields land on the row for
+      // queryability but the artist downloads / archives the PDF.
+      const signedAt = new Date();
+      const signatureDataUrl = sigBlob ? await blobToDataUrl(sigBlob) : null;
+      const studioName = (typeof localStorage !== 'undefined'
+        ? localStorage.getItem('inkbloop-studio-name')
+        : null) ?? '';
+      const pdfBlob = await generateConsentPdfBlob({
+        studioName,
+        signedAt,
+        license: {
+          first_name: licenseFields.first_name.trim(),
+          last_name: licenseFields.last_name.trim(),
+          dob: licenseFields.dob,
+        },
+        tattoo: {
+          location: tattoo.location.trim(),
+          description: tattoo.description.trim(),
+        },
+        waiver,
+        signatureDataUrl,
+        audit: {
+          userAgent: navigator.userAgent,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        },
+      });
+
+      let pdfKey: string | null = null;
+      const pdfUpload = await callConsentUploadUrl({
+        artist_id: artistId,
+        submission_id: submissionId,
+        kind: 'pdf',
+        content_type: 'application/pdf',
+        content_length: pdfBlob.size,
+      });
+      await uploadToR2(pdfUpload.url, pdfUpload.headers, pdfBlob);
+      pdfKey = pdfUpload.key;
+
+      // Hold a local download URL for the done screen. The client can't fetch
+      // their PDF back from R2 (auth-gated to the artist) so this is the only
+      // path to "download a copy".
+      setPdfDownloadUrl(URL.createObjectURL(pdfBlob));
+
       await callConsentSubmit({
         artist_id: artistId,
         submission_id: submissionId,
@@ -251,6 +315,9 @@ export default function ConsentSubmitPage() {
         },
         form_data: waiver,
         signature_image_key: signatureKey,
+        pdf_key: pdfKey,
+        tattoo_location: tattoo.location.trim(),
+        tattoo_description: tattoo.description.trim(),
         license_raw_data: licenseRaw,
       });
 
@@ -344,6 +411,7 @@ export default function ConsentSubmitPage() {
               </div>
             )}
 
+            <TattooDetailsSection value={tattoo} onChange={setTattoo} />
             <WaiverChecksSection mode="fill" value={waiver} onChange={setWaiver} />
             <SignatureSection
               mode="fill"
@@ -380,9 +448,19 @@ export default function ConsentSubmitPage() {
               <Check size={32} className="text-success" strokeWidth={2} />
             </div>
             <h2 className="font-display text-2xl text-text-p mb-3">Thanks!</h2>
-            <p className="text-md text-text-s leading-relaxed">
+            <p className="text-md text-text-s leading-relaxed mb-6">
               Your consent form has been submitted. Your artist will review it shortly.
             </p>
+            {pdfDownloadUrl && (
+              <a
+                href={pdfDownloadUrl}
+                download="tattoo-consent-form.pdf"
+                className="inline-flex items-center gap-2 px-5 py-3.5 text-md text-text-p rounded-md border border-border/60 cursor-pointer press-scale transition-all min-h-[48px]"
+              >
+                <Download size={18} />
+                Download a copy
+              </a>
+            )}
           </div>
         )}
       </div>

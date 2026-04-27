@@ -588,6 +588,7 @@ export interface Database {
           license_raw_data: Json | null;
           form_data: Json;
           signature_image_key: string | null;
+          pdf_key: string | null;
           booking_id: string | null;
           payment_type: string | null;
           payment_amount: number | null;
@@ -615,6 +616,7 @@ export interface Database {
           license_raw_data?: Json | null;
           form_data?: Json;
           signature_image_key?: string | null;
+          pdf_key?: string | null;
           booking_id?: string | null;
           payment_type?: string | null;
           payment_amount?: number | null;
@@ -642,6 +644,7 @@ export interface Database {
           license_raw_data?: Json | null;
           form_data?: Json;
           signature_image_key?: string | null;
+          pdf_key?: string | null;
           booking_id?: string | null;
           payment_type?: string | null;
           payment_amount?: number | null;

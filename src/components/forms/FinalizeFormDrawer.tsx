@@ -1,4 +1,8 @@
-// Sheet for entering payment + tattoo details on an approved submission.
+// Sheet for entering payment on an approved submission. Tattoo location and
+// description used to live here too, but as of the PDF redesign they are
+// CLIENT-entered during the wizard and baked into the signed PDF — payment is
+// the only thing left for the artist to fill in for bookkeeping.
+//
 // Rendered at AppShell root and driven by uiStore.finalizeSubmissionId — the
 // consent drawer dismisses itself before opening this so they don't stack.
 
@@ -19,7 +23,7 @@ export default function FinalizeFormDrawer() {
   if (!submissionId || !submission) return null;
   const onClose = () => setFinalizeSubmissionId(null);
   return (
-    <Modal title="Payment & tattoo details" onClose={onClose}>
+    <Modal title="Payment" onClose={onClose}>
       <FinalizeFormBody submission={submission} />
     </Modal>
   );
@@ -35,8 +39,6 @@ function FinalizeFormBody({ submission }: { submission: ConsentSubmission }) {
   const [paymentAmount, setPaymentAmount] = useState(
     submission.payment_amount != null ? String(submission.payment_amount) : '',
   );
-  const [tattooLocation, setTattooLocation] = useState(submission.tattoo_location ?? '');
-  const [tattooDescription, setTattooDescription] = useState(submission.tattoo_description ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,9 +49,7 @@ function FinalizeFormBody({ submission }: { submission: ConsentSubmission }) {
     paymentType.trim() &&
     paymentAmount.trim() &&
     !isNaN(Number(paymentAmount)) &&
-    Number(paymentAmount) >= 0 &&
-    tattooLocation.trim() &&
-    tattooDescription.trim();
+    Number(paymentAmount) >= 0;
 
   const handleSave = async () => {
     if (!canSubmit) return;
@@ -59,13 +59,8 @@ function FinalizeFormBody({ submission }: { submission: ConsentSubmission }) {
       await finalizeSubmission(submission.id, {
         payment_type: paymentType.trim(),
         payment_amount: Number(paymentAmount),
-        tattoo_location: tattooLocation.trim(),
-        tattoo_description: tattooDescription.trim(),
       });
       addToast('Form finalized');
-      // Animate out, then make sure the uiStore state is cleared. dismiss()
-      // already calls onClose (which clears the id), but call it explicitly
-      // for symmetry with other AppShell-level drawers.
       dismiss();
       setFinalizeSubmissionId(null);
     } catch (e) {
@@ -117,27 +112,6 @@ function FinalizeFormBody({ submission }: { submission: ConsentSubmission }) {
           onChange={(e) => setPaymentAmount(e.target.value)}
           placeholder="0.00"
           className={inputClass}
-        />
-      </div>
-
-      <div>
-        <label className="text-sm text-text-s mb-2 block font-medium">Tattoo location</label>
-        <input
-          type="text"
-          value={tattooLocation}
-          onChange={(e) => setTattooLocation(e.target.value)}
-          placeholder="e.g. Right forearm"
-          className={inputClass}
-        />
-      </div>
-
-      <div>
-        <label className="text-sm text-text-s mb-2 block font-medium">Description</label>
-        <textarea
-          value={tattooDescription}
-          onChange={(e) => setTattooDescription(e.target.value)}
-          placeholder="Brief description of the design..."
-          className={`${inputClass} h-28 resize-none`}
         />
       </div>
 

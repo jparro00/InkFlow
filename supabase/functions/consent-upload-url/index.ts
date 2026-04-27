@@ -63,6 +63,15 @@ const KIND_LIMITS: Record<
       "image/jpeg": "jpg",
     },
   },
+  // Signed consent PDF: generated client-side via @react-pdf/renderer at
+  // submit time. With Helvetica + small embedded signature image these come
+  // in well under 1 MB, but allow headroom for future template additions.
+  pdf: {
+    maxBytes: 5 * 1024 * 1024,
+    contentTypes: {
+      "application/pdf": "pdf",
+    },
+  },
 };
 
 function jsonResponse(status: number, body: unknown): Response {

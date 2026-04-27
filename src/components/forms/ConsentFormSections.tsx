@@ -15,6 +15,7 @@ import SignaturePad, { type SignaturePadHandle } from './SignaturePad';
 import {
   WAIVER_ITEMS,
   type LicenseFieldsValue,
+  type TattooDetailsValue,
   type WaiverChecksValue,
 } from './consentFormSchema';
 
@@ -165,6 +166,51 @@ export function LicenseFieldsSection({ mode, value, onChange }: LicenseFieldsSec
             onChange={(e) => set({ dob: e.target.value })}
             className={`${inputClass} [color-scheme:dark]`}
             autoComplete="bday"
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// =============================================================================
+// TattooDetailsSection — location + description, client-entered
+// =============================================================================
+//
+// These fields land on the signed PDF (and on the consent_submissions row),
+// so the client confirms exactly what they're consenting to. There's no
+// review-mode counterpart in the artist drawer because the artist sees this
+// on the PDF preview rather than as separate fields.
+
+interface TattooDetailsSectionProps {
+  value: TattooDetailsValue;
+  onChange: (next: TattooDetailsValue) => void;
+}
+
+export function TattooDetailsSection({ value, onChange }: TattooDetailsSectionProps) {
+  const set = (patch: Partial<TattooDetailsValue>) => onChange({ ...value, ...patch });
+  return (
+    <section>
+      <h2 className={sectionTitleClass}>Tattoo</h2>
+      <p className={sectionHintClass}>What and where is the tattoo? This goes on the signed form.</p>
+      <div className="space-y-3">
+        <div>
+          <label className="text-base text-text-s mb-1.5 block">Location on body</label>
+          <input
+            type="text"
+            value={value.location}
+            onChange={(e) => set({ location: e.target.value.slice(0, 120) })}
+            placeholder="e.g. Right forearm"
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label className="text-base text-text-s mb-1.5 block">Description</label>
+          <textarea
+            value={value.description}
+            onChange={(e) => set({ description: e.target.value.slice(0, 1000) })}
+            placeholder="Brief description of the design…"
+            className={`${inputClass} h-28 resize-none`}
           />
         </div>
       </div>
