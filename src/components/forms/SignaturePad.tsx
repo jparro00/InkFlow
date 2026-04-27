@@ -30,6 +30,11 @@ const SignaturePad = forwardRef<SignaturePadHandle, Props>(
 
     // Re-fit the canvas to its display size and rescale for devicePixelRatio.
     // Done on mount and on resize so retina screens stay crisp.
+    //
+    // Ink is hard-coded BLACK on a hard-coded WHITE fill. The saved PNG is
+    // theme-independent — when the artist views it later (in any theme) they
+    // see the same legible black-on-white signature, and printed copies look
+    // right too. Don't switch back to var(--color-text-p).
     const fitCanvas = useCallback(() => {
       const canvas = canvasRef.current;
       if (!canvas) return;
@@ -40,14 +45,13 @@ const SignaturePad = forwardRef<SignaturePadHandle, Props>(
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
       ctx.scale(dpr, dpr);
+      // Paint the white background first; subsequent strokes layer on top.
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, rect.width, rect.height);
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.lineWidth = 2.4;
-      ctx.strokeStyle = 'var(--color-text-p)';
-      // Read computed text-p color since canvas can't use CSS variables directly.
-      const styles = getComputedStyle(document.documentElement);
-      const inkColor = styles.getPropertyValue('--color-text-p').trim() || '#fff';
-      ctx.strokeStyle = inkColor;
+      ctx.strokeStyle = '#000000';
     }, []);
 
     useEffect(() => {
@@ -138,7 +142,11 @@ const SignaturePad = forwardRef<SignaturePadHandle, Props>(
         const ctx = canvas.getContext('2d');
         if (ctx) {
           const rect = canvas.getBoundingClientRect();
-          ctx.clearRect(0, 0, rect.width, rect.height);
+          // Re-fill with white instead of clearing; keeps the canvas in the
+          // same "white sheet of paper" state regardless of how often the
+          // user clears + redraws.
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, rect.width, rect.height);
         }
       }
       hasInkRef.current = false;
@@ -153,12 +161,12 @@ const SignaturePad = forwardRef<SignaturePadHandle, Props>(
       const ctx = canvas.getContext('2d');
       if (!ctx) return false;
       const rect = canvas.getBoundingClientRect();
-      ctx.clearRect(0, 0, rect.width, rect.height);
+      // Re-paint the white sheet first.
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, rect.width, rect.height);
       const trimmed = name.trim();
       if (!trimmed) return false;
-      const styles = getComputedStyle(document.documentElement);
-      const inkColor = styles.getPropertyValue('--color-text-p').trim() || '#fff';
-      ctx.fillStyle = inkColor;
+      ctx.fillStyle = '#000000';
       ctx.textBaseline = 'middle';
       ctx.textAlign = 'center';
       const fontSize = Math.min(rect.height * 0.55, 56);
@@ -247,7 +255,7 @@ const SignaturePad = forwardRef<SignaturePadHandle, Props>(
           />
         )}
 
-        <div className="rounded-md border border-border/60 bg-bg/40 overflow-hidden">
+        <div className="rounded-md border border-border/60 bg-white overflow-hidden">
           <canvas
             ref={canvasRef}
             onPointerDown={startDraw}

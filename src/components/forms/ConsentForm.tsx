@@ -106,6 +106,7 @@ export default function ConsentForm({ submission }: Props) {
         mode="review"
         signatureUrl={signatureUrl}
         hasSignature={Boolean(submission.signature_image_key)}
+        signedAt={submission.submitted_at}
       />
     </div>
   );

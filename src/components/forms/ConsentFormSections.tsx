@@ -9,6 +9,7 @@
 // filled out — minus the editability.
 
 import { Check, X, Loader2, Sparkles } from 'lucide-react';
+import { format } from 'date-fns';
 import CameraCapture from './CameraCapture';
 import SignaturePad, { type SignaturePadHandle } from './SignaturePad';
 import {
@@ -184,37 +185,37 @@ export function WaiverChecksSection({ mode, value, onChange }: WaiverChecksSecti
       {mode === 'fill' && (
         <p className={sectionHintClass}>Read each statement and confirm.</p>
       )}
-      <ul className="space-y-3">
+      <ul className="space-y-4">
         {WAIVER_ITEMS.map((item) => {
           const checked = value[item.key] === true;
           if (mode === 'review') {
             return (
-              <li key={item.key} className="flex items-start gap-3">
-                {checked ? (
-                  <span className="w-5 h-5 mt-0.5 rounded-md bg-success/20 border border-success/40 flex items-center justify-center shrink-0">
-                    <Check size={12} className="text-success" strokeWidth={3} />
-                  </span>
-                ) : (
-                  <span className="w-5 h-5 mt-0.5 rounded-md bg-bg/60 border border-border/60 flex items-center justify-center shrink-0">
-                    {!item.required && <X size={12} className="text-text-t" strokeWidth={2} />}
-                  </span>
-                )}
-                <span className={`text-sm leading-relaxed ${checked ? 'text-text-s' : 'text-text-t'}`}>
+              <li key={item.key} className="flex items-center gap-3">
+                <span className={`text-sm leading-relaxed flex-1 ${checked ? 'text-text-s' : 'text-text-t'}`}>
                   {item.label}
                 </span>
+                {checked ? (
+                  <span className="w-10 h-10 rounded-md bg-success/20 border border-success/40 flex items-center justify-center shrink-0">
+                    <Check size={20} className="text-success" strokeWidth={3} />
+                  </span>
+                ) : (
+                  <span className="w-10 h-10 rounded-md bg-bg/60 border border-border/60 flex items-center justify-center shrink-0">
+                    {!item.required && <X size={18} className="text-text-t" strokeWidth={2} />}
+                  </span>
+                )}
               </li>
             );
           }
           return (
             <li key={item.key}>
-              <label className="flex items-start gap-3 cursor-pointer">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <span className="text-sm text-text-s leading-relaxed flex-1">{item.label}</span>
                 <input
                   type="checkbox"
                   checked={checked}
                   onChange={(e) => onChange?.({ ...value, [item.key]: e.target.checked })}
-                  className="mt-1 w-5 h-5 accent-accent shrink-0 cursor-pointer"
+                  className="w-10 h-10 accent-accent shrink-0 cursor-pointer"
                 />
-                <span className="text-sm text-text-s leading-relaxed">{item.label}</span>
               </label>
             </li>
           );
@@ -239,18 +240,32 @@ interface SignatureSectionReviewProps {
   mode: 'review';
   signatureUrl: string | null | undefined;
   hasSignature?: boolean;
+  /** ISO timestamp of when the form was submitted, used for the "Date" line. */
+  signedAt?: string;
 }
 
 type SignatureSectionProps = SignatureSectionFillProps | SignatureSectionReviewProps;
 
+function DateLine({ date }: { date: Date }) {
+  return (
+    <div className="mt-2 flex items-baseline gap-2 text-xs text-text-t">
+      <span className="font-medium uppercase tracking-wider">Date</span>
+      <span className="text-text-s">{format(date, 'PP')}</span>
+    </div>
+  );
+}
+
 export function SignatureSection(props: SignatureSectionProps) {
   if (props.mode === 'review') {
-    const { signatureUrl, hasSignature } = props;
+    const { signatureUrl, hasSignature, signedAt } = props;
+    // Saved signatures are always white-bg + black-ink (see SignaturePad).
+    // The display container matches that so the image sits on the same white
+    // surface in any theme — no jarring edge between blob and chrome.
     return (
       <section>
         <h2 className={sectionTitleClass}>Signature</h2>
         {signatureUrl ? (
-          <div className="rounded-md border border-border/40 bg-bg/40 aspect-[3/1] flex items-center justify-center overflow-hidden">
+          <div className="rounded-md border border-border/40 bg-white aspect-[3/1] flex items-center justify-center overflow-hidden">
             <img src={signatureUrl} alt="Signature" className="max-h-full max-w-full" />
           </div>
         ) : hasSignature ? (
@@ -262,6 +277,7 @@ export function SignatureSection(props: SignatureSectionProps) {
             No signature.
           </div>
         )}
+        {signedAt && <DateLine date={new Date(signedAt)} />}
       </section>
     );
   }
@@ -272,6 +288,10 @@ export function SignatureSection(props: SignatureSectionProps) {
       <h2 className={sectionTitleClass}>Signature</h2>
       <p className={sectionHintClass}>Sign with your finger, or type your name to adopt a signature.</p>
       <SignaturePad ref={signatureRef} defaultName={defaultName} onChange={onChange} />
+      {/* Auto-populated today's date — what gets stamped onto the submission
+          when the user hits Submit. Shown live so the client sees the same
+          "signed on X" line the artist will see later. */}
+      <DateLine date={new Date()} />
     </section>
   );
 }
