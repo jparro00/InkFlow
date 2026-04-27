@@ -661,7 +661,6 @@ export default function ConsentSubmitPage() {
               </p>
               <SignaturePad
                 ref={signatureRef}
-                defaultName={`${licenseFields.first_name} ${licenseFields.last_name}`.trim()}
                 onChange={handleSignatureChange}
               />
             </section>

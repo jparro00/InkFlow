@@ -10,8 +10,6 @@ export interface SignaturePadHandle {
 }
 
 interface Props {
-  /** Pre-fill an "adopted" name to render as the typed signature. */
-  defaultName?: string;
   /** Notifies the parent whenever the empty/non-empty state flips. */
   onChange?: (isEmpty: boolean) => void;
 }
@@ -19,10 +17,14 @@ interface Props {
 type Mode = 'draw' | 'type';
 
 const SignaturePad = forwardRef<SignaturePadHandle, Props>(
-  ({ defaultName = '', onChange }, ref) => {
+  ({ onChange }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [mode, setMode] = useState<Mode>('draw');
-    const [typedName, setTypedName] = useState(defaultName);
+    // Typed signature starts empty regardless of any external name source.
+    // Pre-filling from a license read would mean the user "adopts" a
+    // signature without typing it, which weakens the deliberate-act
+    // requirement of an electronic signature.
+    const [typedName, setTypedName] = useState('');
     const [isEmpty, setIsEmpty] = useState(true);
     const drawingRef = useRef(false);
     const lastPointRef = useRef<{ x: number; y: number } | null>(null);

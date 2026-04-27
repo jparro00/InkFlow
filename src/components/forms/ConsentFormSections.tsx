@@ -9,9 +9,7 @@
 // filled out — minus the editability.
 
 import { Check, X, Loader2, Sparkles } from 'lucide-react';
-import { format } from 'date-fns';
 import CameraCapture from './CameraCapture';
-import SignaturePad, { type SignaturePadHandle } from './SignaturePad';
 import {
   WAIVER_ITEMS,
   type LicenseFieldsValue,
@@ -270,77 +268,6 @@ export function WaiverChecksSection({ mode, value, onChange }: WaiverChecksSecti
           );
         })}
       </ul>
-    </section>
-  );
-}
-
-// =============================================================================
-// SignatureSection
-// =============================================================================
-
-interface SignatureSectionFillProps {
-  mode: 'fill';
-  signatureRef: React.Ref<SignaturePadHandle>;
-  defaultName?: string;
-  onChange?: (isEmpty: boolean) => void;
-}
-
-interface SignatureSectionReviewProps {
-  mode: 'review';
-  signatureUrl: string | null | undefined;
-  hasSignature?: boolean;
-  /** ISO timestamp of when the form was submitted, used for the "Date" line. */
-  signedAt?: string;
-}
-
-type SignatureSectionProps = SignatureSectionFillProps | SignatureSectionReviewProps;
-
-function DateLine({ date }: { date: Date }) {
-  return (
-    <div className="mt-2 flex items-baseline gap-2 text-text-t">
-      <span className="text-sm font-medium uppercase tracking-wider">Date</span>
-      <span className="text-base text-text-s">{format(date, 'PP')}</span>
-    </div>
-  );
-}
-
-export function SignatureSection(props: SignatureSectionProps) {
-  if (props.mode === 'review') {
-    const { signatureUrl, hasSignature, signedAt } = props;
-    // Saved signatures are always white-bg + black-ink (see SignaturePad).
-    // The display container matches that so the image sits on the same white
-    // surface in any theme — no jarring edge between blob and chrome.
-    return (
-      <section>
-        <h2 className={sectionTitleClass}>Signature</h2>
-        {signatureUrl ? (
-          <div className="rounded-md border border-border/40 bg-white aspect-[3/1] flex items-center justify-center overflow-hidden">
-            <img src={signatureUrl} alt="Signature" className="max-h-full max-w-full" />
-          </div>
-        ) : hasSignature ? (
-          <div className="rounded-md border border-border/40 bg-bg/40 aspect-[3/1] flex items-center justify-center text-sm text-text-t">
-            <Loader2 size={18} className="animate-spin mr-2" /> Loading…
-          </div>
-        ) : (
-          <div className="rounded-md border border-border/40 border-dashed bg-bg/40 p-6 text-center text-sm text-text-t">
-            No signature.
-          </div>
-        )}
-        {signedAt && <DateLine date={new Date(signedAt)} />}
-      </section>
-    );
-  }
-
-  const { signatureRef, defaultName, onChange } = props;
-  return (
-    <section>
-      <h2 className={sectionTitleClass}>Signature</h2>
-      <p className={sectionHintClass}>Sign with your finger, or type your name to adopt a signature.</p>
-      <SignaturePad ref={signatureRef} defaultName={defaultName} onChange={onChange} />
-      {/* Auto-populated today's date — what gets stamped onto the submission
-          when the user hits Submit. Shown live so the client sees the same
-          "signed on X" line the artist will see later. */}
-      <DateLine date={new Date()} />
     </section>
   );
 }
