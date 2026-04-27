@@ -109,6 +109,13 @@ Deno.serve(async (req: Request) => {
   const licenseExpiry = asDate(license.expiry);
   const signatureImageKey = asTrimmedString(body.signature_image_key, 500);
   const pdfKey = asTrimmedString(body.pdf_key, 500);
+  // SHA-256 of the uploaded PDF, hex-encoded. 64 hex chars; reject anything
+  // else so we never store a garbage value that would silently disagree with
+  // the artist's later integrity check.
+  const pdfSha256Raw = typeof body.pdf_sha256 === "string"
+    ? body.pdf_sha256.trim().toLowerCase()
+    : "";
+  const pdfSha256 = /^[0-9a-f]{64}$/.test(pdfSha256Raw) ? pdfSha256Raw : null;
   // Tattoo details are now CLIENT-entered during the wizard (so they can be
   // included in the signed PDF). Description allows the longer free-text cap;
   // location is short-form ("Right forearm").
@@ -179,6 +186,7 @@ Deno.serve(async (req: Request) => {
     form_data: formData,
     signature_image_key: signatureImageKey,
     pdf_key: pdfKey,
+    pdf_sha256: pdfSha256,
     tattoo_location: tattooLocation,
     tattoo_description: tattooDescription,
     client_ip: clientIp || null,

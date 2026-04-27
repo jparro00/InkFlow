@@ -81,6 +81,19 @@ function jsonResponse(status: number, body: unknown): Response {
   });
 }
 
+// The client-side PDF generator needs the public IP + UA to embed in the
+// consent PDF's audit metadata. We mirror what consent-submit captures so
+// the visible-on-PDF audit trail matches the row's audit trail. The browser
+// can't read its own public IP, so we surface it on this response — the
+// first upload-url call (license) is the natural caching point client-side.
+function clientIpFromRequest(req: Request): string {
+  const cf = req.headers.get("cf-connecting-ip");
+  if (cf) return cf;
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) return xff.split(",")[0].trim();
+  return "";
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -195,5 +208,11 @@ Deno.serve(async (req: Request) => {
     expires_at: new Date(
       Date.now() + PRESIGN_TTL_SECONDS * 1000,
     ).toISOString(),
+    // Echoed back so the client can embed them in the signed PDF's audit
+    // metadata. consent-submit captures the same fields server-side at insert
+    // time — the row is the canonical record; this is just so the bytes the
+    // user signs match the bytes that get archived.
+    client_ip: clientIpFromRequest(req),
+    client_user_agent: req.headers.get("user-agent")?.slice(0, 500) ?? "",
   });
 });

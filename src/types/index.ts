@@ -194,8 +194,11 @@ export interface ConsentSubmission {
 
   form_data: Record<string, unknown>;
   signature_image_key?: string;
-  /** Signed consent PDF, generated client-side at submit time. R2 key. */
+  /** Signed consent PDF, generated client-side at signing time. R2 key. */
   pdf_key?: string;
+  /** SHA-256 hex of the uploaded PDF bytes. Lets the artist verify integrity
+   *  later by re-hashing the R2 blob. */
+  pdf_sha256?: string;
 
   booking_id?: string;
 

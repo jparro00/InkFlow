@@ -60,6 +60,7 @@ function rowToConsentSubmission(row: Record<string, unknown>): ConsentSubmission
     form_data: (row.form_data as Record<string, unknown>) ?? {},
     signature_image_key: get('signature_image_key'),
     pdf_key: get('pdf_key'),
+    pdf_sha256: get('pdf_sha256'),
     booking_id: get('booking_id'),
     payment_type: get('payment_type'),
     payment_amount: get('payment_amount'),

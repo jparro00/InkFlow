@@ -37,9 +37,6 @@ export interface WaiverChecksValue {
   understands_permanence: boolean;
   understands_risks: boolean;
   release_liability: boolean;
-  /** ESIGN Act element: affirmative consent to sign electronically. Required
-   *  for the e-signature to carry the same legal weight as a wet signature. */
-  electronic_signature_consent: boolean;
   photography_release: boolean;
 }
 
@@ -51,7 +48,6 @@ export const emptyWaiverChecks: WaiverChecksValue = {
   understands_permanence: false,
   understands_risks: false,
   release_liability: false,
-  electronic_signature_consent: false,
   photography_release: false,
 };
 
@@ -61,6 +57,9 @@ export interface WaiverItem {
   required: boolean;
 }
 
+// ESIGN consent (right to paper copy + right to withdraw + scope) lives in
+// the wizard's dedicated `disclosure` step now, not in this list — collecting
+// it BEFORE any other data is what ESIGN §7001(c) calls for.
 export const WAIVER_ITEMS: WaiverItem[] = [
   { key: 'age_18_plus', required: true, label: 'I am 18 years of age or older.' },
   { key: 'no_alcohol_24h', required: true, label: 'I have not consumed alcohol or non-prescribed drugs in the past 24 hours.' },
@@ -69,7 +68,6 @@ export const WAIVER_ITEMS: WaiverItem[] = [
   { key: 'understands_permanence', required: true, label: 'I understand that a tattoo is a permanent modification to my body.' },
   { key: 'understands_risks', required: true, label: 'I have been informed of the risks (allergic reaction, infection, scarring, etc.) and accept them.' },
   { key: 'release_liability', required: true, label: 'I release the artist and studio from liability for results and procedure-related complications, except in the case of negligence.' },
-  { key: 'electronic_signature_consent', required: true, label: 'I consent to sign this form electronically. I understand I may request a paper copy of the signed form from the studio.' },
   { key: 'photography_release', required: false, label: 'I consent to photographs of the finished tattoo being used for portfolio and social media (optional).' },
 ];
 

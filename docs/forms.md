@@ -5,15 +5,21 @@ Client-submitted tattoo consent forms (license + waiver + signature + signed PDF
 The flow:
 
 1. Client scans the artist's QR (links to `/#/consent/<artist user_id>`)
-2. Client snaps their license — image uploads to R2, AWS Textract pre-fills name / DOB / address / etc.
-3. Client confirms identity, enters tattoo location + description, ticks the waiver, signs
-4. On submit, the wizard generates a signed PDF locally (white background, theme-independent), uploads it to R2 alongside the license + signature, then writes the row
-5. Client gets a "Download a copy" link on the thanks screen
-6. Artist sees a badge on the Forms tab; the row lives in their review queue
-7. Artist approves (and attaches to a booking) or rejects (hard-deletes row + R2 license + signature + PDF)
-8. Approved rows sit as `approved_pending` until the artist enters payment, which finalizes them
+2. **Disclosure step** — client reads the ESIGN consumer disclosure (right to paper copy, right to withdraw, scope) and explicitly affirms before any data is collected
+3. Client snaps their license — image uploads to R2, AWS Textract pre-fills name / DOB / address / etc. The upload-url response also echoes back `client_ip` + `client_user_agent` (what the edge fn saw) so the client can embed them in the PDF later
+4. Client confirms identity, enters tattoo location + description, ticks the waiver
+5. **Review and sign step** — the consent PDF is generated client-side from current state and rendered in an iframe. The client sees the document, signs in the pad below, and watches their signature appear in the PDF in real time
+6. Client taps "Adopt and Sign" — the SAME bytes they were viewing get hashed (SHA-256), uploaded to R2, and recorded on the row
+7. Client gets a "Download a copy" link on the thanks screen
+8. Artist sees a badge on the Forms tab; the row lives in their review queue
+9. Artist approves (and attaches to a booking) or rejects (hard-deletes row + R2 license + signature + PDF)
+10. Approved rows sit as `approved_pending` until the artist enters payment, which finalizes them
 
-The PDF is the legal record. Structured fields (license_*, tattoo_*, form_data, signature_image_key) live on the row for queryability, but the PDF — embedded signature, all consent statements with their checked/unchecked state, ESIGN disclosure, audit footer — is what the artist downloads, hands to the client, and archives for retention.
+The PDF is the legal record. Structured fields (license_*, tattoo_*, form_data, signature_image_key) live on the row for queryability, but the PDF — embedded signature, all consent statements with their checked/unchecked state, audit metadata in the info dict, integrity hash on the row — is what the artist downloads, hands to the client, and archives for retention.
+
+**Tamper detection:** `consent_submissions.pdf_sha256` stores the hex SHA-256 the client computed at sign time. The artist (or any forensic check) can re-hash the R2 blob and compare; mismatch means the file was modified after upload.
+
+**What the client sees vs. what gets stored.** The PDF rendered in the iframe before signing and the PDF that gets uploaded are produced by the same code path (`buildConsentPdfBytes`). The only differences: `finalize:true` flips the visible footer from "Document not yet signed." to "Signed [date].", and adds the audit metadata (IP, UA, timezone, signed timestamp, submission_id) to the PDF info dict's Keywords field. Everything visible above the footer is byte-identical between preview and final.
 
 ## Legal compliance (US, adults only)
 
@@ -36,15 +42,17 @@ For an electronic signature to be legally enforceable, both frameworks require:
 4. **Record retention** — the signed record must be retained, reproducible, and accessible to all parties.
 5. **Authentication / attribution** — evidence linking the signature to the signer (audit trail: timestamp, IP, device).
 
+ESIGN §7001(c) goes further on element 2 — the disclosure must be presented BEFORE consent is obtained, must cover scope, right to paper, right to withdraw, and must be obtained in a manner that demonstrates the consumer can access the electronic form. We satisfy this with the dedicated `disclosure` wizard step (see `src/components/forms/ConsentDisclosure.tsx`).
+
 How our flow satisfies each element:
 
 | Element | Implementation |
 |---|---|
-| Intent to sign | Explicit signature pad (draw or adopt-typed) + a Submit button that triggers the flow. The client must produce a signature; an empty pad blocks submission. |
-| Consent to do business electronically | Required waiver item `electronic_signature_consent` with the language "I consent to sign this form electronically. I understand I may request a paper copy of the signed form from the studio." Must be ticked before Submit is enabled. The same disclosure is reproduced as a static block on the PDF itself. |
-| Association | The signature image is embedded directly in the signed PDF; the row also stores `signature_image_key` pointing at the same R2 blob. |
-| Record retention | The signed PDF is stored at `consent/{artist}/{submission}/consent.pdf` in R2 alongside the structured row; the artist can download it from the review drawer or the public client can download a copy from the thanks screen. |
-| Authentication | The `consent-submit` edge fn captures `client_ip` (from `cf-connecting-ip` / `x-forwarded-for`) and `client_user_agent` on the row. The PDF additionally bakes in a footer with the signed-at timestamp, timezone, and user agent visible to the signer. |
+| Intent to sign | Explicit signature pad (draw or adopt-typed) + a button labeled "Adopt and Sign" that triggers the finalization. The client must produce a signature on the pad; an empty pad blocks the button. The button label uses an action verb tied to the document, not generic "Submit." |
+| Consent to do business electronically | Dedicated `disclosure` wizard step before any data collection. Covers electronic-records consent, right to paper copy, right to withdraw, scope ("this form only"). Required affirmative checkbox ("I have read this disclosure and consent…") gates Continue. Hardware/software statement is omitted — the consumer is completing the disclosure on the same device that displays the PDF, which under §7001(c)(1)(C)(ii) reasonably demonstrates capability. |
+| Association | The signature image is embedded directly in the signed PDF as part of the signature box rectangle. The PDF the user previews and the PDF that gets uploaded are produced by the SAME code path (`buildConsentPdfBytes`) — no "regenerate after submit" gap. The row also stores `signature_image_key` and `pdf_key` pointing at the same submission prefix in R2. |
+| Record retention | The signed PDF is stored at `consent/{artist}/{submission}/consent.pdf` in R2 indefinitely. The artist downloads from the review drawer; the client downloads from the thanks screen. **Integrity:** `pdf_sha256` on the row lets anyone re-hash the R2 blob to detect tampering. **Future work:** email the PDF to the client (see "Future work" section) — currently the client has only the thanks-screen download window. |
+| Authentication | (a) Government photo ID captured live + Textract OCR'd; (b) Server-side `client_ip` (from `cf-connecting-ip`) + `client_user_agent` captured by `consent-submit` and stored on the row; (c) Same audit fields embedded in the PDF info dict's Keywords field as a JSON blob (`signed_at`, `timezone`, `client_ip`, `user_agent`, `signer_name`, `submission_id`); (d) Visible footer carries only the signed date for readability. The PDF therefore travels with its audit trail. |
 
 ### Tattoo-specific (state level)
 
@@ -59,10 +67,11 @@ The waiver list is hard-coded for v1. When configurable per-artist templates lan
 
 - `src/pages/Forms.tsx` — list page grouped by status
 - `src/pages/FormDetail.tsx` — review/approve/reject + finalize entry point
-- `src/pages/ConsentSubmit.tsx` — public, unauthenticated multi-step client form (the QR target). Generates the signed PDF on submit.
-- `src/components/forms/ConsentPDF.tsx` — `@react-pdf/renderer` document + `generateConsentPdfBlob` helper. Hard-coded white background + black text regardless of app theme.
+- `src/pages/ConsentSubmit.tsx` — public, unauthenticated multi-step client form (the QR target). Five content steps: disclosure → snap_id → fill_form → review_and_sign → done. Live PDF preview rebuilt on every state change in review_and_sign; final bytes are hashed and uploaded as-seen.
+- `src/components/forms/ConsentDisclosure.tsx` — ESIGN §7001(c) consumer disclosure step.
+- `src/components/forms/ConsentPDF.tsx` — pdf-lib document builder + SHA-256 hasher. `buildConsentPdfBytes(data, opts)` is the single PDF code path used for both live preview and final signing; `sha256Hex(bytes)` produces the integrity hash. Hard-coded white background + black text. No external fonts (StandardFonts.Helvetica + HelveticaBold only).
 - `src/components/forms/ConsentForm.tsx` — artist's review-side renderer. Shows the license image (toggleable) + an inline PDF preview that opens fullscreen on tap.
-- `src/components/forms/ConsentFormSections.tsx` — shared form sections (license image, license fields, tattoo details, waiver checks, signature). Each supports `fill` mode for the public wizard.
+- `src/components/forms/ConsentFormSections.tsx` — shared form sections (license image, license fields, tattoo details, waiver checks). Each supports `fill` mode for the public wizard. Signature lives in `review_and_sign`, not in this set.
 - `src/components/forms/CameraCapture.tsx` — in-page camera (getUserMedia) for the license photo.
 - `src/components/forms/SignaturePad.tsx` — canvas-based signature with finger-draw + "adopt typed name" modes; outputs PNG (black ink on white background).
 - `src/components/forms/BookingPickerDrawer.tsx` — today / search / create-new picker shown on approve
@@ -71,8 +80,9 @@ The waiver list is hard-coded for v1. When configurable per-artist templates lan
 - `src/services/consentSubmissionService.ts` — Supabase client wrapper; `deleteConsentSubmission` calls the `consent-reject` edge fn so R2 blobs are purged alongside the row
 - `supabase/migrations/00023_consent_submissions.sql` — table + RLS
 - `supabase/migrations/00025_consent_submissions_pdf_key.sql` — adds `pdf_key` column for the signed PDF
-- `supabase/functions/consent-upload-url/` — anon presigned R2 PUT URLs (now also for `kind=pdf`)
-- `supabase/functions/consent-submit/` — anon row insert with IP rate limit; persists `pdf_key`, `tattoo_location`, `tattoo_description`
+- `supabase/migrations/00026_consent_submissions_pdf_sha256.sql` — adds `pdf_sha256` for integrity verification
+- `supabase/functions/consent-upload-url/` — anon presigned R2 PUT URLs (now also for `kind=pdf`); echoes `client_ip` + `client_user_agent` back so the wizard can embed them in the PDF audit metadata
+- `supabase/functions/consent-submit/` — anon row insert with IP rate limit; persists `pdf_key`, `pdf_sha256`, `tattoo_location`, `tattoo_description`
 - `supabase/functions/consent-analyze-id/` — Textract OCR on uploaded license
 - `supabase/functions/consent-reject/` — auth'd row + R2 license/signature/PDF purge
 
@@ -82,9 +92,12 @@ The waiver list is hard-coded for v1. When configurable per-artist templates lan
 Client (anon)              Edge fn                       R2                Supabase
 ───────────────────────────────────────────────────────────────────────────────────
 scan QR  →  /#/consent/:artistId
+[disclosure step — explicit ESIGN consent before any data is collected]
+
 upload license  ─────►  consent-upload-url ─►  presigned PUT URL
-                                                  ▲
-                          PUT license bytes ──────┘
+                       (returns client_ip   ▲
+                        + UA)               │
+                          PUT license bytes ─┘
                                                                           R2: stored at
                                                                           consent/{artist}/
                                                                             {sub}/license.jpg
@@ -93,10 +106,19 @@ analyze  ───────────►  consent-analyze-id ─►  GETs l
                                               Textract.AnalyzeID,
                                               returns parsed fields
 
-[client fills tattoo + waiver, signs locally]
-                                            (signature uploads same way)
+[fill_form: client confirms identity + tattoo + waiver]
 
-[client-side: generate PDF via @react-pdf/renderer with embedded signature]
+[review_and_sign: pdf-lib builds the consent PDF live in-browser from
+ current state. Signature pad below; every stroke triggers a PDF rebuild
+ so the user watches their signature appear in the document.]
+
+upload signature  ──►  consent-upload-url ─►  presigned PUT URL
+                                                  ▲
+                          PUT signature bytes ────┘
+
+[client-side: build FINAL PDF bytes via buildConsentPdfBytes(..., {finalize:true});
+ SHA-256 hash via crypto.subtle; the SAME bytes the user was viewing get hashed.]
+
 upload pdf  ────────►  consent-upload-url ─►  presigned PUT URL
                                                   ▲
                               PUT pdf bytes ──────┘
@@ -106,6 +128,7 @@ upload pdf  ────────►  consent-upload-url ─►  presigned PU
 
 submit  ────────────►  consent-submit ─────────────────────────────►   INSERT row,
                        (rate-limited per IP)                            status=submitted,
+                                                                        pdf_sha256 +
                                                                         client_ip + UA stamped
 
 ──────────────── (artist side, authenticated) ──────────────────────────────────────
@@ -178,6 +201,16 @@ consent/{artist_user_id}/{submission_id}/consent.pdf
 
 The `consent` prefix is wired into both the upload-url function and `workers/images/src/authz.ts` so the artist can read images via the existing CF Worker — same path-based per-user authz as `booking-images` and `documents`. The image worker is content-type-agnostic; PDF reads ride the same path as image reads.
 
+## Future work
+
+These are known gaps with deliberate v1 deferrals — flagging here so they aren't lost.
+
+- **Email the signed PDF to the client.** Today the client has exactly one window to download (the thanks screen). Once they navigate away, R2 is auth-gated to the artist and the only way to get a copy is to ask the studio. UETA §12(d) is technically satisfied via the studio-on-request path, but emailing the PDF closes the gap properly. Add an optional email field to `fill_form`, send via Resend (`RESEND_API_KEY` already in secrets) on insert, with the PDF as an attachment.
+- **Privacy policy page.** CalOPPA requires any commercial site collecting PII from CA residents to post a privacy policy. Add a `/privacy` route on the app (artist + public) covering what we collect, how it's stored, retention, and contact. Not required by the consent flow itself but required by the app overall.
+- **Configurable consent templates per artist.** The single hardcoded waiver list lives in `consentFormSchema.ts`. When templates land, `form_data` (jsonb) absorbs the per-template field set; pdf-lib's coordinate-based layout will need a layout descriptor (also stored per template) so the PDF reflects the custom waivers.
+- **Artist-side integrity check button.** The `pdf_sha256` column is set today but there's no UI for the artist to verify a PDF in R2 matches it. A "Verify integrity" button in the drawer that re-fetches the blob, hashes it, and shows ✓/✗ would make the tamper detection visible.
+- **PDF retention period commitment in the disclosure.** Right now the disclosure says "the studio may retain your signed form for several years per state law" implicitly. Once a concrete retention policy is decided per studio, surface that period in the disclosure copy.
+
 ## Related docs
 
 - [bookings.md](./bookings.md) — `consent_submissions.booking_id` references this
@@ -193,4 +226,6 @@ The `consent` prefix is wired into both the upload-url function and `workers/ima
 - **Hash routing on the QR URL** — the URL is `inkbloop.com/#/consent/<id>`, not `inkbloop.com/consent/<id>`. The `#` is required (we use HashRouter). Don't strip it when generating QR codes.
 - **`pendingConsentSubmissionId` handoff** — when the artist picks "Create new booking" from `BookingPickerDrawer`, that ID gets parked in `uiStore`. `BookingForm.handleSave` checks for it after a successful add and calls `approveSubmission` to attach the new booking + status-bump.
 - **Reject = destructive** — `rejectSubmission` is a hard delete in both DB and R2 (license + signature + PDF). There is no soft-delete or audit log of rejections. If the user wants that, it's net-new state.
-- **Bundle size on the public page** — `@react-pdf/renderer` adds ~480 KB gzip to the `ConsentSubmit` chunk. It's not loaded on the artist's main app — only the public consent page sees it. Don't hoist it into a shared chunk by importing it from artist-side code.
+- **Bundle size on the public page** — pdf-lib adds ~180 KB gzip to the `ConsentSubmit` chunk. It's not loaded on the artist's main app — only the public consent page sees it. Don't hoist it into a shared chunk by importing it from artist-side code.
+- **Live PDF preview rebuild rate** — every state change in `review_and_sign` (waiver tick, signature stroke) rebuilds the PDF and swaps the iframe blob URL. ~50–100 ms on typical hardware. The signature is repolled at 500 ms while drawing because `SignaturePad.onChange` only fires on the empty/non-empty boundary, not on every stroke. If we ever extend the pad to fire on stroke completion, drop the polling.
+- **Audit metadata is in Keywords, not a custom info dict entry** — pdf-lib's `getInfoDict` is a private method. We use `setKeywords([JSON.stringify(audit)])` instead, which writes the same data to a standard info dict slot that every PDF viewer surfaces in document properties. Trade-off: a future "Keywords" use (e.g., search tags) would clobber the audit blob. If that conflict ever materializes, the fix is to use the public `PDFContext.assign`/`PDFDict.set` chain through `doc.context` rather than the private accessor.
