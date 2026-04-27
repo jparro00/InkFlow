@@ -1,75 +1,103 @@
+// Picks a booking to attach to a consent submission. Rendered at the AppShell
+// root and driven by uiStore.attachToBookingSubmissionId — the consent drawer
+// dismisses itself before opening this so they don't stack. Drag-down on the
+// sheet collapses to a peek (canCollapse defaults to true on Modal); only an
+// explicit pick mutates the submission.
+
 import { useMemo, useState } from 'react';
 import { format, isSameDay } from 'date-fns';
 import { CalendarIcon, Search, Plus } from 'lucide-react';
-import Modal from '../common/Modal';
+import Modal, { useModalDismiss } from '../common/Modal';
 import { useBookingStore } from '../../stores/bookingStore';
 import { useClientStore } from '../../stores/clientStore';
+import { useConsentSubmissionStore } from '../../stores/consentSubmissionStore';
 import { useUIStore } from '../../stores/uiStore';
-import { getBookingLabel, type Booking } from '../../types';
+import {
+  consentSubmissionDisplayName,
+  getBookingLabel,
+  type Booking,
+} from '../../types';
 
-interface Props {
-  open: boolean;
-  /** ID of the consent submission being approved. Required so "Create new booking" can hand off via uiStore. */
-  submissionId?: string;
-  /** Pre-fill seed for create-new-booking flow (typically license_first_name + license_last_name). */
-  prefillName?: string;
-  onClose: () => void;
-  /** Called when the artist taps an existing booking. The detail page approves the submission. */
-  onPick: (bookingId: string) => void | Promise<void>;
-  busy?: boolean;
-}
-
-export default function BookingPickerDrawer({
-  open,
-  submissionId,
-  prefillName,
-  onClose,
-  onPick,
-  busy,
-}: Props) {
-  if (!open) return null;
+export default function BookingPickerDrawer() {
+  const submissionId = useUIStore((s) => s.attachToBookingSubmissionId);
+  const setAttachToBookingSubmissionId = useUIStore(
+    (s) => s.setAttachToBookingSubmissionId,
+  );
+  const submission = useConsentSubmissionStore((s) =>
+    submissionId ? s.submissions.find((sub) => sub.id === submissionId) : undefined,
+  );
+  if (!submissionId || !submission) return null;
+  const onClose = () => setAttachToBookingSubmissionId(null);
   return (
     <Modal title="Attach to booking" onClose={onClose}>
-      <BookingPickerBody
-        submissionId={submissionId}
-        prefillName={prefillName}
-        onClose={onClose}
-        onPick={onPick}
-        busy={busy}
-      />
+      <BookingPickerBody />
     </Modal>
   );
 }
 
-function BookingPickerBody({
-  submissionId,
-  prefillName,
-  onClose,
-  onPick,
-  busy,
-}: Omit<Props, 'open'>) {
+function BookingPickerBody() {
+  const dismiss = useModalDismiss();
+  const submissionId = useUIStore((s) => s.attachToBookingSubmissionId);
+  const setAttachToBookingSubmissionId = useUIStore(
+    (s) => s.setAttachToBookingSubmissionId,
+  );
+  const submission = useConsentSubmissionStore((s) =>
+    submissionId ? s.submissions.find((sub) => sub.id === submissionId) : undefined,
+  );
+  const approveSubmission = useConsentSubmissionStore((s) => s.approveSubmission);
+
   const allBookings = useBookingStore((s) => s.bookings);
   const searchBookings = useBookingStore((s) => s.searchBookings);
   const clients = useClientStore((s) => s.clients);
   const openBookingForm = useUIStore((s) => s.openBookingForm);
   const setPendingConsentSubmissionId = useUIStore((s) => s.setPendingConsentSubmissionId);
   const setPrefillClientData = useUIStore((s) => s.setPrefillClientData);
+  const addToast = useUIStore((s) => s.addToast);
 
   const today = useMemo(() => new Date(), []);
   const [query, setQuery] = useState('');
+  const [busy, setBusy] = useState(false);
 
+  // Personal appointments are never tattoo work, so they can't host a consent
+  // submission — exclude them from both the today list and search results.
   const todaysBookings = useMemo<Booking[]>(() => {
     return allBookings
-      .filter((b) => isSameDay(new Date(b.date), today))
+      .filter((b) => b.type !== 'Personal' && isSameDay(new Date(b.date), today))
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [allBookings, today]);
 
   const searchResults = useMemo<Booking[]>(() => {
     if (!query.trim()) return [];
     return searchBookings(query.trim(), clients)
+      .filter((b) => b.type !== 'Personal')
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       .slice(0, 30);
   }, [query, searchBookings, clients]);
+
+  if (!submission) return null;
+
+  const handlePick = async (bookingId: string) => {
+    setBusy(true);
+    try {
+      await approveSubmission(submission.id, bookingId);
+      addToast('Form approved');
+      setAttachToBookingSubmissionId(null);
+    } catch (e) {
+      console.error(e);
+      addToast('Failed to approve form');
+      setBusy(false);
+    }
+  };
+
+  const handleCreateNew = () => {
+    setPendingConsentSubmissionId(submission.id);
+    setPrefillClientData({ name: consentSubmissionDisplayName(submission) });
+    // Animate the picker out, then open BookingForm. setAttachToBookingSubmissionId
+    // is cleared in the dismiss callback chain via the parent's onClose.
+    dismiss();
+    setAttachToBookingSubmissionId(null);
+    openBookingForm();
+  };
 
   const renderBookingRow = (b: Booking) => {
     const clientName = b.client_id
@@ -81,7 +109,7 @@ function BookingPickerBody({
     return (
       <button
         key={b.id}
-        onClick={() => onPick(b.id)}
+        onClick={() => handlePick(b.id)}
         disabled={busy}
         className="w-full bg-surface/60 rounded-lg border border-border/30 px-4 py-3.5 flex items-center justify-between cursor-pointer press-scale transition-all active:bg-elevated/40 text-left disabled:opacity-40"
       >
@@ -96,16 +124,6 @@ function BookingPickerBody({
         <CalendarIcon size={18} className="text-text-t shrink-0 ml-3" />
       </button>
     );
-  };
-
-  const handleCreateNew = () => {
-    if (!submissionId) return;
-    setPendingConsentSubmissionId(submissionId);
-    if (prefillName) {
-      setPrefillClientData({ name: prefillName });
-    }
-    onClose();
-    openBookingForm();
   };
 
   return (
@@ -156,7 +174,7 @@ function BookingPickerBody({
       {/* Create new booking */}
       <button
         onClick={handleCreateNew}
-        disabled={busy || !submissionId}
+        disabled={busy}
         className="w-full py-3.5 text-base text-accent rounded-md border border-accent/40 cursor-pointer press-scale transition-all active:bg-accent/10 min-h-[48px] flex items-center justify-center gap-2 disabled:opacity-40"
       >
         <Plus size={18} />

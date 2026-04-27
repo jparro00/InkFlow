@@ -8,7 +8,8 @@
 // sees a submitted form, they're seeing the same component the client just
 // filled out — minus the editability.
 
-import { Camera, RotateCcw, Check, X, Loader2, Sparkles } from 'lucide-react';
+import { Check, X, Loader2, Sparkles } from 'lucide-react';
+import CameraCapture from './CameraCapture';
 import SignaturePad, { type SignaturePadHandle } from './SignaturePad';
 import {
   WAIVER_ITEMS,
@@ -68,12 +69,8 @@ export function LicenseImageSection(props: LicenseImageSectionProps) {
     );
   }
 
-  // Fill mode
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) props.onPickFile(file);
-  };
-
+  // Fill mode — in-page camera. CameraCapture handles the streaming preview,
+  // shutter button, retake, and gallery fallback for desktop / denied perms.
   return (
     <section>
       <h2 className={sectionTitleClass}>ID / License</h2>
@@ -81,37 +78,10 @@ export function LicenseImageSection(props: LicenseImageSectionProps) {
         Snap a clear photo of your driver's license or government-issued photo ID.
       </p>
 
-      <input
-        type="file"
-        accept="image/*"
-        capture="environment"
-        onChange={handleChange}
-        className="hidden"
-        id="consent-license-input"
+      <CameraCapture
+        previewUrl={props.imagePreviewUrl}
+        onCapture={props.onPickFile}
       />
-
-      {props.imagePreviewUrl ? (
-        <>
-          <div className="rounded-md overflow-hidden border border-border/60 mb-3">
-            <img src={props.imagePreviewUrl} alt="License preview" className="w-full block" />
-          </div>
-          <label
-            htmlFor="consent-license-input"
-            className="w-full py-3 text-sm text-text-s rounded-md border border-border/60 cursor-pointer press-scale transition-all flex items-center justify-center gap-2"
-          >
-            <RotateCcw size={16} />
-            Retake
-          </label>
-        </>
-      ) : (
-        <label
-          htmlFor="consent-license-input"
-          className="w-full aspect-[1.586] rounded-md border-2 border-dashed border-border/60 bg-surface/40 flex flex-col items-center justify-center gap-2 text-text-t cursor-pointer press-scale transition-all active:bg-surface/80"
-        >
-          <Camera size={28} strokeWidth={1.5} />
-          <span className="text-sm">Tap to take a photo</span>
-        </label>
-      )}
 
       {props.analyzing && (
         <div className="mt-3 bg-surface/60 rounded-lg border border-border/30 p-3 flex items-center gap-2">

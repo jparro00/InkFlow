@@ -78,6 +78,14 @@ interface UIStore {
   // tab bar and FAB) rather than inside the Forms page.
   selectedConsentSubmissionId: string | null;
   setSelectedConsentSubmissionId: (id: string | null) => void;
+  // Submission whose "Attach to booking" picker is open. Tapping Approve in
+  // the consent drawer closes the drawer and opens the picker at the AppShell
+  // level — that lets the picker collapse-to-header (drag down) without the
+  // consent drawer hovering behind it. Dismissing the picker does NOT mutate
+  // the submission; the form stays in 'submitted' until the user actually
+  // picks (or creates) a booking.
+  attachToBookingSubmissionId: string | null;
+  setAttachToBookingSubmissionId: (id: string | null) => void;
 }
 
 export const useUIStore = create<UIStore>((set) => ({
@@ -196,5 +204,13 @@ export const useUIStore = create<UIStore>((set) => ({
       return;
     }
     set({ selectedConsentSubmissionId: id });
+  },
+  attachToBookingSubmissionId: null,
+  setAttachToBookingSubmissionId: (id) => {
+    if (id && useUIStore.getState().modalCollapsed) {
+      set((s) => ({ blockedOpenTrigger: s.blockedOpenTrigger + 1 }));
+      return;
+    }
+    set({ attachToBookingSubmissionId: id });
   },
 }));
