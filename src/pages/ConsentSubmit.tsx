@@ -279,12 +279,12 @@ export default function ConsentSubmitPage() {
         {step === 'welcome' && (
           <div className="pt-12 text-center">
             <h2 className="font-display text-2xl text-text-p mb-3">Before your tattoo</h2>
-            <p className="text-base text-text-s leading-relaxed mb-8">
+            <p className="text-md text-text-s leading-relaxed mb-8">
               We need a photo of your government ID, your name and date of birth, and a quick waiver. About 2 minutes.
             </p>
             <button
               onClick={() => setStep('snap_id')}
-              className="w-full py-4 text-base bg-accent text-bg rounded-md font-medium cursor-pointer press-scale transition-all shadow-glow active:shadow-glow-strong min-h-[52px]"
+              className="w-full py-4 text-md bg-accent text-bg rounded-md font-medium cursor-pointer press-scale transition-all shadow-glow active:shadow-glow-strong min-h-[52px]"
             >
               Get started
             </button>
@@ -301,14 +301,14 @@ export default function ConsentSubmitPage() {
             <div className="flex gap-3 pt-2">
               <button
                 onClick={() => setStep('welcome')}
-                className="flex-1 py-3.5 text-base text-text-s rounded-md border border-border/40 cursor-pointer press-scale transition-all min-h-[48px]"
+                className="flex-1 py-3.5 text-md text-text-s rounded-md border border-border/40 cursor-pointer press-scale transition-all min-h-[48px]"
               >
                 Back
               </button>
               <button
                 onClick={handleAdvanceFromSnap}
                 disabled={!licenseFile}
-                className="flex-1 py-3.5 text-base bg-accent text-bg rounded-md font-medium cursor-pointer press-scale transition-all shadow-glow active:shadow-glow-strong disabled:opacity-40 min-h-[48px]"
+                className="flex-1 py-3.5 text-md bg-accent text-bg rounded-md font-medium cursor-pointer press-scale transition-all shadow-glow active:shadow-glow-strong disabled:opacity-40 min-h-[48px]"
               >
                 Next
               </button>
@@ -334,12 +334,12 @@ export default function ConsentSubmitPage() {
             <LicenseFieldsSection mode="fill" value={licenseFields} onChange={setLicenseFields} />
 
             {analyzing && (
-              <div className="bg-surface/60 rounded-lg border border-border/30 p-3 text-sm text-text-s">
+              <div className="bg-surface/60 rounded-lg border border-border/30 p-3 text-base text-text-s">
                 Reading your ID — fields will pre-fill in a moment.
               </div>
             )}
             {!analyzing && ocrSucceeded && (
-              <div className="bg-success/10 border border-success/30 rounded-lg p-3 text-sm text-text-s">
+              <div className="bg-success/10 border border-success/30 rounded-lg p-3 text-base text-text-s">
                 We pulled your name and date of birth from your ID. Please double-check.
               </div>
             )}
@@ -352,21 +352,21 @@ export default function ConsentSubmitPage() {
               onChange={setSignatureEmpty}
             />
 
-            {error && <div className="text-sm text-danger">{error}</div>}
+            {error && <div className="text-base text-danger">{error}</div>}
 
             <div className="flex gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => setStep('snap_id')}
                 disabled={submitting}
-                className="flex-1 py-3.5 text-base text-text-s rounded-md border border-border/40 cursor-pointer press-scale transition-all disabled:opacity-40 min-h-[48px]"
+                className="flex-1 py-3.5 text-md text-text-s rounded-md border border-border/40 cursor-pointer press-scale transition-all disabled:opacity-40 min-h-[48px]"
               >
                 Back
               </button>
               <button
                 type="submit"
                 disabled={!canSubmitFill || submitting}
-                className="flex-1 py-3.5 text-base bg-accent text-bg rounded-md font-medium cursor-pointer press-scale transition-all shadow-glow active:shadow-glow-strong disabled:opacity-40 min-h-[48px]"
+                className="flex-1 py-3.5 text-md bg-accent text-bg rounded-md font-medium cursor-pointer press-scale transition-all shadow-glow active:shadow-glow-strong disabled:opacity-40 min-h-[48px]"
               >
                 {submitting ? 'Submitting…' : 'Submit'}
               </button>
@@ -380,7 +380,7 @@ export default function ConsentSubmitPage() {
               <Check size={32} className="text-success" strokeWidth={2} />
             </div>
             <h2 className="font-display text-2xl text-text-p mb-3">Thanks!</h2>
-            <p className="text-base text-text-s leading-relaxed">
+            <p className="text-md text-text-s leading-relaxed">
               Your consent form has been submitted. Your artist will review it shortly.
             </p>
           </div>

@@ -183,14 +183,14 @@ export default function CameraCapture({ previewUrl, onCapture }: Props) {
             className="absolute inset-0 w-full h-full border-2 border-dashed border-border/60 rounded-md flex flex-col items-center justify-center gap-2 text-text-t cursor-pointer press-scale transition-all active:bg-surface/40"
           >
             <Camera size={28} strokeWidth={1.5} />
-            <span className="text-sm">Tap to take a photo</span>
+            <span className="text-base">Tap to take a photo</span>
           </button>
         )}
 
         {state.kind === 'starting' && (
           <div className="absolute inset-0 flex items-center justify-center text-text-s bg-bg/40">
             <Loader2 size={20} className="animate-spin mr-2" />
-            <span className="text-sm">Starting camera…</span>
+            <span className="text-base">Starting camera…</span>
           </div>
         )}
 
@@ -207,7 +207,7 @@ export default function CameraCapture({ previewUrl, onCapture }: Props) {
               <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-white/85 rounded-br-md" />
             </div>
 
-            <div className="absolute top-3 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-md bg-bg/70 backdrop-blur-sm text-xs text-text-p whitespace-nowrap pointer-events-none">
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-md bg-bg/70 backdrop-blur-sm text-sm text-text-p whitespace-nowrap pointer-events-none">
               Fill the frame with your ID
             </div>
 
@@ -222,7 +222,7 @@ export default function CameraCapture({ previewUrl, onCapture }: Props) {
             <button
               type="button"
               onClick={cancelStream}
-              className="absolute top-3 right-3 px-3 py-1.5 rounded-md bg-bg/70 backdrop-blur-sm text-text-p text-sm cursor-pointer press-scale active:bg-bg"
+              className="absolute top-3 right-3 px-3 py-1.5 rounded-md bg-bg/70 backdrop-blur-sm text-text-p text-base cursor-pointer press-scale active:bg-bg"
             >
               Cancel
             </button>
@@ -235,7 +235,7 @@ export default function CameraCapture({ previewUrl, onCapture }: Props) {
         <button
           type="button"
           onClick={startStream}
-          className="w-full mt-3 py-3 text-sm text-text-s rounded-md border border-border/60 cursor-pointer press-scale transition-all flex items-center justify-center gap-2"
+          className="w-full mt-3 py-3 text-base text-text-s rounded-md border border-border/60 cursor-pointer press-scale transition-all flex items-center justify-center gap-2"
         >
           <RotateCcw size={16} />
           Retake
@@ -246,8 +246,8 @@ export default function CameraCapture({ previewUrl, onCapture }: Props) {
           input so the user can still pick from their gallery. */}
       {state.kind === 'fallback' && (
         <div className="mt-3 space-y-2">
-          {error && <div className="text-sm text-danger">{error}</div>}
-          <label className="w-full py-3 text-sm text-text-s rounded-md border border-border/60 cursor-pointer press-scale transition-all flex items-center justify-center gap-2">
+          {error && <div className="text-base text-danger">{error}</div>}
+          <label className="w-full py-3 text-base text-text-s rounded-md border border-border/60 cursor-pointer press-scale transition-all flex items-center justify-center gap-2">
             <ImageIcon size={16} />
             Pick from gallery
             <input type="file" accept="image/*" onChange={handleFileFallback} className="hidden" />

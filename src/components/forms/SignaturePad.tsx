@@ -215,7 +215,7 @@ const SignaturePad = forwardRef<SignaturePadHandle, Props>(
           <button
             type="button"
             onClick={switchToDraw}
-            className={`px-3 py-1.5 rounded-md text-sm cursor-pointer press-scale transition-all border ${
+            className={`px-3 py-2 rounded-md text-base cursor-pointer press-scale transition-all border ${
               mode === 'draw'
                 ? 'bg-accent/15 border-accent/50 text-accent'
                 : 'bg-input border-border/60 text-text-s'
@@ -226,7 +226,7 @@ const SignaturePad = forwardRef<SignaturePadHandle, Props>(
           <button
             type="button"
             onClick={switchToType}
-            className={`px-3 py-1.5 rounded-md text-sm cursor-pointer press-scale transition-all border ${
+            className={`px-3 py-2 rounded-md text-base cursor-pointer press-scale transition-all border ${
               mode === 'type'
                 ? 'bg-accent/15 border-accent/50 text-accent'
                 : 'bg-input border-border/60 text-text-s'
@@ -239,7 +239,7 @@ const SignaturePad = forwardRef<SignaturePadHandle, Props>(
             type="button"
             onClick={clearAll}
             disabled={isEmpty}
-            className="px-3 py-1.5 rounded-md text-sm cursor-pointer press-scale transition-all border bg-input border-border/60 text-text-s disabled:opacity-40"
+            className="px-3 py-2 rounded-md text-base cursor-pointer press-scale transition-all border bg-input border-border/60 text-text-s disabled:opacity-40"
           >
             Clear
           </button>
@@ -251,7 +251,7 @@ const SignaturePad = forwardRef<SignaturePadHandle, Props>(
             value={typedName}
             onChange={(e) => handleTypedChange(e.target.value)}
             placeholder="Type your full name"
-            className="w-full bg-input border border-border/60 rounded-md px-4 py-3 text-base text-text-p placeholder:text-text-t focus:outline-none focus:border-accent/40 transition-colors min-h-[44px] mb-2"
+            className="w-full bg-input border border-border/60 rounded-md px-4 py-3 text-md text-text-p placeholder:text-text-t focus:outline-none focus:border-accent/40 transition-colors min-h-[48px] mb-2"
           />
         )}
 

@@ -18,11 +18,15 @@ import {
   type WaiverChecksValue,
 } from './consentFormSchema';
 
+// Inputs use text-md (17px) so iOS Safari doesn't auto-zoom on focus —
+// anything under 16px triggers it. The rest of the readability scale is
+// keyed off this: titles → text-lg, body/legal → text-md, labels/hints
+// → text-base, captions → text-sm.
 const inputClass =
-  'w-full bg-input border border-border/60 rounded-md px-4 py-3.5 text-base text-text-p placeholder:text-text-t focus:outline-none focus:border-accent/40 transition-colors min-h-[48px]';
+  'w-full bg-input border border-border/60 rounded-md px-4 py-3.5 text-md text-text-p placeholder:text-text-t focus:outline-none focus:border-accent/40 transition-colors min-h-[48px]';
 
-const sectionTitleClass = 'font-display text-md text-text-p mb-2';
-const sectionHintClass = 'text-sm text-text-t mb-3';
+const sectionTitleClass = 'font-display text-lg text-text-p mb-2';
+const sectionHintClass = 'text-base text-text-t mb-3';
 
 // =============================================================================
 // LicenseImageSection
@@ -87,13 +91,13 @@ export function LicenseImageSection(props: LicenseImageSectionProps) {
       {props.analyzing && (
         <div className="mt-3 bg-surface/60 rounded-lg border border-border/30 p-3 flex items-center gap-2">
           <Loader2 size={16} className="text-accent animate-spin shrink-0" />
-          <div className="text-sm text-text-s">Reading your ID…</div>
+          <div className="text-base text-text-s">Reading your ID…</div>
         </div>
       )}
       {!props.analyzing && props.ocrSucceeded && (
         <div className="mt-3 bg-success/10 border border-success/30 rounded-lg p-3 flex items-center gap-2">
           <Sparkles size={14} className="text-success shrink-0" />
-          <div className="text-sm text-text-s">Your name and date of birth were read from the ID.</div>
+          <div className="text-base text-text-s">Your name and date of birth were read from the ID.</div>
         </div>
       )}
     </section>
@@ -133,7 +137,7 @@ export function LicenseFieldsSection({ mode, value, onChange }: LicenseFieldsSec
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-sm text-text-s mb-1.5 block">First name</label>
+            <label className="text-base text-text-s mb-1.5 block">First name</label>
             <input
               type="text"
               value={value.first_name}
@@ -143,7 +147,7 @@ export function LicenseFieldsSection({ mode, value, onChange }: LicenseFieldsSec
             />
           </div>
           <div>
-            <label className="text-sm text-text-s mb-1.5 block">Last name</label>
+            <label className="text-base text-text-s mb-1.5 block">Last name</label>
             <input
               type="text"
               value={value.last_name}
@@ -154,7 +158,7 @@ export function LicenseFieldsSection({ mode, value, onChange }: LicenseFieldsSec
           </div>
         </div>
         <div>
-          <label className="text-sm text-text-s mb-1.5 block">Date of birth</label>
+          <label className="text-base text-text-s mb-1.5 block">Date of birth</label>
           <input
             type="date"
             value={value.dob}
@@ -191,7 +195,7 @@ export function WaiverChecksSection({ mode, value, onChange }: WaiverChecksSecti
           if (mode === 'review') {
             return (
               <li key={item.key} className="flex items-center gap-3">
-                <span className={`text-sm leading-relaxed flex-1 ${checked ? 'text-text-s' : 'text-text-t'}`}>
+                <span className={`text-md leading-relaxed flex-1 ${checked ? 'text-text-s' : 'text-text-t'}`}>
                   {item.label}
                 </span>
                 {checked ? (
@@ -209,7 +213,7 @@ export function WaiverChecksSection({ mode, value, onChange }: WaiverChecksSecti
           return (
             <li key={item.key}>
               <label className="flex items-center gap-3 cursor-pointer">
-                <span className="text-sm text-text-s leading-relaxed flex-1">{item.label}</span>
+                <span className="text-md text-text-s leading-relaxed flex-1">{item.label}</span>
                 <input
                   type="checkbox"
                   checked={checked}
@@ -248,9 +252,9 @@ type SignatureSectionProps = SignatureSectionFillProps | SignatureSectionReviewP
 
 function DateLine({ date }: { date: Date }) {
   return (
-    <div className="mt-2 flex items-baseline gap-2 text-xs text-text-t">
-      <span className="font-medium uppercase tracking-wider">Date</span>
-      <span className="text-text-s">{format(date, 'PP')}</span>
+    <div className="mt-2 flex items-baseline gap-2 text-text-t">
+      <span className="text-sm font-medium uppercase tracking-wider">Date</span>
+      <span className="text-base text-text-s">{format(date, 'PP')}</span>
     </div>
   );
 }
