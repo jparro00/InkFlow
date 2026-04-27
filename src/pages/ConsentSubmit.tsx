@@ -1,16 +1,12 @@
 // Public consent-form wizard for clients (no Supabase session). Lives outside
-// ProtectedRoute. Three steps after the welcome:
+// ProtectedRoute. Two steps after the welcome:
 //
 //   1. snap_id     — capture the license photo. The blob is uploaded to R2
 //                    immediately on Next so Textract can run while the user
-//                    fills out the form, and so the review step can use the
-//                    same already-uploaded blob without a second PUT.
+//                    fills out the form.
 //   2. fill_form   — name + DOB at the top, waiver checkboxes + signature
-//                    below. Single scroll. Email / phone / health questions /
-//                    emergency contact are not collected in v1.
-//   3. review      — renders the form via the same section components the
-//                    artist sees in their review drawer. What the user sees
-//                    here is what the artist sees once they tap the row.
+//                    below. Submit fires straight from here; there's no
+//                    review step (the artist reviews on their side).
 
 import { useState, useRef, useMemo } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
@@ -33,7 +29,7 @@ import type { SignaturePadHandle } from '../components/forms/SignaturePad';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
-type Step = 'welcome' | 'snap_id' | 'fill_form' | 'review' | 'done';
+type Step = 'welcome' | 'snap_id' | 'fill_form' | 'done';
 
 async function callConsentUploadUrl(params: {
   artist_id: string;
@@ -135,13 +131,10 @@ export default function ConsentSubmitPage() {
   const [licenseFields, setLicenseFields] = useState<LicenseFieldsValue>(emptyLicenseFields);
   const [waiver, setWaiver] = useState<WaiverChecksValue>(emptyWaiverChecks);
 
-  // Signature: ref for grabbing the blob; signatureBlobUrl set at fill→review
-  // transition so the review step can show what they signed without uploading
-  // it yet.
+  // Signature: ref grabs the blob lazily inside handleSubmit. We don't keep
+  // it in state any more — there's no preview step that needs to render it.
   const signatureRef = useRef<SignaturePadHandle>(null);
   const [signatureEmpty, setSignatureEmpty] = useState(true);
-  const [signatureBlob, setSignatureBlob] = useState<Blob | null>(null);
-  const [signatureBlobUrl, setSignatureBlobUrl] = useState<string | null>(null);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -206,21 +199,6 @@ export default function ConsentSubmitPage() {
     if (!licenseKey) uploadAndAnalyzeLicense();
   };
 
-  const handleAdvanceFromFill = async () => {
-    // Capture signature now so the review step can preview it without
-    // uploading. Final upload happens at submit time.
-    const blob = await signatureRef.current?.toBlob();
-    if (blob) {
-      setSignatureBlob(blob);
-      // Replace any prior URL so we don't leak.
-      setSignatureBlobUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return URL.createObjectURL(blob);
-      });
-    }
-    setStep('review');
-  };
-
   const allRequiredChecked = REQUIRED_WAIVER_KEYS.every((k) => waiver[k] === true);
   const personalInfoFilled =
     licenseFields.first_name.trim() &&
@@ -247,9 +225,9 @@ export default function ConsentSubmitPage() {
         licenseKeyToSubmit = upload.key;
       }
 
-      // Signature upload
+      // Signature upload — grab the blob fresh from the pad.
       let signatureKey: string | null = null;
-      const sigBlob = signatureBlob ?? (await signatureRef.current?.toBlob() ?? null);
+      const sigBlob = (await signatureRef.current?.toBlob()) ?? null;
       if (sigBlob) {
         const upload = await callConsentUploadUrl({
           artist_id: artistId,
@@ -286,13 +264,18 @@ export default function ConsentSubmitPage() {
   };
 
   return (
-    <div className="min-h-screen bg-bg flex flex-col">
+    // 100dvh tracks the visual viewport: when iOS Safari shows or hides its
+    // URL bar, our layout doesn't shift underneath the user — the submit
+    // button stays where their finger is going. Combined with the form
+    // wrapper below this prevents the "tap submit, URL bar appears, tap
+    // again" double-press iOS double-press behavior.
+    <div className="min-h-[100dvh] bg-bg flex flex-col">
       <header className="px-5 pt-8 pb-4 flex items-center gap-3 max-w-2xl w-full mx-auto">
         <FileSignature size={22} className="text-accent" />
         <h1 className="font-display text-xl text-text-p">Consent form</h1>
       </header>
 
-      <div className="flex-1 px-5 pb-12 max-w-2xl w-full mx-auto">
+      <div className="flex-1 px-5 pb-24 max-w-2xl w-full mx-auto">
         {step === 'welcome' && (
           <div className="pt-12 text-center">
             <h2 className="font-display text-2xl text-text-p mb-3">Before your tattoo</h2>
@@ -334,7 +317,20 @@ export default function ConsentSubmitPage() {
         )}
 
         {step === 'fill_form' && (
-          <div className="pt-4 space-y-6">
+          // Wrapping in a <form> with onSubmit handles the iOS edge case
+          // where tapping a plain button while a date / text input is focused
+          // dismisses the keyboard first and the click misses. With form
+          // semantics iOS commits the submission cleanly on the first tap.
+          <form
+            className="pt-4 space-y-6"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (document.activeElement instanceof HTMLElement) {
+                document.activeElement.blur();
+              }
+              if (canSubmitFill && !submitting) handleSubmit();
+            }}
+          >
             <LicenseFieldsSection mode="fill" value={licenseFields} onChange={setLicenseFields} />
 
             {analyzing && (
@@ -356,62 +352,26 @@ export default function ConsentSubmitPage() {
               onChange={setSignatureEmpty}
             />
 
-            <div className="flex gap-3 pt-2">
-              <button
-                onClick={() => setStep('snap_id')}
-                className="flex-1 py-3.5 text-base text-text-s rounded-md border border-border/40 cursor-pointer press-scale transition-all min-h-[48px]"
-              >
-                Back
-              </button>
-              <button
-                onClick={handleAdvanceFromFill}
-                disabled={!canSubmitFill}
-                className="flex-1 py-3.5 text-base bg-accent text-bg rounded-md font-medium cursor-pointer press-scale transition-all shadow-glow active:shadow-glow-strong disabled:opacity-40 min-h-[48px]"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        )}
-
-        {step === 'review' && (
-          <div className="pt-4 space-y-6">
-            <p className="text-sm text-text-t">
-              This is what your artist will see. Confirm everything looks right, then submit.
-            </p>
-
-            <LicenseImageSection
-              mode="review"
-              imageUrl={licensePreviewUrl}
-              hasImage={Boolean(licensePreviewUrl)}
-            />
-            <LicenseFieldsSection mode="review" value={licenseFields} />
-            <WaiverChecksSection mode="review" value={waiver} />
-            <SignatureSection
-              mode="review"
-              signatureUrl={signatureBlobUrl}
-              hasSignature={Boolean(signatureBlobUrl)}
-            />
-
             {error && <div className="text-sm text-danger">{error}</div>}
 
             <div className="flex gap-3 pt-2">
               <button
-                onClick={() => setStep('fill_form')}
+                type="button"
+                onClick={() => setStep('snap_id')}
                 disabled={submitting}
                 className="flex-1 py-3.5 text-base text-text-s rounded-md border border-border/40 cursor-pointer press-scale transition-all disabled:opacity-40 min-h-[48px]"
               >
                 Back
               </button>
               <button
-                onClick={handleSubmit}
-                disabled={submitting}
+                type="submit"
+                disabled={!canSubmitFill || submitting}
                 className="flex-1 py-3.5 text-base bg-accent text-bg rounded-md font-medium cursor-pointer press-scale transition-all shadow-glow active:shadow-glow-strong disabled:opacity-40 min-h-[48px]"
               >
                 {submitting ? 'Submitting…' : 'Submit'}
               </button>
             </div>
-          </div>
+          </form>
         )}
 
         {step === 'done' && (
