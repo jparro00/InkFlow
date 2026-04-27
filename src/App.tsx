@@ -15,7 +15,6 @@ const MessagesPage = lazy(() => import('./pages/Messages'));
 const ThemePage = lazy(() => import('./pages/Theme'));
 const FeedbackPage = lazy(() => import('./pages/Feedback'));
 const FormsPage = lazy(() => import('./pages/Forms'));
-const FormDetailPage = lazy(() => import('./pages/FormDetail'));
 const ConsentSubmitPage = lazy(() => import('./pages/ConsentSubmit'));
 const DataLoader = lazy(() => import('./contexts/DataLoader'));
 
@@ -108,7 +107,6 @@ function AppContent() {
           <Route path="/theme" element={<ThemePage />} />
           <Route path="/feedback" element={<FeedbackPage />} />
           <Route path="/forms" element={<FormsPage />} />
-          <Route path="/forms/:id" element={<FormDetailPage />} />
         </Route>
       </Routes>
     </Suspense>
