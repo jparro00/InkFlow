@@ -223,34 +223,41 @@ export async function buildConsentPdfBytes(
 
   // --- Tattoo section -----------------------------------------------------
   cursor = drawSectionTitle(page, cursor, 'Tattoo', helvBold);
-  cursor = drawField('Location', data.tattoo.location, cursor);
 
-  // Description: label on its own line, then a bordered block underneath.
-  page.drawText('Description', {
-    x: MARGIN,
-    y: cursor - 9,
-    size: 10,
-    font: helv,
-    color: C_GREY,
-  });
-  cursor -= 14;
-  const descLines = wrapText(data.tattoo.description || '—', CONTENT_W - 16, helv, 10);
-  const descLineHeight = 13;
-  const descBlockH = Math.max(40, descLines.length * descLineHeight + 12);
-  page.drawRectangle({
-    x: MARGIN,
-    y: cursor - descBlockH,
-    width: CONTENT_W,
-    height: descBlockH,
-    borderColor: C_LINE,
-    borderWidth: 0.6,
-  });
-  let descY = cursor - 14;
-  for (const line of descLines) {
-    page.drawText(line, { x: MARGIN + 8, y: descY, size: 10, font: helv, color: C_BLACK });
-    descY -= descLineHeight;
-  }
-  cursor -= descBlockH + 14;
+  // Both location and description render as bordered text blocks. They're
+  // free-form fields and a box visually communicates "this is what they
+  // said" rather than a single-line database value.
+  const drawTextBlock = (label: string, value: string, minHeight: number, y: number): number => {
+    page.drawText(label, {
+      x: MARGIN,
+      y: y - 9,
+      size: 10,
+      font: helv,
+      color: C_GREY,
+    });
+    y -= 14;
+    const lines = wrapText(value || '—', CONTENT_W - 16, helv, 10);
+    const lineH = 13;
+    const blockH = Math.max(minHeight, lines.length * lineH + 12);
+    page.drawRectangle({
+      x: MARGIN,
+      y: y - blockH,
+      width: CONTENT_W,
+      height: blockH,
+      borderColor: C_LINE,
+      borderWidth: 0.6,
+    });
+    let lineY = y - 14;
+    for (const line of lines) {
+      page.drawText(line, { x: MARGIN + 8, y: lineY, size: 10, font: helv, color: C_BLACK });
+      lineY -= lineH;
+    }
+    return y - blockH - 8;
+  };
+
+  cursor = drawTextBlock('Location', data.tattoo.location, 28, cursor);
+  cursor = drawTextBlock('Description', data.tattoo.description, 40, cursor);
+  cursor -= 6;
 
   // --- Consent statements -------------------------------------------------
   cursor = drawSectionTitle(page, cursor, 'Consent statements', helvBold);
@@ -281,31 +288,30 @@ export async function buildConsentPdfBytes(
   cursor -= 4;
 
   // --- Signature ----------------------------------------------------------
+  // Standard legal-doc signature line: thin horizontal rule, signature image
+  // floats above it, label below. Date renders in a parallel column on the
+  // right. This visual is what people recognize as a "signed document" — a
+  // big bordered box looks like a placeholder, not a finished signature.
   cursor = drawSectionTitle(page, cursor, 'Signature', helvBold);
 
-  const sigBoxW = CONTENT_W;
-  const sigBoxH = 70;
-  page.drawRectangle({
-    x: MARGIN,
-    y: cursor - sigBoxH,
-    width: sigBoxW,
-    height: sigBoxH,
-    borderColor: C_LINE,
-    borderWidth: 0.6,
-    color: rgb(1, 1, 1),
-  });
+  const sigColX = MARGIN;
+  const sigColW = 280;
+  const dateColW = 160;
+  const dateColX = MARGIN + CONTENT_W - dateColW;
+  const sigImageH = 32;
+
+  // Reserve space above the lines for the signature image / date text.
+  const sigImageBottomY = cursor - sigImageH;
 
   if (data.signaturePngBytes) {
     try {
       const sigImg = await doc.embedPng(data.signaturePngBytes);
-      // Fit-contain inside the signature box with a small padding.
-      const pad = 6;
-      const innerW = sigBoxW - pad * 2;
-      const innerH = sigBoxH - pad * 2;
-      const sigDims = sigImg.scaleToFit(innerW, innerH);
+      // Fit-contain inside the signature column at full height. No border —
+      // the line below is the visual anchor.
+      const sigDims = sigImg.scaleToFit(sigColW, sigImageH);
       page.drawImage(sigImg, {
-        x: MARGIN + (sigBoxW - sigDims.width) / 2,
-        y: cursor - sigBoxH + (sigBoxH - sigDims.height) / 2,
+        x: sigColX,
+        y: sigImageBottomY + (sigImageH - sigDims.height) / 2,
         width: sigDims.width,
         height: sigDims.height,
       });
@@ -313,20 +319,68 @@ export async function buildConsentPdfBytes(
       console.warn('failed to embed signature into PDF', e);
     }
   }
-  cursor -= sigBoxH + 8;
 
-  // Signature caption (always rendered; just doesn't reference a real
-  // signature when finalize is false).
-  const captionPrefix = opts.finalize ? 'Signed by ' : 'To be signed by ';
-  const captionText = `${captionPrefix}${fullName(data.license) || '—'} on ${dateStr}.`;
-  page.drawText(captionText, {
-    x: MARGIN,
-    y: cursor - 9,
-    size: 9,
+  // Date text sits in the date column at roughly the same vertical center as
+  // the signature image so they read as a paired row.
+  if (opts.finalize) {
+    page.drawText(dateStr, {
+      x: dateColX,
+      y: sigImageBottomY + 9,
+      size: 11,
+      font: helv,
+      color: C_BLACK,
+    });
+  }
+
+  cursor = sigImageBottomY - 2;
+
+  // Two parallel horizontal rules — the signature line and the date line.
+  page.drawLine({
+    start: { x: sigColX, y: cursor },
+    end: { x: sigColX + sigColW, y: cursor },
+    thickness: 0.7,
+    color: C_BLACK,
+  });
+  page.drawLine({
+    start: { x: dateColX, y: cursor },
+    end: { x: dateColX + dateColW, y: cursor },
+    thickness: 0.7,
+    color: C_BLACK,
+  });
+
+  cursor -= 11;
+
+  // Labels below each line, in caps grey — same treatment as section titles
+  // so they read as field headers, not body text.
+  page.drawText('SIGNATURE', {
+    x: sigColX,
+    y: cursor - 8,
+    size: 8,
     font: helv,
     color: C_GREY,
   });
-  cursor -= 16;
+  page.drawText('DATE', {
+    x: dateColX,
+    y: cursor - 8,
+    size: 8,
+    font: helv,
+    color: C_GREY,
+  });
+  cursor -= 12;
+
+  // Printed name under the signature label — standard for "x signed"
+  // documents and useful when handwritten signatures are illegible.
+  const signerName = fullName(data.license);
+  if (signerName) {
+    page.drawText(signerName, {
+      x: sigColX,
+      y: cursor - 9,
+      size: 10,
+      font: helv,
+      color: C_BLACK,
+    });
+    cursor -= 14;
+  }
 
   // --- Footer (visible) ---------------------------------------------------
   // Always near the bottom edge, regardless of how the content laid out.

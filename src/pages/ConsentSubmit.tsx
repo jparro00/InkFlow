@@ -600,7 +600,7 @@ export default function ConsentSubmitPage() {
             >
               {pdfPreviewUrl ? (
                 <iframe
-                  src={`${pdfPreviewUrl}#toolbar=0&navpanes=0&view=FitH`}
+                  src={`${pdfPreviewUrl}#toolbar=0&navpanes=0&scrollbar=0&view=Fit`}
                   title="Consent form preview"
                   className="block w-full h-full"
                 />

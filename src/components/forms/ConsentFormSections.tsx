@@ -196,12 +196,11 @@ export function TattooDetailsSection({ value, onChange }: TattooDetailsSectionPr
       <div className="space-y-3">
         <div>
           <label className="text-base text-text-s mb-1.5 block">Location on body</label>
-          <input
-            type="text"
+          <textarea
             value={value.location}
-            onChange={(e) => set({ location: e.target.value.slice(0, 120) })}
+            onChange={(e) => set({ location: e.target.value.slice(0, 200) })}
             placeholder="e.g. Right forearm"
-            className={inputClass}
+            className={`${inputClass} h-20 resize-none`}
           />
         </div>
         <div>

@@ -122,7 +122,7 @@ function PdfPreviewSection({ pdfUrl, hasPdf, onFullscreen }: PdfPreviewSectionPr
           aria-label="View full screen"
         >
           <iframe
-            src={`${pdfUrl}#toolbar=0&navpanes=0&view=FitH`}
+            src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0&view=Fit`}
             title="Signed consent PDF"
             className="absolute inset-0 w-full h-full pointer-events-none"
           />
@@ -166,7 +166,7 @@ function PdfFullscreenViewer({ url, onClose }: { url: string; onClose: () => voi
         </button>
       </div>
       <iframe
-        src={`${url}#view=FitH`}
+        src={`${url}#view=Fit`}
         title="Signed consent PDF"
         className="flex-1 w-full bg-white"
       />
