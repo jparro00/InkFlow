@@ -57,11 +57,43 @@ export default function SettingsPage() {
   const [eveningTime, setEveningTime] = useState(() => localStorage.getItem('inkbloop-evening-time') ?? '18:00');
   const [timesSaved, setTimesSaved] = useState(false);
 
-  // Studio name shown at the top of generated consent PDFs. Persisted to
-  // localStorage for now; will move to a profile/template table when
-  // configurable templates land. Empty falls back to a generic title.
-  const [studioName, setStudioName] = useState(() => localStorage.getItem('inkbloop-studio-name') ?? '');
+  // Studio name shown at the top of every consent PDF AND substituted into
+  // 11 of the 12 waiver statements ("{studio} has given me…"). Persisted in
+  // the studio_profiles table because the public consent flow (anonymous
+  // client device) needs to read it — localStorage on the artist's own
+  // device wouldn't be visible there.
+  const [studioName, setStudioName] = useState('');
   const [studioNameSaved, setStudioNameSaved] = useState(false);
+  const studioUserId = session?.user?.id;
+  useEffect(() => {
+    if (!studioUserId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('studio_profiles')
+        .select('studio_name')
+        .eq('user_id', studioUserId)
+        .maybeSingle();
+      if (cancelled) return;
+      if (data?.studio_name) {
+        setStudioName(data.studio_name);
+        return;
+      }
+      // One-shot migration: if the row is empty but the artist has a value
+      // in localStorage from the pre-table era, write it through and clear
+      // the legacy storage.
+      const legacy = localStorage.getItem('inkbloop-studio-name');
+      if (legacy) {
+        await supabase.from('studio_profiles').upsert({
+          user_id: studioUserId,
+          studio_name: legacy,
+        });
+        localStorage.removeItem('inkbloop-studio-name');
+        setStudioName(legacy);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [studioUserId]);
 
   const [theme, setTheme] = useState<ThemeId>(() => getTheme());
 
@@ -231,13 +263,13 @@ export default function SettingsPage() {
                   maxLength={80}
                 />
                 <button
-                  onClick={() => {
+                  onClick={async () => {
+                    if (!studioUserId) return;
                     const trimmed = studioName.trim();
-                    if (trimmed) {
-                      localStorage.setItem('inkbloop-studio-name', trimmed);
-                    } else {
-                      localStorage.removeItem('inkbloop-studio-name');
-                    }
+                    await supabase.from('studio_profiles').upsert({
+                      user_id: studioUserId,
+                      studio_name: trimmed || null,
+                    });
                     setStudioName(trimmed);
                     setStudioNameSaved(true);
                     setTimeout(() => setStudioNameSaved(false), 2000);

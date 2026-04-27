@@ -53,6 +53,7 @@ import {
   sha256Hex,
   type ConsentPDFData,
 } from '../components/forms/ConsentPDF';
+import { supabase } from '../lib/supabase';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
@@ -311,10 +312,24 @@ export default function ConsentSubmitPage() {
   const tattooFilled = tattoo.location.trim() && tattoo.description.trim();
   const fillFormReady = Boolean(personalInfoFilled && tattooFilled && allRequiredChecked);
 
-  const studioName = useMemo(() => {
-    if (typeof localStorage === 'undefined') return '';
-    return localStorage.getItem('inkbloop-studio-name') ?? '';
-  }, []);
+  // Studio name is fetched from studio_profiles (public-read RLS) since the
+  // public client device has no access to the artist's localStorage. Drives
+  // both the PDF header and the {studio} substitution in waiver statements.
+  const [studioName, setStudioName] = useState('');
+  useEffect(() => {
+    if (!artistId || !isUuid(artistId)) return;
+    let cancelled = false;
+    supabase
+      .from('studio_profiles')
+      .select('studio_name')
+      .eq('user_id', artistId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled || !data?.studio_name) return;
+        setStudioName(data.studio_name);
+      });
+    return () => { cancelled = true; };
+  }, [artistId]);
 
   // Builds a ConsentPDFData snapshot from current state. Re-computed by the
   // useEffect below whenever any of the inputs change.
@@ -594,7 +609,7 @@ export default function ConsentSubmitPage() {
             )}
 
             <TattooDetailsSection value={tattoo} onChange={setTattoo} />
-            <WaiverChecksSection mode="fill" value={waiver} onChange={setWaiver} />
+            <WaiverChecksSection mode="fill" value={waiver} onChange={setWaiver} studioName={studioName} />
 
             {error && <div className="text-base text-danger">{error}</div>}
 
