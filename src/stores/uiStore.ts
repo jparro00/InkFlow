@@ -72,6 +72,12 @@ interface UIStore {
   // BookingForm complete the round-trip on save.
   pendingConsentSubmissionId: string | null;
   setPendingConsentSubmissionId: (id: string | null) => void;
+  // The currently-open consent submission in the artist's review drawer.
+  // Mirrors the selectedBookingId / selectedConversationId pattern so the
+  // drawer can render at the AppShell root (where z-index works against the
+  // tab bar and FAB) rather than inside the Forms page.
+  selectedConsentSubmissionId: string | null;
+  setSelectedConsentSubmissionId: (id: string | null) => void;
 }
 
 export const useUIStore = create<UIStore>((set) => ({
@@ -183,4 +189,12 @@ export const useUIStore = create<UIStore>((set) => ({
   setPrefillFeedbackText: (text) => set({ prefillFeedbackText: text }),
   pendingConsentSubmissionId: null,
   setPendingConsentSubmissionId: (id) => set({ pendingConsentSubmissionId: id }),
+  selectedConsentSubmissionId: null,
+  setSelectedConsentSubmissionId: (id) => {
+    if (id && useUIStore.getState().modalCollapsed) {
+      set((s) => ({ blockedOpenTrigger: s.blockedOpenTrigger + 1 }));
+      return;
+    }
+    set({ selectedConsentSubmissionId: id });
+  },
 }));

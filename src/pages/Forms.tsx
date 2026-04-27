@@ -4,7 +4,6 @@ import { useUIStore } from '../stores/uiStore';
 import { useConsentSubmissionStore } from '../stores/consentSubmissionStore';
 import { consentSubmissionDisplayName } from '../types';
 import type { ConsentSubmission, ConsentSubmissionStatus } from '../types';
-import ConsentFormDrawer from '../components/forms/ConsentFormDrawer';
 
 const groupOrder: ConsentSubmissionStatus[] = ['submitted', 'approved_pending', 'finalized'];
 
@@ -36,11 +35,13 @@ function formatRelative(iso: string): string {
 
 export default function FormsPage() {
   const { setHeaderLeft, setHeaderRight } = useUIStore();
+  const setSelectedConsentSubmissionId = useUIStore(
+    (s) => s.setSelectedConsentSubmissionId,
+  );
   const submissions = useConsentSubmissionStore((s) => s.submissions);
   const isLoading = useConsentSubmissionStore((s) => s.isLoading);
   const fetchSubmissions = useConsentSubmissionStore((s) => s.fetchSubmissions);
   const [refreshing, setRefreshing] = useState(false);
-  const [openSubmissionId, setOpenSubmissionId] = useState<string | null>(null);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -116,7 +117,7 @@ export default function FormsPage() {
                 {items.map((s) => (
                   <button
                     key={s.id}
-                    onClick={() => setOpenSubmissionId(s.id)}
+                    onClick={() => setSelectedConsentSubmissionId(s.id)}
                     className="w-full bg-surface/60 rounded-lg border border-border/30 px-4 py-3.5 flex items-center justify-between cursor-pointer press-scale transition-all active:bg-elevated/40 text-left"
                   >
                     <div className="min-w-0 flex-1">
@@ -135,11 +136,6 @@ export default function FormsPage() {
           );
         })}
       </div>
-
-      <ConsentFormDrawer
-        submissionId={openSubmissionId}
-        onClose={() => setOpenSubmissionId(null)}
-      />
     </div>
   );
 }

@@ -21,6 +21,7 @@ const AgentPanel = lazy(() => import('../agent/AgentPanel'));
 const AgentFeedbackPrompt = lazy(() => import('../agent/AgentFeedbackPrompt'));
 const SearchOverlay = lazy(() => import('../../pages/Search'));
 const ConversationDrawer = lazy(() => import('../messaging/ConversationDrawer'));
+const ConsentFormDrawer = lazy(() => import('../forms/ConsentFormDrawer'));
 const ToastContainer = lazy(() => import('../common/Toast'));
 
 export default function AppShell() {
@@ -34,6 +35,7 @@ export default function AppShell() {
     editingClientId,
     setEditingClientId,
     selectedConversationId,
+    selectedConsentSubmissionId,
     confirmDialogOpen,
   } = useUIStore();
   const editingClient = useClientStore((s) => editingClientId ? s.clients.find((c) => c.id === editingClientId) : undefined);
@@ -116,6 +118,10 @@ export default function AppShell() {
 
         <AnimatePresence>
           {selectedConversationId && <ConversationDrawer />}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {selectedConsentSubmissionId && <ConsentFormDrawer />}
         </AnimatePresence>
 
         <AnimatePresence>

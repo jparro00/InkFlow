@@ -27,11 +27,6 @@ import {
   type ConsentSubmissionStatus,
 } from '../../types';
 
-interface Props {
-  submissionId: string | null;
-  onClose: () => void;
-}
-
 const statusLabels: Record<ConsentSubmissionStatus, string> = {
   submitted: 'Awaiting review',
   approved_pending: 'Pending paperwork',
@@ -52,13 +47,19 @@ function StatusBadge({ status }: { status: ConsentSubmissionStatus }) {
   );
 }
 
-export default function ConsentFormDrawer({ submissionId, onClose }: Props) {
-  // Pull live submission data from the store so realtime updates flow in
-  // without re-rendering decisions at the call site.
+export default function ConsentFormDrawer() {
+  // Open state lives in uiStore so AppShell can render this drawer at the
+  // root level (correct z-index against tab bar + FAB). Mirrors the same
+  // pattern used by BookingDrawer / ConversationDrawer.
+  const submissionId = useUIStore((s) => s.selectedConsentSubmissionId);
+  const setSelectedConsentSubmissionId = useUIStore(
+    (s) => s.setSelectedConsentSubmissionId,
+  );
   const submission = useConsentSubmissionStore((s) =>
     submissionId ? s.submissions.find((sub) => sub.id === submissionId) : undefined,
   );
   if (!submissionId || !submission) return null;
+  const onClose = () => setSelectedConsentSubmissionId(null);
   return (
     <Modal title={consentSubmissionDisplayName(submission)} onClose={onClose}>
       <DrawerBody submission={submission} />
@@ -72,6 +73,9 @@ function DrawerBody({ submission }: { submission: ConsentSubmission }) {
   const approveSubmission = useConsentSubmissionStore((s) => s.approveSubmission);
   const rejectSubmission = useConsentSubmissionStore((s) => s.rejectSubmission);
   const addToast = useUIStore((s) => s.addToast);
+  const setSelectedConsentSubmissionId = useUIStore(
+    (s) => s.setSelectedConsentSubmissionId,
+  );
 
   const attachedBooking = useMemo(() => {
     if (!submission.booking_id) return undefined;
@@ -107,8 +111,7 @@ function DrawerBody({ submission }: { submission: ConsentSubmission }) {
     try {
       await rejectSubmission(submission.id);
       addToast('Form rejected');
-      // Close the drawer — the row is gone from the store, parent's
-      // submissionId now points at nothing (next render returns null).
+      setSelectedConsentSubmissionId(null);
     } catch (e) {
       console.error(e);
       addToast('Failed to reject form');
