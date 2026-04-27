@@ -69,13 +69,29 @@ export async function updateConsentSubmission(
   return toConsentSubmission(data);
 }
 
+/**
+ * Reject = delete the row AND purge the R2 license + signature blobs. Goes
+ * through the consent-reject edge function so R2 cleanup happens server-side
+ * with the artist's auth check; a plain DELETE through PostgREST would orphan
+ * the images in storage.
+ */
 export async function deleteConsentSubmission(id: string): Promise<void> {
-  const { error } = await supabase
-    .from('consent_submissions')
-    .delete()
-    .eq('id', id);
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error('not signed in');
 
-  if (error) throw error;
+  const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/consent-reject`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ id }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`consent-reject failed: ${res.status} ${text}`);
+  }
 }
 
 /**
