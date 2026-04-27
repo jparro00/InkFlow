@@ -572,6 +572,105 @@ export interface Database {
           },
         ];
       };
+      consent_submissions: {
+        Row: {
+          id: string;
+          user_id: string;
+          status: 'submitted' | 'approved_pending' | 'finalized';
+          license_image_key: string | null;
+          license_first_name: string | null;
+          license_last_name: string | null;
+          license_dob: string | null;
+          license_number: string | null;
+          license_address: string | null;
+          license_state: string | null;
+          license_expiry: string | null;
+          license_raw_data: Json | null;
+          form_data: Json;
+          signature_image_key: string | null;
+          booking_id: string | null;
+          payment_type: string | null;
+          payment_amount: number | null;
+          tattoo_location: string | null;
+          tattoo_description: string | null;
+          submitted_at: string;
+          approved_at: string | null;
+          finalized_at: string | null;
+          client_ip: string | null;
+          client_user_agent: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          status?: 'submitted' | 'approved_pending' | 'finalized';
+          license_image_key?: string | null;
+          license_first_name?: string | null;
+          license_last_name?: string | null;
+          license_dob?: string | null;
+          license_number?: string | null;
+          license_address?: string | null;
+          license_state?: string | null;
+          license_expiry?: string | null;
+          license_raw_data?: Json | null;
+          form_data?: Json;
+          signature_image_key?: string | null;
+          booking_id?: string | null;
+          payment_type?: string | null;
+          payment_amount?: number | null;
+          tattoo_location?: string | null;
+          tattoo_description?: string | null;
+          submitted_at?: string;
+          approved_at?: string | null;
+          finalized_at?: string | null;
+          client_ip?: string | null;
+          client_user_agent?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          status?: 'submitted' | 'approved_pending' | 'finalized';
+          license_image_key?: string | null;
+          license_first_name?: string | null;
+          license_last_name?: string | null;
+          license_dob?: string | null;
+          license_number?: string | null;
+          license_address?: string | null;
+          license_state?: string | null;
+          license_expiry?: string | null;
+          license_raw_data?: Json | null;
+          form_data?: Json;
+          signature_image_key?: string | null;
+          booking_id?: string | null;
+          payment_type?: string | null;
+          payment_amount?: number | null;
+          tattoo_location?: string | null;
+          tattoo_description?: string | null;
+          submitted_at?: string;
+          approved_at?: string | null;
+          finalized_at?: string | null;
+          client_ip?: string | null;
+          client_user_agent?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'consent_submissions_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'consent_submissions_booking_id_fkey';
+            columns: ['booking_id'];
+            isOneToOne: false;
+            referencedRelation: 'bookings';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

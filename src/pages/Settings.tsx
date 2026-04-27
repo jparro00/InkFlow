@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { ChevronRight } from 'lucide-react';
 import { useUIStore } from '../stores/uiStore';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -174,6 +176,22 @@ export default function SettingsPage() {
                 );
               })}
             </div>
+          </div>
+        </section>
+
+        <section className={sectionClass}>
+          <h2 className="text-md text-text-p font-display mb-3">Support</h2>
+          <div className={cardClass}>
+            <Link
+              to="/feedback"
+              className={`${rowClass} -m-2 px-2 rounded-md cursor-pointer press-scale active:bg-elevated/40 transition-colors`}
+            >
+              <div>
+                <div className="text-base text-text-p">Feedback</div>
+                <div className="text-sm text-text-t mt-1">Tell us what you think.</div>
+              </div>
+              <ChevronRight size={18} className="text-text-t" />
+            </Link>
           </div>
         </section>
 

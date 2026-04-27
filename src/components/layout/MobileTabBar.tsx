@@ -1,12 +1,13 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { Calendar, Users, MessageCircle, MessageSquareText, Settings } from 'lucide-react';
+import { Calendar, Users, MessageCircle, FileSignature, Settings } from 'lucide-react';
 import { useUIStore } from '../../stores/uiStore';
+import { useConsentSubmissionStore } from '../../stores/consentSubmissionStore';
 
 const tabs = [
   { to: '/', icon: Calendar, label: 'Calendar' },
   { to: '/clients', icon: Users, label: 'Clients' },
   { to: '/messages', icon: MessageCircle, label: 'Messages' },
-  { to: '/feedback', icon: MessageSquareText, label: 'Feedback' },
+  { to: '/forms', icon: FileSignature, label: 'Forms' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 
@@ -16,6 +17,9 @@ export default function MobileTabBar() {
   const scrollToCurrentMonth = useUIStore((s) => s.scrollToCurrentMonth);
   const calendarView = useUIStore((s) => s.calendarView);
   const location = useLocation();
+  const submissionsAwaitingReview = useConsentSubmissionStore(
+    (s) => s.submissions.filter((sub) => sub.status === 'submitted').length,
+  );
 
   const handleTabClick = (to: string) => {
     if (to === '/' && location.pathname === '/') {
@@ -49,11 +53,21 @@ export default function MobileTabBar() {
             >
               {({ isActive }) => (
                 <>
-                  <Icon
-                    size={24}
-                    strokeWidth={1.5}
-                    style={isActive ? { filter: 'drop-shadow(0 0 6px rgba(var(--accent-rgb),0.5)) drop-shadow(0 0 14px rgba(var(--accent-rgb),0.25))' } : undefined}
-                  />
+                  <div className="relative">
+                    <Icon
+                      size={24}
+                      strokeWidth={1.5}
+                      style={isActive ? { filter: 'drop-shadow(0 0 6px rgba(var(--accent-rgb),0.5)) drop-shadow(0 0 14px rgba(var(--accent-rgb),0.25))' } : undefined}
+                    />
+                    {to === '/forms' && submissionsAwaitingReview > 0 && (
+                      <span
+                        aria-label={`${submissionsAwaitingReview} consent forms awaiting review`}
+                        className="absolute -top-1 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-accent text-bg text-[10px] font-semibold flex items-center justify-center"
+                      >
+                        {submissionsAwaitingReview > 9 ? '9+' : submissionsAwaitingReview}
+                      </span>
+                    )}
+                  </div>
                   <span className="text-sm mt-0.5 font-medium">{label}</span>
                   {isActive && (
                     <span

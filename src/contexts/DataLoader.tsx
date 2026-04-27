@@ -6,6 +6,7 @@ import { useBookingStore } from '../stores/bookingStore';
 import { useImageStore } from '../stores/imageStore';
 import { useDocumentStore } from '../stores/documentStore';
 import { useMessageStore } from '../stores/messageStore';
+import { useConsentSubmissionStore } from '../stores/consentSubmissionStore';
 import { resumePendingImageUploads } from '../lib/imageSync';
 
 export default function DataLoader({ children }: { children: ReactNode }) {
@@ -17,6 +18,7 @@ export default function DataLoader({ children }: { children: ReactNode }) {
   const fetchConversations = useMessageStore((s) => s.fetchConversations);
   const startRealtime = useMessageStore((s) => s.startRealtime);
   const stopRealtime = useMessageStore((s) => s.stopRealtime);
+  const fetchSubmissions = useConsentSubmissionStore((s) => s.fetchSubmissions);
 
   useEffect(() => {
     if (!session) return;
@@ -43,6 +45,7 @@ export default function DataLoader({ children }: { children: ReactNode }) {
       const imagesDone = fetchImages();
       fetchDocuments();
       fetchConversations();
+      fetchSubmissions();
       startRealtime();
       // Re-enqueue uploads interrupted by a previous app close. Waits on
       // fetchImages so the upload queue sees the latest remote status.
@@ -54,10 +57,11 @@ export default function DataLoader({ children }: { children: ReactNode }) {
       import('../pages/Settings');
       import('../pages/Theme');
       import('../pages/Feedback');
+      import('../pages/Forms');
     });
 
     return () => stopRealtime();
-  }, [session, fetchClients, fetchBookings, fetchImages, fetchDocuments, fetchConversations, startRealtime, stopRealtime]);
+  }, [session, fetchClients, fetchBookings, fetchImages, fetchDocuments, fetchConversations, fetchSubmissions, startRealtime, stopRealtime]);
 
   return <>{children}</>;
 }
