@@ -628,19 +628,19 @@ export default function ConsentSubmitPage() {
                   <img
                     src={logoDataUrl}
                     alt={studioName || 'Studio logo'}
-                    className="block max-h-24 w-auto mb-3"
+                    className="block max-h-48 w-auto mb-3"
                   />
                 )}
                 {studioName && (
-                  <div className="font-display text-md text-text-s">
+                  <div className="font-display text-2xl text-text-p">
                     {studioName}
                   </div>
                 )}
               </div>
             )}
-            <h2 className="font-display text-2xl text-text-p mb-3">Before your tattoo</h2>
+            <h2 className="font-display text-2xl text-text-p mb-3">Digital Consent Form</h2>
             <p className="text-md text-text-s leading-relaxed mb-8">
-              We need a photo of your government ID, your name and date of birth, and a quick waiver. About 2 minutes.
+              We need a photo of your government ID, your name and date of birth, and a quick waiver.
             </p>
             <button
               onClick={() => setStep('disclosure')}
