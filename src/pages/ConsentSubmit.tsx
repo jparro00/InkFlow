@@ -382,21 +382,42 @@ export default function ConsentSubmitPage() {
   const [logoSvg, setLogoSvg] = useState<string | null>(null);
   const [accentColor, setAccentColor] = useState<string | null>(null);
   const [bgColor, setBgColor] = useState<string | null>(null);
+  // Block the entire welcome render until this fetch resolves. We never want
+  // the unbranded default form to flash before the studio's branded version
+  // paints — the welcome screen is the FIRST impression and a flash of
+  // "Consent form" header on the wrong colors looks broken even though it
+  // self-heals 200 ms later. A blank dark splash + spinner is the only thing
+  // visible during this fetch.
+  const [brandingLoaded, setBrandingLoaded] = useState(false);
   useEffect(() => {
-    if (!artistId || !isUuid(artistId)) return;
+    if (!artistId || !isUuid(artistId)) {
+      setBrandingLoaded(true);
+      return;
+    }
     let cancelled = false;
-    supabase
-      .from('studio_profiles')
-      .select('studio_name, logo_svg, accent_color, bg_color')
-      .eq('user_id', artistId)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (cancelled || !data) return;
-        if (data.studio_name) setStudioName(data.studio_name);
-        if (data.logo_svg) setLogoSvg(data.logo_svg);
-        if (data.accent_color) setAccentColor(data.accent_color);
-        if (data.bg_color) setBgColor(data.bg_color);
-      });
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('studio_profiles')
+          .select('studio_name, logo_svg, accent_color, bg_color')
+          .eq('user_id', artistId)
+          .maybeSingle();
+        if (cancelled) return;
+        if (data) {
+          if (data.studio_name) setStudioName(data.studio_name);
+          if (data.logo_svg) setLogoSvg(data.logo_svg);
+          if (data.accent_color) setAccentColor(data.accent_color);
+          if (data.bg_color) setBgColor(data.bg_color);
+        }
+      } catch (e) {
+        console.error('studio_profiles fetch failed', e);
+      } finally {
+        // Always unblock — a fetch failure is no reason to leave the user
+        // staring at a spinner forever. They get the unbranded default if
+        // we genuinely can't reach the row.
+        if (!cancelled) setBrandingLoaded(true);
+      }
+    })();
     return () => { cancelled = true; };
   }, [artistId]);
 
@@ -609,6 +630,18 @@ export default function ConsentSubmitPage() {
   // *something* to brand with. Otherwise the welcome screen drops back to a
   // bare "Consent form" chrome — never an empty header.
   const hasBranding = Boolean(logoDataUrl || studioName);
+
+  // Until the studio_profiles fetch resolves, block the entire content tree.
+  // Any partial render with default chrome would be a "flash of unbranded
+  // form" before the real branding arrives. A neutral spinner on the page bg
+  // is the cost of admission — the user explicitly asked for this.
+  if (!brandingLoaded) {
+    return (
+      <div className="min-h-[100dvh] bg-bg flex items-center justify-center">
+        <Loader2 size={24} className="animate-spin text-text-t" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[100dvh] bg-bg flex flex-col" style={brandingStyle}>
