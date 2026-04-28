@@ -117,10 +117,17 @@ function DrawerBody({ submission }: { submission: ConsentSubmission }) {
 
   const handleReject = async () => {
     setBusy(true);
+    const id = submission.id;
     try {
-      await rejectSubmission(submission.id);
+      await rejectSubmission(id);
       addToast('Form rejected');
-      setSelectedConsentSubmissionId(null);
+      // Only close THIS drawer. If the user dismissed it mid-request and
+      // opened a different submission's drawer, the store's current id
+      // won't match and we leave the new drawer alone — otherwise the
+      // late-arriving "Form rejected" toast would close it for them.
+      if (useUIStore.getState().selectedConsentSubmissionId === id) {
+        setSelectedConsentSubmissionId(null);
+      }
     } catch (e) {
       console.error(e);
       addToast('Failed to reject form');

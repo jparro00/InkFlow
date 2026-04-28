@@ -60,15 +60,21 @@ function FinalizeFormBody({ submission }: { submission: ConsentSubmission }) {
     if (!canSubmit) return;
     setBusy(true);
     setError(null);
+    const id = submission.id;
     try {
-      await finalizeSubmission(submission.id, {
+      await finalizeSubmission(id, {
         payment_type: paymentType.trim(),
         payment_amount: priceNum,
         payment_tip: tipNum,
       });
       addToast('Form finalized');
-      dismiss();
-      setFinalizeSubmissionId(null);
+      // Only dismiss THIS finalize sheet. If the user moved on to another
+      // submission while save was in flight, the late "Form finalized"
+      // toast shouldn't close their new drawer.
+      if (useUIStore.getState().finalizeSubmissionId === id) {
+        dismiss();
+        setFinalizeSubmissionId(null);
+      }
     } catch (e) {
       console.error(e);
       setError('Failed to save. Try again.');
