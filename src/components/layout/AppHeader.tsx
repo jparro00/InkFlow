@@ -10,7 +10,7 @@ export default function AppHeader() {
       {headerLeft && <div className="z-10">{headerLeft}</div>}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <div className="relative flex items-center">
-          <Logo className="w-10 h-10 absolute -left-12" />
+          <Logo className="w-14 h-14 absolute -left-16" />
           <span className="font-display text-lg font-bold text-text-p tracking-wide">Ink Bloop</span>
         </div>
       </div>
