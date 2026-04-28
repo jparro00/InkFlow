@@ -89,7 +89,7 @@ export default function LoginPage() {
 
       <div className="w-full max-w-sm relative z-10 login-fade-in">
         <div className="text-center mb-10 login-pulse">
-          <Logo className="w-9 h-9 mx-auto" />
+          <Logo className="w-[72px] h-[72px] mx-auto" />
           <h1 className="font-display text-2xl text-text-p mt-3">Ink Bloop</h1>
           <p className="text-xs text-text-t mt-1.5 tracking-wider uppercase">Studio Management</p>
         </div>
