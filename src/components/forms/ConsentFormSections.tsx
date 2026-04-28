@@ -8,7 +8,7 @@
 // sees a submitted form, they're seeing the same component the client just
 // filled out — minus the editability.
 
-import { Check, X, Loader2, Sparkles } from 'lucide-react';
+import { Check, X, Loader2 } from 'lucide-react';
 import CameraCapture from './CameraCapture';
 import {
   WAIVER_ITEMS,
@@ -35,8 +35,6 @@ interface LicenseImageSectionFillProps {
   mode: 'fill';
   imagePreviewUrl: string | null;
   onPickFile: (file: File) => void;
-  analyzing?: boolean;
-  ocrSucceeded?: boolean;
 }
 
 interface LicenseImageSectionReviewProps {
@@ -86,19 +84,6 @@ export function LicenseImageSection(props: LicenseImageSectionProps) {
         previewUrl={props.imagePreviewUrl}
         onCapture={props.onPickFile}
       />
-
-      {props.analyzing && (
-        <div className="mt-3 bg-surface/60 rounded-lg border border-border/30 p-3 flex items-center gap-2">
-          <Loader2 size={16} className="text-accent animate-spin shrink-0" />
-          <div className="text-base text-text-s">Reading your ID…</div>
-        </div>
-      )}
-      {!props.analyzing && props.ocrSucceeded && (
-        <div className="mt-3 bg-success/10 border border-success/30 rounded-lg p-3 flex items-center gap-2">
-          <Sparkles size={14} className="text-success shrink-0" />
-          <div className="text-base text-text-s">Your name and date of birth were read from the ID.</div>
-        </div>
-      )}
     </section>
   );
 }
@@ -111,9 +96,13 @@ interface LicenseFieldsSectionProps {
   mode: 'fill' | 'review';
   value: LicenseFieldsValue;
   onChange?: (next: LicenseFieldsValue) => void;
+  /** When true (fill mode only), DOB renders as a read-only display so the
+   *  client can't edit around the verified-from-ID age check. Name stays
+   *  editable for typo correction. */
+  dobLocked?: boolean;
 }
 
-export function LicenseFieldsSection({ mode, value, onChange }: LicenseFieldsSectionProps) {
+export function LicenseFieldsSection({ mode, value, onChange, dobLocked }: LicenseFieldsSectionProps) {
   if (mode === 'review') {
     const fullName = [value.first_name, value.last_name].filter(Boolean).join(' ').trim();
     return (
@@ -158,13 +147,20 @@ export function LicenseFieldsSection({ mode, value, onChange }: LicenseFieldsSec
         </div>
         <div>
           <label className="text-base text-text-s mb-1.5 block">Date of birth</label>
-          <input
-            type="date"
-            value={value.dob}
-            onChange={(e) => set({ dob: e.target.value })}
-            className={`${inputClass} [color-scheme:dark]`}
-            autoComplete="bday"
-          />
+          {dobLocked ? (
+            <div className={`${inputClass} flex items-center justify-between cursor-not-allowed opacity-80`}>
+              <span>{value.dob || '—'}</span>
+              <span className="text-xs text-text-t uppercase tracking-wider">Verified</span>
+            </div>
+          ) : (
+            <input
+              type="date"
+              value={value.dob}
+              onChange={(e) => set({ dob: e.target.value })}
+              className={`${inputClass} [color-scheme:dark]`}
+              autoComplete="bday"
+            />
+          )}
         </div>
       </div>
     </section>

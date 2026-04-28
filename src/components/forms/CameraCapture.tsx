@@ -4,6 +4,13 @@
 // getUserMedia we keep the live video preview inside our own square (the
 // "little square" the artist asked for) and snap a frame on shutter tap.
 //
+// Auto-capture: while streaming, a 5 Hz analyzer samples downsampled grayscale
+// frames and computes three metrics — edge density at the framing-bracket
+// boundaries (proxy for "ID is filling the frame"), Laplacian variance over
+// the center area (sharpness), and frame-to-frame difference (stability).
+// When all three pass for ~600 ms the brackets turn green and the shutter
+// auto-fires. Manual shutter is always available as a fallback.
+//
 // Trade-off: getUserMedia requires HTTPS (Vercel ✓) and triggers the
 // browser's camera permission prompt on first use. On denial / unavailable
 // camera (desktop, locked perm) we fall back to a plain file input.
@@ -24,6 +31,34 @@ const TARGET_ASPECT = 1.586;
 const OUTPUT_WIDTH = 600;
 const OUTPUT_QUALITY = 0.85;
 
+// Detection canvas — kept tiny so the per-frame analysis runs in single-digit
+// milliseconds even on older phones. 200×126 still preserves enough detail
+// for edge density along the framing borders.
+const DETECT_W = 200;
+const DETECT_H = Math.round(DETECT_W / TARGET_ASPECT); // 126
+// Sample every 200 ms. Faster eats battery without changing the experience —
+// auto-capture wants a confident lock, not a rapid lock.
+const DETECT_INTERVAL_MS = 200;
+// How long all three metrics must stay green before we auto-fire. Short
+// enough to feel snappy, long enough that brief jitter doesn't trigger a
+// premature shot.
+const READY_HOLD_MS = 600;
+
+// Thresholds — tuned by eye against typical phone cameras at our display
+// size. They're heuristic; the real validator is Textract on the back end.
+//
+// EDGE_THRESHOLD: mean Sobel magnitude in each of the four bracket strips.
+//   Below this means the strip looks like empty space (no card edge).
+// SHARPNESS_THRESHOLD: Laplacian variance over the center area. Below this
+//   is blurry / out of focus.
+// STABILITY_THRESHOLD: mean abs frame-to-frame pixel diff. Above this means
+//   the camera is moving.
+const EDGE_THRESHOLD = 18;
+const SHARPNESS_THRESHOLD = 80;
+const STABILITY_THRESHOLD = 10;
+
+type DetectState = 'searching' | 'almost' | 'ready';
+
 interface Props {
   /** Currently-displayed preview (data URL or blob URL). null = no capture yet. */
   previewUrl: string | null;
@@ -42,11 +77,29 @@ export default function CameraCapture({ previewUrl, onCapture }: Props) {
   const streamRef = useRef<MediaStream | null>(null);
   const [state, setState] = useState<State>({ kind: 'idle' });
   const [error, setError] = useState<string | null>(null);
+  const [detectState, setDetectState] = useState<DetectState>('searching');
+
+  // Detector state, kept in refs so the rAF/interval doesn't trigger React
+  // re-renders on every frame.
+  const detectCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const prevGrayRef = useRef<Uint8ClampedArray | null>(null);
+  const readySinceRef = useRef<number | null>(null);
+  const detectIntervalRef = useRef<number | null>(null);
+  // Latch so we don't double-fire the shutter while the capture is in flight.
+  const firedRef = useRef(false);
 
   const stopStream = () => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
+    if (detectIntervalRef.current !== null) {
+      window.clearInterval(detectIntervalRef.current);
+      detectIntervalRef.current = null;
+    }
+    prevGrayRef.current = null;
+    readySinceRef.current = null;
+    firedRef.current = false;
+    setDetectState('searching');
   };
 
   // Tear down the stream on unmount so we don't leave the camera light on.
@@ -56,6 +109,10 @@ export default function CameraCapture({ previewUrl, onCapture }: Props) {
     return () => {
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
+      if (detectIntervalRef.current !== null) {
+        window.clearInterval(detectIntervalRef.current);
+        detectIntervalRef.current = null;
+      }
     };
   }, []);
 
@@ -83,12 +140,79 @@ export default function CameraCapture({ previewUrl, onCapture }: Props) {
         await v.play().catch(() => undefined);
       }
       setState({ kind: 'streaming' });
+      // Spin up the detector on next tick so the video has dimensions.
+      window.setTimeout(startDetector, 250);
     } catch (e) {
       console.warn('getUserMedia failed', e);
       stopStream();
       const msg = e instanceof Error ? e.message : 'Camera unavailable';
       setError(msg);
       setState({ kind: 'fallback' });
+    }
+  };
+
+  const startDetector = () => {
+    if (detectIntervalRef.current !== null) return;
+    if (!detectCanvasRef.current) {
+      detectCanvasRef.current = document.createElement('canvas');
+      detectCanvasRef.current.width = DETECT_W;
+      detectCanvasRef.current.height = DETECT_H;
+    }
+    detectIntervalRef.current = window.setInterval(detectTick, DETECT_INTERVAL_MS);
+  };
+
+  const detectTick = () => {
+    const v = videoRef.current;
+    const canvas = detectCanvasRef.current;
+    if (!v || !canvas || !v.videoWidth || firedRef.current) return;
+
+    const vw = v.videoWidth;
+    const vh = v.videoHeight;
+    const sourceAspect = vw / vh;
+    let cropW: number;
+    let cropH: number;
+    if (sourceAspect > TARGET_ASPECT) {
+      cropH = vh;
+      cropW = vh * TARGET_ASPECT;
+    } else {
+      cropW = vw;
+      cropH = vw / TARGET_ASPECT;
+    }
+    const cropX = (vw - cropW) / 2;
+    const cropY = (vh - cropH) / 2;
+
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return;
+    ctx.drawImage(v, cropX, cropY, cropW, cropH, 0, 0, DETECT_W, DETECT_H);
+    const img = ctx.getImageData(0, 0, DETECT_W, DETECT_H);
+    const gray = toGrayscale(img.data, DETECT_W, DETECT_H);
+
+    const edge = edgeDensityAtBrackets(gray, DETECT_W, DETECT_H);
+    const sharp = sharpnessCenter(gray, DETECT_W, DETECT_H);
+    const stable = prevGrayRef.current
+      ? frameDifference(gray, prevGrayRef.current)
+      : Number.POSITIVE_INFINITY;
+    prevGrayRef.current = gray;
+
+    const edgesGood = edge >= EDGE_THRESHOLD;
+    const sharpGood = sharp >= SHARPNESS_THRESHOLD;
+    const stableGood = stable <= STABILITY_THRESHOLD;
+    const goodCount = (edgesGood ? 1 : 0) + (sharpGood ? 1 : 0) + (stableGood ? 1 : 0);
+
+    if (goodCount === 3) {
+      const now = performance.now();
+      if (readySinceRef.current === null) readySinceRef.current = now;
+      if (now - readySinceRef.current >= READY_HOLD_MS) {
+        // Lock so a slow capture doesn't double-fire on the next tick.
+        firedRef.current = true;
+        setDetectState('ready');
+        captureFrame();
+        return;
+      }
+      setDetectState('ready');
+    } else {
+      readySinceRef.current = null;
+      setDetectState(goodCount >= 2 ? 'almost' : 'searching');
     }
   };
 
@@ -159,6 +283,21 @@ export default function CameraCapture({ previewUrl, onCapture }: Props) {
   const showCaptured = previewUrl && state.kind === 'idle';
   const showStream = state.kind === 'streaming' || state.kind === 'starting';
 
+  // Bracket color tracks the detector state so the user gets continuous
+  // feedback. Green = capture about to fire.
+  const bracketColor =
+    detectState === 'ready'
+      ? 'border-success'
+      : detectState === 'almost'
+        ? 'border-amber-400'
+        : 'border-white/85';
+  const hintLabel =
+    detectState === 'ready'
+      ? 'Hold still…'
+      : detectState === 'almost'
+        ? 'Almost there'
+        : 'Fill the frame with your ID';
+
   return (
     <div>
       <div className="relative rounded-md overflow-hidden border border-border/60 bg-bg/40 aspect-[1.586]">
@@ -197,23 +336,28 @@ export default function CameraCapture({ previewUrl, onCapture }: Props) {
         {/* Streaming overlay: framing brackets, shutter, cancel. The brackets
             sit at the inside edges of the box so the user has a clear "fill
             this rectangle with your ID" cue — necessary because we save at
-            600 px wide and rely on a well-framed shot to stay above 150 DPI. */}
+            600 px wide and rely on a well-framed shot to stay above 150 DPI.
+            Color tracks detection state. */}
         {state.kind === 'streaming' && (
           <>
             <div className="absolute inset-2 pointer-events-none">
-              <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-white/85 rounded-tl-md" />
-              <div className="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-white/85 rounded-tr-md" />
-              <div className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-white/85 rounded-bl-md" />
-              <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-white/85 rounded-br-md" />
+              <div className={`absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 ${bracketColor} rounded-tl-md transition-colors duration-200`} />
+              <div className={`absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 ${bracketColor} rounded-tr-md transition-colors duration-200`} />
+              <div className={`absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 ${bracketColor} rounded-bl-md transition-colors duration-200`} />
+              <div className={`absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 ${bracketColor} rounded-br-md transition-colors duration-200`} />
             </div>
 
-            <div className="absolute top-3 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-md bg-bg/70 backdrop-blur-sm text-sm text-text-p whitespace-nowrap pointer-events-none">
-              Fill the frame with your ID
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-md bg-bg/70 backdrop-blur-sm text-sm text-text-p whitespace-nowrap pointer-events-none transition-colors duration-200">
+              {hintLabel}
             </div>
 
             <button
               type="button"
-              onClick={captureFrame}
+              onClick={() => {
+                if (firedRef.current) return;
+                firedRef.current = true;
+                captureFrame();
+              }}
               aria-label="Capture photo"
               className="absolute bottom-3 left-1/2 -translate-x-1/2 w-14 h-14 rounded-full bg-white/90 border-4 border-white/40 cursor-pointer press-scale active:bg-white shadow-lg flex items-center justify-center"
             >
@@ -256,4 +400,110 @@ export default function CameraCapture({ previewUrl, onCapture }: Props) {
       )}
     </div>
   );
+}
+
+// =============================================================================
+// Detection helpers
+// =============================================================================
+
+/** Convert RGBA ImageData buffer to a packed 8-bit grayscale buffer. */
+function toGrayscale(rgba: Uint8ClampedArray, w: number, h: number): Uint8ClampedArray {
+  const out = new Uint8ClampedArray(w * h);
+  for (let i = 0, j = 0; i < rgba.length; i += 4, j++) {
+    // Rec.709 luma. Cheap; doesn't need to be perceptually accurate.
+    out[j] = (rgba[i] * 0.2126 + rgba[i + 1] * 0.7152 + rgba[i + 2] * 0.0722) | 0;
+  }
+  return out;
+}
+
+/**
+ * Sobel-magnitude mean over the four interior bracket strips. We sample the
+ * pixels just inside the framing brackets — that's where an ID's edge will
+ * land if the user is filling the frame correctly. Returns the *minimum* of
+ * the four strips so a single weak side fails the check (e.g. if the user
+ * tilts the card, one edge drops out).
+ */
+function edgeDensityAtBrackets(gray: Uint8ClampedArray, w: number, h: number): number {
+  // Strip thickness, ~6% of the shorter side. Stays narrow so background
+  // texture doesn't dilute the edge signal.
+  const t = Math.max(4, Math.round(h * 0.06));
+  // Margin from the very edge — matches `inset-2` on the on-screen brackets
+  // so we sample where the user expects the bracket to align with the card.
+  const m = Math.max(2, Math.round(h * 0.04));
+
+  const top = sobelStripMean(gray, w, h, m, m, w - 2 * m, t);
+  const bottom = sobelStripMean(gray, w, h, m, h - m - t, w - 2 * m, t);
+  const left = sobelStripMean(gray, w, h, m, m, t, h - 2 * m);
+  const right = sobelStripMean(gray, w, h, w - m - t, m, t, h - 2 * m);
+  return Math.min(top, bottom, left, right);
+}
+
+/** Mean Sobel magnitude over a rectangular strip. */
+function sobelStripMean(
+  g: Uint8ClampedArray,
+  w: number,
+  h: number,
+  x: number,
+  y: number,
+  sw: number,
+  sh: number,
+): number {
+  let sum = 0;
+  let n = 0;
+  const x0 = Math.max(1, x);
+  const y0 = Math.max(1, y);
+  const x1 = Math.min(w - 1, x + sw);
+  const y1 = Math.min(h - 1, y + sh);
+  for (let py = y0; py < y1; py++) {
+    for (let px = x0; px < x1; px++) {
+      const i = py * w + px;
+      // Sobel-x and Sobel-y on the 3×3 neighborhood.
+      const tl = g[i - w - 1], tc = g[i - w], tr = g[i - w + 1];
+      const ml = g[i - 1], mr = g[i + 1];
+      const bl = g[i + w - 1], bc = g[i + w], br = g[i + w + 1];
+      const gx = (tr + 2 * mr + br) - (tl + 2 * ml + bl);
+      const gy = (bl + 2 * bc + br) - (tl + 2 * tc + tr);
+      sum += Math.abs(gx) + Math.abs(gy);
+      n++;
+    }
+  }
+  return n > 0 ? sum / n : 0;
+}
+
+/**
+ * Variance of the Laplacian over the center 60% of the frame. Standard
+ * sharpness metric — larger variance = more high-frequency detail = sharper.
+ */
+function sharpnessCenter(gray: Uint8ClampedArray, w: number, h: number): number {
+  const x0 = Math.round(w * 0.2);
+  const y0 = Math.round(h * 0.2);
+  const x1 = Math.round(w * 0.8);
+  const y1 = Math.round(h * 0.8);
+  let sum = 0;
+  let sumSq = 0;
+  let n = 0;
+  for (let py = Math.max(1, y0); py < Math.min(h - 1, y1); py++) {
+    for (let px = Math.max(1, x0); px < Math.min(w - 1, x1); px++) {
+      const i = py * w + px;
+      // 4-neighbor Laplacian.
+      const lap = -gray[i - w] - gray[i - 1] + 4 * gray[i] - gray[i + 1] - gray[i + w];
+      sum += lap;
+      sumSq += lap * lap;
+      n++;
+    }
+  }
+  if (n === 0) return 0;
+  const mean = sum / n;
+  return sumSq / n - mean * mean;
+}
+
+/** Mean absolute difference between two grayscale frames. */
+function frameDifference(a: Uint8ClampedArray, b: Uint8ClampedArray): number {
+  if (a.length !== b.length) return Number.POSITIVE_INFINITY;
+  let sum = 0;
+  // Sample every 4th pixel — full pass is overkill for stability detection.
+  for (let i = 0; i < a.length; i += 4) {
+    sum += Math.abs(a[i] - b[i]);
+  }
+  return sum / (a.length / 4);
 }

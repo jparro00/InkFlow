@@ -118,11 +118,21 @@ async function uploadToR2(url: string, headers: Record<string, string>, blob: Bl
   if (!res.ok) throw new Error(`R2 upload failed: ${res.status}`);
 }
 
+type AnalyzeIdReason = 'not_an_id' | 'incomplete_fields' | 'underage' | 'unreadable';
+
+interface AnalyzeIdResponse {
+  valid: boolean;
+  reason?: AnalyzeIdReason;
+  age?: number;
+  fields: Partial<LicenseFieldsValue> & { dob?: string };
+  raw: unknown;
+}
+
 async function callConsentAnalyzeId(params: {
   artist_id: string;
   submission_id: string;
   license_key: string;
-}): Promise<{ fields: Partial<LicenseFieldsValue>; raw: unknown } | null> {
+}): Promise<AnalyzeIdResponse | null> {
   try {
     const res = await fetch(`${SUPABASE_URL}/functions/v1/consent-analyze-id`, {
       method: 'POST',
@@ -176,6 +186,25 @@ function isUuid(s: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
 }
 
+/** Whole-years age between dob (YYYY-MM-DD) and today. -1 if dob unparseable. */
+function computeAge(dobIso: string): number {
+  if (!dobIso) return -1;
+  const [y, m, d] = dobIso.split('-').map(Number);
+  if (!y || !m || !d) return -1;
+  const now = new Date();
+  let age = now.getFullYear() - y;
+  const md = now.getMonth() + 1 - m;
+  if (md < 0 || (md === 0 && now.getDate() < d)) age--;
+  return age;
+}
+
+const VERIFICATION_REASONS: Record<AnalyzeIdReason, string> = {
+  not_an_id: "We couldn't recognize this as a government-issued ID. Please retake.",
+  incomplete_fields: "We couldn't read your name and date of birth clearly. Please retake in better lighting.",
+  underage: 'You must be 18 or older to consent to a tattoo.',
+  unreadable: "We couldn't process the image. Please try again.",
+};
+
 async function blobToUint8(blob: Blob): Promise<Uint8Array> {
   const buf = await blob.arrayBuffer();
   return new Uint8Array(buf);
@@ -190,13 +219,20 @@ export default function ConsentSubmitPage() {
   // Disclosure agreement
   const [disclosureAgreed, setDisclosureAgreed] = useState(false);
 
-  // License capture state
+  // License capture state. Verification is its own state machine: idle until
+  // a file is captured, analyzing while the upload+Textract round trip is in
+  // flight, then verified | rejected. The wizard "Next" gate on snap_id
+  // requires verified=true.
   const [licenseFile, setLicenseFile] = useState<File | null>(null);
   const [licensePreviewUrl, setLicensePreviewUrl] = useState<string | null>(null);
   const [licenseKey, setLicenseKey] = useState<string | null>(null);
   const [licenseRaw, setLicenseRaw] = useState<unknown>(null);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [ocrSucceeded, setOcrSucceeded] = useState(false);
+  const [verification, setVerification] = useState<
+    | { status: 'idle' }
+    | { status: 'analyzing' }
+    | { status: 'verified'; age: number }
+    | { status: 'rejected'; reason: AnalyzeIdReason; age?: number }
+  >({ status: 'idle' });
 
   // Form state
   const [licenseFields, setLicenseFields] = useState<LicenseFieldsValue>(emptyLicenseFields);
@@ -246,30 +282,40 @@ export default function ConsentSubmitPage() {
     return <Navigate to="/login" replace />;
   }
 
+  const resetLicenseCapture = () => {
+    setLicenseFile(null);
+    setLicensePreviewUrl(null);
+    setLicenseKey(null);
+    setLicenseRaw(null);
+    setLicenseFields(emptyLicenseFields);
+    setVerification({ status: 'idle' });
+    setError(null);
+  };
+
   const handlePickFile = (file: File) => {
     setLicenseFile(file);
     setLicenseKey(null);
     setLicenseRaw(null);
-    setOcrSucceeded(false);
+    setVerification({ status: 'analyzing' });
+    setError(null);
     const reader = new FileReader();
     reader.onload = () =>
       setLicensePreviewUrl(typeof reader.result === 'string' ? reader.result : null);
     reader.readAsDataURL(file);
+    // Kick off upload + verification immediately. We don't wait for Next.
+    void runLicenseVerification(file);
   };
 
-  const uploadAndAnalyzeLicense = async () => {
-    if (!licenseFile) return;
-    setAnalyzing(true);
-    setError(null);
+  const runLicenseVerification = async (file: File) => {
     try {
       const upload = await callConsentUploadUrl({
         artist_id: artistId,
         submission_id: submissionId,
         kind: 'license',
-        content_type: licenseFile.type || 'image/jpeg',
-        content_length: licenseFile.size,
+        content_type: file.type || 'image/jpeg',
+        content_length: file.size,
       });
-      await uploadToR2(upload.url, upload.headers, licenseFile);
+      await uploadToR2(upload.url, upload.headers, file);
       setLicenseKey(upload.key);
       // Cache the audit fields the edge fn saw — used later when we build
       // the signed PDF so the bytes the user signs carry the IP + UA.
@@ -281,27 +327,42 @@ export default function ConsentSubmitPage() {
         submission_id: submissionId,
         license_key: upload.key,
       });
-      if (analyzed?.fields) {
-        const f = analyzed.fields;
-        setLicenseFields((prev) => ({
-          first_name: prev.first_name || f.first_name || '',
-          last_name: prev.last_name || f.last_name || '',
-          dob: prev.dob || f.dob || '',
-        }));
-        setLicenseRaw(analyzed.raw);
-        setOcrSucceeded(true);
+      if (!analyzed) {
+        setVerification({ status: 'rejected', reason: 'unreadable' });
+        return;
+      }
+      // Always cache the raw + extracted fields so the artist can see what we
+      // saw, even on rejection.
+      setLicenseRaw(analyzed.raw);
+      const f = analyzed.fields;
+      setLicenseFields({
+        first_name: f.first_name ?? '',
+        last_name: f.last_name ?? '',
+        dob: f.dob ?? '',
+      });
+      if (analyzed.valid) {
+        // Compute age client-side from the verified DOB so the panel can show
+        // it without a second round-trip.
+        const age = analyzed.age ?? computeAge(f.dob ?? '');
+        setVerification({ status: 'verified', age });
+      } else {
+        setVerification({
+          status: 'rejected',
+          reason: analyzed.reason ?? 'unreadable',
+          age: analyzed.age,
+        });
       }
     } catch (e) {
       console.error(e);
+      setVerification({ status: 'rejected', reason: 'unreadable' });
       setError(e instanceof Error ? e.message : 'License upload failed');
-    } finally {
-      setAnalyzing(false);
     }
   };
 
+  const verified = verification.status === 'verified';
   const handleAdvanceFromSnap = () => {
+    if (!verified) return;
     setStep('fill_form');
-    if (!licenseKey) uploadAndAnalyzeLicense();
   };
 
   const allRequiredChecked = REQUIRED_WAIVER_KEYS.every((k) => waiver[k] === true);
@@ -566,6 +627,49 @@ export default function ConsentSubmitPage() {
               imagePreviewUrl={licensePreviewUrl}
               onPickFile={handlePickFile}
             />
+
+            {verification.status === 'analyzing' && (
+              <div className="bg-surface/60 rounded-lg border border-border/30 p-4 flex items-center gap-3">
+                <Loader2 size={18} className="text-accent animate-spin shrink-0" />
+                <div className="text-base text-text-s">Verifying your ID…</div>
+              </div>
+            )}
+
+            {verification.status === 'verified' && (
+              <div className="bg-success/10 border border-success/30 rounded-lg p-4 space-y-2">
+                <div className="flex items-center gap-2 text-base text-success font-medium">
+                  <Check size={18} strokeWidth={3} />
+                  ID verified
+                </div>
+                <div className="text-base text-text-s">
+                  {[licenseFields.first_name, licenseFields.last_name].filter(Boolean).join(' ')}
+                  {verification.age >= 0 && ` · ${verification.age} years old`}
+                </div>
+              </div>
+            )}
+
+            {verification.status === 'rejected' && (
+              <div className="bg-danger/10 border border-danger/40 rounded-lg p-4 space-y-3">
+                <div className="text-base text-danger font-medium">
+                  {VERIFICATION_REASONS[verification.reason]}
+                </div>
+                {(licenseFields.first_name || licenseFields.last_name || licenseFields.dob) && (
+                  <div className="text-sm text-text-s">
+                    We read:{' '}
+                    {[licenseFields.first_name, licenseFields.last_name].filter(Boolean).join(' ') || '—'}
+                    {licenseFields.dob && ` · ${licenseFields.dob}`}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={resetLicenseCapture}
+                  className="px-4 py-2 rounded-md border border-border/60 bg-input text-base text-text-s cursor-pointer press-scale active:bg-elevated/40"
+                >
+                  Retake photo
+                </button>
+              </div>
+            )}
+
             <div className="flex gap-3 pt-2">
               <button
                 onClick={() => setStep('disclosure')}
@@ -575,7 +679,7 @@ export default function ConsentSubmitPage() {
               </button>
               <button
                 onClick={handleAdvanceFromSnap}
-                disabled={!licenseFile}
+                disabled={!verified}
                 className="flex-1 py-3.5 text-md bg-accent text-bg rounded-md font-medium cursor-pointer press-scale transition-all shadow-glow active:shadow-glow-strong disabled:opacity-40 min-h-[48px]"
               >
                 Next
@@ -595,18 +699,12 @@ export default function ConsentSubmitPage() {
               if (fillFormReady && !submitting) setStep('review_and_sign');
             }}
           >
-            <LicenseFieldsSection mode="fill" value={licenseFields} onChange={setLicenseFields} />
-
-            {analyzing && (
-              <div className="bg-surface/60 rounded-lg border border-border/30 p-3 text-base text-text-s">
-                Reading your ID — fields will pre-fill in a moment.
-              </div>
-            )}
-            {!analyzing && ocrSucceeded && (
-              <div className="bg-success/10 border border-success/30 rounded-lg p-3 text-base text-text-s">
-                We pulled your name and date of birth from your ID. Please double-check.
-              </div>
-            )}
+            <LicenseFieldsSection
+              mode="fill"
+              value={licenseFields}
+              onChange={setLicenseFields}
+              dobLocked
+            />
 
             <TattooDetailsSection value={tattoo} onChange={setTattoo} />
             <WaiverChecksSection mode="fill" value={waiver} onChange={setWaiver} />

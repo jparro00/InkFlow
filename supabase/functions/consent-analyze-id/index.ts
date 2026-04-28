@@ -55,6 +55,14 @@ interface ParsedFields {
   address?: string;
 }
 
+// Minimum confidence (0-100) for a Textract identity field to count as
+// "extracted". Below this we treat the field as missing and the verification
+// fails with reason='incomplete_fields'. 75 is loose enough that a clear,
+// well-lit ID passes every time but rejects half-blurry strings.
+const MIN_FIELD_CONFIDENCE = 75;
+// Age gate. Tattoo studios in the US require 18+ for self-consent.
+const MIN_AGE_YEARS = 18;
+
 /**
  * Textract returns dates as MM/DD/YYYY in most cases. Convert to ISO YYYY-MM-DD
  * so it lands cleanly in the Postgres `date` column.
@@ -72,6 +80,16 @@ function normalizeDate(raw: string): string | undefined {
     return `${m[3]}-${month}-${day}`;
   }
   return undefined;
+}
+
+/** Whole-years age between dob and today (UTC). */
+function ageInYears(dobIso: string, asOf: Date = new Date()): number {
+  const [y, m, d] = dobIso.split("-").map(Number);
+  if (!y || !m || !d) return -1;
+  let age = asOf.getUTCFullYear() - y;
+  const mDelta = asOf.getUTCMonth() + 1 - m;
+  if (mDelta < 0 || (mDelta === 0 && asOf.getUTCDate() < d)) age--;
+  return age;
 }
 
 interface TextractField {
@@ -95,7 +113,15 @@ function parseTextractFields(resp: TextractAnalyzeIdResponse): ParsedFields {
   for (const f of fields) {
     const type = f.Type?.Text;
     const value = f.ValueDetection?.Text?.trim();
+    const confidence = f.ValueDetection?.Confidence ?? 0;
     if (!type || !value) continue;
+    // Drop low-confidence reads on the fields we gate on. Other fields stay
+    // in the raw blob but don't influence `valid`.
+    const gated =
+      type === "FIRST_NAME" ||
+      type === "LAST_NAME" ||
+      type === "DATE_OF_BIRTH";
+    if (gated && confidence < MIN_FIELD_CONFIDENCE) continue;
     switch (type) {
       case "FIRST_NAME":
         out.first_name = value;
@@ -131,6 +157,45 @@ function parseTextractFields(resp: TextractAnalyzeIdResponse): ParsedFields {
     }
   }
   return out;
+}
+
+type VerificationReason =
+  | "not_an_id"
+  | "incomplete_fields"
+  | "underage"
+  | "unreadable";
+
+/**
+ * Decide whether the parsed fields pass the consent-form gate. The gate is:
+ *   - Textract returned an identity document at all (else: not_an_id)
+ *   - first + last name + dob are all extracted with high confidence (else:
+ *     incomplete_fields)
+ *   - dob makes the holder MIN_AGE_YEARS or older (else: underage)
+ */
+function evaluateValidity(
+  resp: TextractAnalyzeIdResponse,
+  fields: ParsedFields,
+): { valid: true } | { valid: false; reason: VerificationReason; age?: number } {
+  const docs = resp.IdentityDocuments ?? [];
+  if (docs.length === 0 || (docs[0].IdentityDocumentFields ?? []).length === 0) {
+    return { valid: false, reason: "not_an_id" };
+  }
+  // No first AND no last name → almost certainly not a license. (Some IDs
+  // may be missing one but not both.)
+  if (!fields.first_name && !fields.last_name) {
+    return { valid: false, reason: "not_an_id" };
+  }
+  if (!fields.first_name || !fields.last_name || !fields.dob) {
+    return { valid: false, reason: "incomplete_fields" };
+  }
+  const age = ageInYears(fields.dob);
+  if (age < 0) {
+    return { valid: false, reason: "incomplete_fields" };
+  }
+  if (age < MIN_AGE_YEARS) {
+    return { valid: false, reason: "underage", age };
+  }
+  return { valid: true };
 }
 
 async function fetchR2Object(
@@ -274,6 +339,19 @@ Deno.serve(async (req: Request) => {
 
   const raw = await textractRes.json() as TextractAnalyzeIdResponse;
   const fields = parseTextractFields(raw);
+  const verdict = evaluateValidity(raw, fields);
 
-  return jsonResponse(200, { fields, raw });
+  // Always return what we extracted so the client can show the user what we
+  // saw on a failure ("we read DOB 2010-04-12 — does that look right?"). The
+  // gate is the `valid` flag, not the presence of fields.
+  if (verdict.valid) {
+    return jsonResponse(200, { valid: true, fields, raw });
+  }
+  return jsonResponse(200, {
+    valid: false,
+    reason: verdict.reason,
+    age: "age" in verdict ? verdict.age : undefined,
+    fields,
+    raw,
+  });
 });
