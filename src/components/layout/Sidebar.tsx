@@ -1,12 +1,14 @@
 import { NavLink } from 'react-router-dom';
-import { Calendar, Users, MessageCircle, Search, Palette, Settings } from 'lucide-react';
+import { Calendar, Users, MessageCircle, FileSignature, Search, Palette, Settings } from 'lucide-react';
 import { useUIStore } from '../../stores/uiStore';
+import { useConsentSubmissionStore } from '../../stores/consentSubmissionStore';
 import Logo from '../common/Logo';
 
 const navItems = [
   { to: '/', icon: Calendar, label: 'Calendar', action: undefined },
   { to: '/clients', icon: Users, label: 'Clients', action: undefined },
   { to: '/messages', icon: MessageCircle, label: 'Messages', action: undefined },
+  { to: '/forms', icon: FileSignature, label: 'Forms', action: undefined },
   { to: '/search', icon: Search, label: 'Search', action: 'search' as const },
   { to: '/theme', icon: Palette, label: 'Theme', action: undefined },
   { to: '/settings', icon: Settings, label: 'Settings', action: undefined },
@@ -14,6 +16,9 @@ const navItems = [
 
 export default function Sidebar() {
   const { sidebarCollapsed, setSearchOpen } = useUIStore();
+  const submissionsAwaitingReview = useConsentSubmissionStore(
+    (s) => s.submissions.filter((sub) => sub.status === 'submitted').length,
+  );
 
   return (
     <aside
@@ -55,7 +60,17 @@ export default function Sidebar() {
               }`
             }
           >
-            <Icon size={20} strokeWidth={1.5} />
+            <div className="relative">
+              <Icon size={20} strokeWidth={1.5} />
+              {to === '/forms' && submissionsAwaitingReview > 0 && (
+                <span
+                  aria-label={`${submissionsAwaitingReview} consent forms awaiting review`}
+                  className="absolute -top-1.5 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-accent text-bg text-[10px] font-semibold flex items-center justify-center"
+                >
+                  {submissionsAwaitingReview > 9 ? '9+' : submissionsAwaitingReview}
+                </span>
+              )}
+            </div>
             {!sidebarCollapsed && <span className="text-sm">{label}</span>}
           </NavLink>
         ))}

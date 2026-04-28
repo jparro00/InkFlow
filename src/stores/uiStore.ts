@@ -65,6 +65,33 @@ interface UIStore {
   // dictated text pre-populated for review.
   prefillFeedbackText: string | null;
   setPrefillFeedbackText: (text: string | null) => void;
+  // When set, BookingForm.handleSave will attach the newly-created booking
+  // to this consent submission (status submitted → approved_pending) and
+  // clear the field. Used by the consent-form approval flow's "Create new
+  // booking" affordance — the consent UI hands off to BookingForm and lets
+  // BookingForm complete the round-trip on save.
+  pendingConsentSubmissionId: string | null;
+  setPendingConsentSubmissionId: (id: string | null) => void;
+  // The currently-open consent submission in the artist's review drawer.
+  // Mirrors the selectedBookingId / selectedConversationId pattern so the
+  // drawer can render at the AppShell root (where z-index works against the
+  // tab bar and FAB) rather than inside the Forms page.
+  selectedConsentSubmissionId: string | null;
+  setSelectedConsentSubmissionId: (id: string | null) => void;
+  // Submission whose "Attach to booking" picker is open. Tapping Approve in
+  // the consent drawer closes the drawer and opens the picker at the AppShell
+  // level — that lets the picker collapse-to-header (drag down) without the
+  // consent drawer hovering behind it. Dismissing the picker does NOT mutate
+  // the submission; the form stays in 'submitted' until the user actually
+  // picks (or creates) a booking.
+  attachToBookingSubmissionId: string | null;
+  setAttachToBookingSubmissionId: (id: string | null) => void;
+  // Submission whose "Payment & tattoo" finalize sheet is open. Same handoff
+  // pattern as the booking picker: tapping "Enter payment & tattoo details"
+  // in the consent drawer closes that drawer and opens this sheet at the
+  // AppShell root, so they don't stack.
+  finalizeSubmissionId: string | null;
+  setFinalizeSubmissionId: (id: string | null) => void;
 }
 
 export const useUIStore = create<UIStore>((set) => ({
@@ -174,4 +201,30 @@ export const useUIStore = create<UIStore>((set) => ({
   setConfirmDialogOpen: (open) => set({ confirmDialogOpen: open }),
   prefillFeedbackText: null,
   setPrefillFeedbackText: (text) => set({ prefillFeedbackText: text }),
+  pendingConsentSubmissionId: null,
+  setPendingConsentSubmissionId: (id) => set({ pendingConsentSubmissionId: id }),
+  selectedConsentSubmissionId: null,
+  setSelectedConsentSubmissionId: (id) => {
+    if (id && useUIStore.getState().modalCollapsed) {
+      set((s) => ({ blockedOpenTrigger: s.blockedOpenTrigger + 1 }));
+      return;
+    }
+    set({ selectedConsentSubmissionId: id });
+  },
+  attachToBookingSubmissionId: null,
+  setAttachToBookingSubmissionId: (id) => {
+    if (id && useUIStore.getState().modalCollapsed) {
+      set((s) => ({ blockedOpenTrigger: s.blockedOpenTrigger + 1 }));
+      return;
+    }
+    set({ attachToBookingSubmissionId: id });
+  },
+  finalizeSubmissionId: null,
+  setFinalizeSubmissionId: (id) => {
+    if (id && useUIStore.getState().modalCollapsed) {
+      set((s) => ({ blockedOpenTrigger: s.blockedOpenTrigger + 1 }));
+      return;
+    }
+    set({ finalizeSubmissionId: id });
+  },
 }));

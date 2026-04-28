@@ -14,6 +14,7 @@ const CACHE_CONTROL: Record<string, string> = {
   "avatars": "private, max-age=300",
   "booking-images": "private, max-age=3600",
   "documents": "private, max-age=3600",
+  "consent": "private, max-age=3600",
 };
 
 // Origins allowed to fetch from the Worker. Requests send an Authorization

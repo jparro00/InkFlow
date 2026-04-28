@@ -45,6 +45,7 @@ These are NOT auto-loaded. Read the relevant file when working in that area.
 | Messaging, DMs, webhooks, graph-api | [messaging.md](docs/messaging.md) |
 | Bookings, calendar, booking images | [bookings.md](docs/bookings.md) |
 | Client CRUD, avatars, documents | [clients.md](docs/clients.md) |
+| Consent forms (QR client flow, Textract OCR, artist review) | [forms.md](docs/forms.md) |
 | Agent system (orchestrator, intents, resolvers) | [agents.md](docs/agents.md) |
 | Supabase schema, migrations, edge fns, RLS | [supabase.md](docs/supabase.md) |
 | Simulator (local Meta API stand-in) | [simulator.md](docs/simulator.md) |

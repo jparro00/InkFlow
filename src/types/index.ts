@@ -174,3 +174,63 @@ export interface BookingImage {
 }
 
 export type CalendarView = 'year' | 'month' | 'day';
+
+export type ConsentSubmissionStatus = 'submitted' | 'approved_pending' | 'finalized';
+
+export interface ConsentSubmission {
+  id: string;
+  user_id: string;
+  status: ConsentSubmissionStatus;
+
+  license_image_key?: string;
+  license_first_name?: string;
+  license_last_name?: string;
+  license_dob?: string;
+  license_number?: string;
+  license_address?: string;
+  license_state?: string;
+  license_expiry?: string;
+  license_raw_data?: unknown;
+
+  form_data: Record<string, unknown>;
+  signature_image_key?: string;
+  /** Signed consent PDF, generated client-side at signing time. R2 key. */
+  pdf_key?: string;
+  /** SHA-256 hex of the uploaded PDF bytes. Lets the artist verify integrity
+   *  later by re-hashing the R2 blob. */
+  pdf_sha256?: string;
+
+  booking_id?: string;
+
+  /** Payment is artist-entered post-tattoo for bookkeeping. The tattoo
+   *  location/description are CLIENT-entered during the wizard and baked into
+   *  the signed PDF — they're stored on the row for queryability but the PDF
+   *  is the legal record. */
+  payment_type?: string;
+  payment_amount?: number;
+  payment_tip?: number;
+  tattoo_location?: string;
+  tattoo_description?: string;
+
+  submitted_at: string;
+  approved_at?: string;
+  finalized_at?: string;
+
+  created_at: string;
+}
+
+export function consentSubmissionDisplayName(s: ConsentSubmission): string {
+  const first = s.license_first_name?.trim();
+  const last = s.license_last_name?.trim();
+  if (first && last) return `${first} ${last}`;
+  if (first || last) return (first ?? last) ?? 'Unknown';
+  return 'Unknown';
+}
+
+export function consentSubmissionIsComplete(s: ConsentSubmission): boolean {
+  return Boolean(
+    s.booking_id &&
+    s.payment_type &&
+    s.payment_amount !== undefined && s.payment_amount !== null
+  );
+}

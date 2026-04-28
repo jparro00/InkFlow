@@ -63,7 +63,8 @@ npx supabase secrets set SECRET_NAME=<value> --project-ref <ref>
 Current secrets in use:
 - `API_KEY_SECRET` — AES-GCM key for encrypting per-user Anthropic API keys
 - `GROQ_API_KEY` — shared Groq key used by `transcribe-audio` edge function
-- `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` — used by `r2-upload-url` to mint presigned R2 PUT URLs. See [r2-migration-plan.md](./r2-migration-plan.md).
+- `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` — used by `r2-upload-url`, `consent-upload-url`, `consent-reject`, `consent-analyze-id`. See [r2-migration-plan.md](./r2-migration-plan.md).
+- `AWS_TEXTRACT_REGION`, `AWS_TEXTRACT_ACCESS_KEY_ID`, `AWS_TEXTRACT_SECRET_ACCESS_KEY` — used by `consent-analyze-id` to call AWS Textract `AnalyzeID`. The IAM user only needs `textract:AnalyzeID` permission. Region defaults to `us-east-1` if unset.
 
 ### Deploy the CF images Worker
 
@@ -90,17 +91,11 @@ Dev is the default target. Never deploy to prod without explicit user permission
 
 Keep this section updated as changes land on dev but haven't shipped to prod.
 
-_No pending changes — dev is in sync with prod as of 2026-04-25 (feedback batch: two-tap Today button in month view, fuzzy alternatives surfaced when an exact client match has credible near-misses, evening default moved from 2pm to 6pm with `workingHours.end` extended to 21:00, explicit booking→walk-in conversion before client delete, plus migration 00022 adding DELETE RLS policy on `feedback`)._
-
-**Migration drift on prod:** `supabase_migrations.schema_migrations` has 12 rows under timestamp names (e.g. `20260414231603`) that correspond to local migrations 00007–00021 applied via SQL Editor. `supabase db push` will refuse against prod until this is repaired. For 00022, the policy + history row were applied directly via MCP. Future prod migrations should either (a) be applied the same way (execute_sql + manual schema_migrations insert) or (b) clean up the drift first with `migration repair --status reverted <timestamps...>` followed by `migration repair --status applied 00007 ... 00021`.
+_None — consent forms feature shipped to prod on 2026-04-27 (migrations 00023–00028, AWS Textract secrets, 5 consent edge functions, workers/images redeploy, frontend)._
 
 ## Known caveats
 
-- **Migration history drift.** The dev project's `supabase_migrations.schema_migrations` was empty until recently. If a new environment's `db push` wants to re-apply old migrations, use:
-  ```bash
-  npx supabase migration repair --linked --status applied 00001 00002 ... 00012
-  ```
-  to mark pre-existing migrations as applied without re-running them.
+- **Migration history naming.** The CLI keys versions on the leading numeric prefix only (e.g. `00007`), not the full filename (`00007_simulator_tables`). If a new entry lands under the full filename — or worse, under a CLI-generated timestamp — `db push` will refuse with "Remote migration versions not found in local migrations directory". Both prod and dev `supabase_migrations.schema_migrations` were repaired on 2026-04-25 to use the bare-prefix form. Future entries should follow the same pattern.
 
 - **MCP is prod-only.** Any `mcp__supabase__*` call targets prod. For dev, use the CLI.
 

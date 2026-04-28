@@ -22,8 +22,12 @@ export function authorizeKey(key: string, userId: string): void {
 
   switch (prefix) {
     case "booking-images":
-    case "documents": {
-      // Must be {prefix}/{user_id}/{remainder}
+    case "documents":
+    case "consent": {
+      // Must be {prefix}/{user_id}/{remainder}.
+      // For "consent", the user_id is the artist's id — clients submit
+      // anonymously through an edge function that uploads on the artist's
+      // behalf, but reads here are gated to the artist alone.
       if (rest.length < 2) throw new AuthError(`${prefix} key too short`, 403);
       const keyUser = rest[0];
       if (!UUID_RE.test(keyUser)) throw new AuthError("malformed user id", 403);

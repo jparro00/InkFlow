@@ -1,37 +1,39 @@
 @import "tailwindcss";
 
 @theme {
-  /* Dark purple elevation system */
-  --color-bg: #110D18;           /* deepest */
-  --color-surface: #1A1525;     /* 1dp elevation */
-  --color-elevated: #241E30;    /* 4dp elevation */
-  --color-input: #2A2337;      /* 6dp elevation */
-  --color-border: #342D42;      /* 12dp — subtle dividers */
-  --color-border-s: #3E3650;    /* 24dp — stronger dividers */
+  /* Default palette = Moss. Charcoal elevation, lime accent. Crimson and the
+     other named themes override these tokens via data-theme below. */
+  --color-bg: #121212;
+  --color-surface: #1E1E1E;
+  --color-elevated: #272727;
+  --color-input: #2C2C2C;
+  --color-border: #333333;
+  --color-border-s: #383838;
 
   /* Text — white at M2 opacity levels */
   --color-text-p: rgba(255, 255, 255, 0.87);  /* high emphasis */
   --color-text-s: rgba(255, 255, 255, 0.60);  /* medium emphasis */
   --color-text-t: rgba(255, 255, 255, 0.38);  /* disabled / tertiary */
 
-  /* Primary accent — Keeps Red */
-  --color-accent: #DE0000;
-  --color-accent-dim: #CC0068;
-  --color-accent-glow: rgba(222, 0, 0, 0.12);
-  --accent-rgb: 222, 0, 0;
+  /* Primary accent — Moss lime */
+  --color-accent: #4ADE80;
+  --color-accent-dim: #16A34A;
+  --color-accent-glow: rgba(74, 222, 128, 0.10);
+  --accent-rgb: 74, 222, 128;
 
   /* Status colors */
-  --color-danger: #FE0000;
-  --color-success: #FECA00;
-  --color-today: #EE4700;
+  --color-danger: #CF6679;
+  --color-success: #22D3EE;
+  --color-today: #E8453C;
 
-  /* Booking type colors */
-  --color-type-regular: #B813FF;
-  --color-type-touchup: #F67100;
-  --color-type-consult: #FE84FF;
-  --color-type-fullday: #FF00AC;
-  --color-type-coverup: #1E90FF;
-  --color-type-personal: #10D897;
+  /* Booking type colors — M2 400-tone; Consultation shifted to yellow so it's
+     not confused with pink Full Day */
+  --color-type-regular: #C084FC;
+  --color-type-touchup: #FB923C;
+  --color-type-consult: #FACC15;
+  --color-type-fullday: #F472B6;
+  --color-type-coverup: #60A5FA;
+  --color-type-personal: #2DD4BF;
 
   /* Overlay colors */
   --color-overlay: rgba(0, 0, 0, 0.60);
@@ -52,8 +54,8 @@
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.6);
   --shadow-md: 0 4px 20px rgba(0,0,0,0.7);
   --shadow-lg: 0 12px 40px rgba(0,0,0,0.8);
-  --shadow-glow: 0 0 14px rgba(222,0,0,0.20);
-  --shadow-glow-strong: 0 0 22px rgba(222,0,0,0.32);
+  --shadow-glow: 0 0 14px rgba(74, 222, 128, 0.20);
+  --shadow-glow-strong: 0 0 22px rgba(74, 222, 128, 0.32);
 
   --radius-sm: 6px;
   --radius-md: 10px;
@@ -63,10 +65,39 @@
 
 /* --------------------------------------------------------------------------
    Theme presets — swap the palette by setting data-theme on <html>.
-   Default (no attribute) is Crimson. Variables NOT listed here inherit from
+   Default (no attribute) is Moss. Variables NOT listed here inherit from
    the @theme block above (text opacities, fonts, sizes, radii, booking type
    swatches, overlays).
    -------------------------------------------------------------------------- */
+
+html[data-theme="crimson"] {
+  /* Original Ink Bloop palette — dark purple elevation, deep red accent. */
+  --color-bg: #110D18;
+  --color-surface: #1A1525;
+  --color-elevated: #241E30;
+  --color-input: #2A2337;
+  --color-border: #342D42;
+  --color-border-s: #3E3650;
+
+  --color-accent: #DE0000;
+  --color-accent-dim: #CC0068;
+  --color-accent-glow: rgba(222, 0, 0, 0.12);
+  --accent-rgb: 222, 0, 0;
+
+  --color-danger: #FE0000;
+  --color-success: #FECA00;
+  --color-today: #EE4700;
+
+  --color-type-regular: #B813FF;
+  --color-type-touchup: #F67100;
+  --color-type-consult: #FE84FF;
+  --color-type-fullday: #FF00AC;
+  --color-type-coverup: #1E90FF;
+  --color-type-personal: #10D897;
+
+  --shadow-glow: 0 0 14px rgba(222, 0, 0, 0.20);
+  --shadow-glow-strong: 0 0 22px rgba(222, 0, 0, 0.32);
+}
 
 html[data-theme="gruvbox"] {
   /* Gruvbox dark medium (morhetz): #282828 bg, bright_orange accent.
@@ -162,35 +193,6 @@ html[data-theme="violet"] {
 
   --shadow-glow: 0 0 14px rgba(139, 92, 246, 0.22);
   --shadow-glow-strong: 0 0 22px rgba(139, 92, 246, 0.34);
-}
-
-html[data-theme="green"] {
-  --color-bg: #121212;
-  --color-surface: #1E1E1E;
-  --color-elevated: #272727;
-  --color-input: #2C2C2C;
-  --color-border: #333333;
-  --color-border-s: #383838;
-
-  --color-accent: #4ADE80;
-  --color-accent-dim: #16A34A;
-  --color-accent-glow: rgba(74, 222, 128, 0.10);
-  --accent-rgb: 74, 222, 128;
-
-  --color-danger: #CF6679;
-  --color-success: #22D3EE;
-  --color-today: #E8453C;
-
-  /* Booking types — M2 400-tone; Consultation shifted to yellow so it's not confused with pink Full Day */
-  --color-type-regular: #C084FC;
-  --color-type-touchup: #FB923C;
-  --color-type-consult: #FACC15;
-  --color-type-fullday: #F472B6;
-  --color-type-coverup: #60A5FA;
-  --color-type-personal: #2DD4BF;
-
-  --shadow-glow: 0 0 14px rgba(74, 222, 128, 0.20);
-  --shadow-glow-strong: 0 0 22px rgba(74, 222, 128, 0.32);
 }
 
 html[data-theme="noir"] {

@@ -14,6 +14,8 @@ const SettingsPage = lazy(() => import('./pages/Settings'));
 const MessagesPage = lazy(() => import('./pages/Messages'));
 const ThemePage = lazy(() => import('./pages/Theme'));
 const FeedbackPage = lazy(() => import('./pages/Feedback'));
+const FormsPage = lazy(() => import('./pages/Forms'));
+const ConsentSubmitPage = lazy(() => import('./pages/ConsentSubmit'));
 const DataLoader = lazy(() => import('./contexts/DataLoader'));
 
 // Matches the inline #boot-splash in index.html so there is no visual flash
@@ -84,6 +86,10 @@ function AppContent() {
     <Suspense fallback={<BootSplash />}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        {/* Public consent-form route — no auth, no DataLoader. The artist
+            scans-in is anonymous; everything is gated server-side by
+            consent-* edge functions. */}
+        <Route path="/consent/:artistId" element={<ConsentSubmitPage />} />
         <Route
           element={
             <ProtectedRoute>
@@ -100,6 +106,7 @@ function AppContent() {
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/theme" element={<ThemePage />} />
           <Route path="/feedback" element={<FeedbackPage />} />
+          <Route path="/forms" element={<FormsPage />} />
         </Route>
       </Routes>
     </Suspense>

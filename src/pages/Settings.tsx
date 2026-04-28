@@ -1,4 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
+import { ChevronRight, Copy, Check } from 'lucide-react';
+import QRCode from 'qrcode';
 import { useUIStore } from '../stores/uiStore';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -10,7 +13,34 @@ let _cachedApiKeyConfigured: boolean | null = null;
 
 export default function SettingsPage() {
   const { setHeaderLeft, setHeaderRight } = useUIStore();
-  const { signOut } = useAuth();
+  const { signOut, session } = useAuth();
+  const userId = session?.user?.id;
+  const consentUrl = userId
+    ? `${window.location.origin}/#/consent/${userId}`
+    : '';
+  const qrCanvasRef = useRef<HTMLCanvasElement>(null);
+  const [qrCopied, setQrCopied] = useState(false);
+
+  useEffect(() => {
+    if (!consentUrl || !qrCanvasRef.current) return;
+    QRCode.toCanvas(qrCanvasRef.current, consentUrl, {
+      width: 220,
+      margin: 1,
+      color: { dark: '#FFFFFF', light: '#00000000' },
+      errorCorrectionLevel: 'M',
+    }).catch((err) => console.error('QR render failed', err));
+  }, [consentUrl]);
+
+  const copyConsentUrl = async () => {
+    if (!consentUrl) return;
+    try {
+      await navigator.clipboard.writeText(consentUrl);
+      setQrCopied(true);
+      setTimeout(() => setQrCopied(false), 2000);
+    } catch (e) {
+      console.error('clipboard write failed', e);
+    }
+  };
 
   useEffect(() => {
     setHeaderLeft(null);
@@ -26,6 +56,44 @@ export default function SettingsPage() {
   const [morningTime, setMorningTime] = useState(() => localStorage.getItem('inkbloop-morning-time') ?? '10:00');
   const [eveningTime, setEveningTime] = useState(() => localStorage.getItem('inkbloop-evening-time') ?? '18:00');
   const [timesSaved, setTimesSaved] = useState(false);
+
+  // Studio name shown at the top of every consent PDF AND substituted into
+  // 11 of the 12 waiver statements ("{studio} has given me…"). Persisted in
+  // the studio_profiles table because the public consent flow (anonymous
+  // client device) needs to read it — localStorage on the artist's own
+  // device wouldn't be visible there.
+  const [studioName, setStudioName] = useState('');
+  const [studioNameSaved, setStudioNameSaved] = useState(false);
+  const studioUserId = session?.user?.id;
+  useEffect(() => {
+    if (!studioUserId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('studio_profiles')
+        .select('studio_name')
+        .eq('user_id', studioUserId)
+        .maybeSingle();
+      if (cancelled) return;
+      if (data?.studio_name) {
+        setStudioName(data.studio_name);
+        return;
+      }
+      // One-shot migration: if the row is empty but the artist has a value
+      // in localStorage from the pre-table era, write it through and clear
+      // the legacy storage.
+      const legacy = localStorage.getItem('inkbloop-studio-name');
+      if (legacy) {
+        await supabase.from('studio_profiles').upsert({
+          user_id: studioUserId,
+          studio_name: legacy,
+        });
+        localStorage.removeItem('inkbloop-studio-name');
+        setStudioName(legacy);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [studioUserId]);
 
   const [theme, setTheme] = useState<ThemeId>(() => getTheme());
 
@@ -174,6 +242,90 @@ export default function SettingsPage() {
                 );
               })}
             </div>
+          </div>
+        </section>
+
+        <section className={sectionClass}>
+          <h2 className="text-md text-text-p font-display mb-3">Consent forms</h2>
+          <div className={cardClass}>
+            <div>
+              <div className="text-base text-text-s mb-1">Studio / artist name</div>
+              <div className="text-sm text-text-t mb-3">
+                Shown at the top of the consent PDF clients sign and download.
+              </div>
+              <div className="flex gap-3">
+                <input
+                  type="text"
+                  value={studioName}
+                  onChange={(e) => setStudioName(e.target.value)}
+                  placeholder="e.g. Black Anchor Tattoo"
+                  className={`${inputClass} flex-1`}
+                  maxLength={80}
+                />
+                <button
+                  onClick={async () => {
+                    if (!studioUserId) return;
+                    const trimmed = studioName.trim();
+                    await supabase.from('studio_profiles').upsert({
+                      user_id: studioUserId,
+                      studio_name: trimmed || null,
+                    });
+                    setStudioName(trimmed);
+                    setStudioNameSaved(true);
+                    setTimeout(() => setStudioNameSaved(false), 2000);
+                  }}
+                  className="shrink-0 px-5 py-3.5 text-base bg-accent text-bg rounded-md cursor-pointer press-scale transition-all min-h-[48px]"
+                >
+                  {studioNameSaved ? 'Saved!' : 'Save'}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <div className="text-base text-text-s mb-1">Your QR code</div>
+              <div className="text-sm text-text-t mb-4">
+                Print this and let clients scan it before their session. Each scan opens your consent form.
+              </div>
+              <div className="flex flex-col items-center gap-3">
+                <div className="rounded-md bg-bg/40 border border-border/40 p-4">
+                  <canvas ref={qrCanvasRef} className="block" />
+                </div>
+                <div className="w-full">
+                  <div className="text-xs text-text-t uppercase tracking-wider mb-1">Shareable URL</div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={consentUrl}
+                      readOnly
+                      className={`${inputClass} flex-1 font-mono text-xs`}
+                    />
+                    <button
+                      onClick={copyConsentUrl}
+                      className="shrink-0 px-4 py-3.5 rounded-md border border-border/60 bg-input text-text-s cursor-pointer press-scale transition-all flex items-center gap-2 min-h-[48px]"
+                      aria-label="Copy URL"
+                    >
+                      {qrCopied ? <Check size={16} className="text-success" /> : <Copy size={16} />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className={sectionClass}>
+          <h2 className="text-md text-text-p font-display mb-3">Support</h2>
+          <div className={cardClass}>
+            <Link
+              to="/feedback"
+              className={`${rowClass} -m-2 px-2 rounded-md cursor-pointer press-scale active:bg-elevated/40 transition-colors`}
+            >
+              <div>
+                <div className="text-base text-text-p">Feedback</div>
+                <div className="text-sm text-text-t mt-1">Tell us what you think.</div>
+              </div>
+              <ChevronRight size={18} className="text-text-t" />
+            </Link>
           </div>
         </section>
 
