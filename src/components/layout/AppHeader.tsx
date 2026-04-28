@@ -9,12 +9,11 @@ export default function AppHeader() {
     <div className="px-3 flex items-center shrink-0 relative h-[68px]">
       {headerLeft && <div className="z-10">{headerLeft}</div>}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        {/* "Ink Bloop" wordmark stays the centered anchor; the logo sits to
-            its left via absolute offset. Tight 4 px gap so the logo doesn't
-            stick out far enough to overlap the headerLeft slot (where
-            Calendar shows the year in month view). */}
-        <div className="relative flex items-center">
-          <Logo className="w-14 h-14 absolute -left-14" />
+        {/* Logo + wordmark center as a single unit. Container gap is zero,
+            so the only visible spacing is the SVG's own internal padding —
+            tweak that by editing logo.svg if you want the artwork tighter. */}
+        <div className="flex items-center">
+          <Logo className="w-14 h-14" />
           <span className="font-display text-lg font-bold text-text-p tracking-wide">Ink Bloop</span>
         </div>
       </div>
