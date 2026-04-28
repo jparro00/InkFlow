@@ -88,8 +88,44 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // SPA navigation: serve cached shell instantly, revalidate in background.
+  // SPA navigation: serve cached shell instantly, revalidate in background —
+  // EXCEPT when the URL carries `?app=consent`. The consent QR code is the
+  // only navigation a client ever does (one scan per studio visit, weeks or
+  // months apart between visits), and they MUST get the freshest shell so
+  // newly-shipped branding / form copy / fixes land on the very next scan.
+  // The artist's own app (no query param) stays cache-first for fast boot.
   if (request.mode === 'navigate') {
+    const isConsentScan = url.searchParams.get('app') === 'consent';
+    if (isConsentScan) {
+      event.respondWith((async () => {
+        const cache = await caches.open(CACHE_NAME);
+        // Race the network against a 2 s timeout so a flaky cell connection
+        // can still fall back to whatever shell was cached previously.
+        const networkPromise = (async () => {
+          const preloaded = await event.preloadResponse;
+          return preloaded || fetch(request);
+        })();
+        const timeoutPromise = new Promise((resolve) =>
+          setTimeout(() => resolve(null), 2000),
+        );
+        try {
+          const fresh = await Promise.race([networkPromise, timeoutPromise]);
+          if (fresh && fresh.ok) {
+            cache.put('/index.html', fresh.clone());
+            return fresh;
+          }
+          const cached = await cache.match('/index.html');
+          if (cached) return cached;
+          // Timeout but no cache — keep waiting on the network as the last
+          // resort instead of returning a hard error.
+          return (await networkPromise) || Response.error();
+        } catch {
+          const cached = await cache.match('/index.html');
+          return cached || Response.error();
+        }
+      })());
+      return;
+    }
     event.respondWith((async () => {
       const cache = await caches.open(CACHE_NAME);
       const cached = await cache.match('/index.html');

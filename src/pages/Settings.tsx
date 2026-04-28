@@ -16,8 +16,12 @@ export default function SettingsPage() {
   const { setHeaderLeft, setHeaderRight } = useUIStore();
   const { signOut, session } = useAuth();
   const userId = session?.user?.id;
+  // The `?app=consent` query is consumed by the service worker (public/sw.js)
+  // to switch its navigation handler from cache-first to network-first for
+  // QR scans. The artist's app never carries this param so its cache-first
+  // boot is unchanged. The hash route is what React Router actually reads.
   const consentUrl = userId
-    ? `${window.location.origin}/#/consent/${userId}`
+    ? `${window.location.origin}/?app=consent#/consent/${userId}`
     : '';
   const qrCanvasRef = useRef<HTMLCanvasElement>(null);
   const [qrCopied, setQrCopied] = useState(false);
