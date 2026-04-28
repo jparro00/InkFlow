@@ -10,10 +10,10 @@ export default function AppHeader() {
       {headerLeft && <div className="z-10">{headerLeft}</div>}
       <div
         className="absolute inset-0 flex items-center justify-center pointer-events-none"
-        // Bias the centered group 1% of header width to the left for a hair
-        // of optical compensation. Pure mathematical center looks slightly
-        // right-heavy because the wordmark's caps lean visually right.
-        style={{ transform: 'translateX(-1%)' }}
+        // Bias the centered group 2% of header width to the left for optical
+        // compensation. Pure mathematical center looks right-heavy because
+        // the wordmark's caps lean visually right.
+        style={{ transform: 'translateX(-2%)' }}
       >
         {/* Logo + wordmark center as a single unit. Container gap is zero,
             so the only visible spacing is the SVG's own internal padding —
