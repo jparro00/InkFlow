@@ -8,6 +8,7 @@ import { useBookingStore } from '../stores/bookingStore';
 import { useImageStore } from '../stores/imageStore';
 import { useDocumentStore } from '../stores/documentStore';
 import { useMessageStore } from '../stores/messageStore';
+import { useConsentSubmissionStore } from '../stores/consentSubmissionStore';
 import { useUIStore } from '../stores/uiStore';
 import { getSignedUrl } from '../services/documentService';
 import { useImageThumbnails, useDocumentImageThumbnails } from '../hooks/useBookingImages';
@@ -33,7 +34,8 @@ export default function ClientDetailPage() {
   const clientDocuments = useMemo(() => allDocuments.filter((d) => d.client_id === id), [allDocuments, id]);
   const removeDocument = useDocumentStore((s) => s.removeDocument);
   const uploadDocument = useDocumentStore((s) => s.uploadDocument);
-  const { setSelectedBookingId, setSelectedConversationId, openBookingForm, setPrefillBookingData, setEditingClientId, addToast, setConfirmDialogOpen } = useUIStore();
+  const allSubmissions = useConsentSubmissionStore((s) => s.submissions);
+  const { setSelectedBookingId, setSelectedConversationId, openBookingForm, setPrefillBookingData, setEditingClientId, addToast, setConfirmDialogOpen, setSelectedConsentSubmissionId } = useUIStore();
   const conversations = useMessageStore((s) => s.conversations);
   const [tab, setTab] = useState<Tab>('overview');
   const [noteText, setNoteText] = useState('');
@@ -89,6 +91,22 @@ export default function ClientDetailPage() {
   );
   const { thumbnails: docThumbnails, getOriginalUrl: getDocOriginalUrl } =
     useDocumentImageThumbnails(imageDocs);
+
+  // Finalized consent forms attached to any of this client's bookings. Pulled
+  // here (not in the doc store) because consent_submissions is its own table —
+  // we only surface forms that have made it past payment so the Docs tab
+  // doesn't dilute the list with in-progress submissions.
+  const consentForms = useMemo(
+    () =>
+      allSubmissions
+        .filter((s) => s.status === 'finalized' && s.booking_id && clientBookingIds.has(s.booking_id))
+        .sort((a, b) => {
+          const ad = a.finalized_at ?? a.submitted_at;
+          const bd = b.finalized_at ?? b.submitted_at;
+          return new Date(bd).getTime() - new Date(ad).getTime();
+        }),
+    [allSubmissions, clientBookingIds],
+  );
 
   if (!client) {
     return (
@@ -589,6 +607,35 @@ export default function ClientDetailPage() {
               />
             </label>
           </div>
+          {consentForms.length > 0 && (
+            <div className="mb-6">
+              <div className="text-sm text-text-t uppercase tracking-wider mb-3 font-medium">Consent Forms</div>
+              <div className="space-y-2">
+                {consentForms.map((sub) => {
+                  const booking = clientBookings.find((b) => b.id === sub.booking_id);
+                  const stamp = sub.finalized_at ?? sub.submitted_at;
+                  return (
+                    <button
+                      key={sub.id}
+                      onClick={() => setSelectedConsentSubmissionId(sub.id)}
+                      className="w-full text-left flex items-center gap-3 bg-surface/60 rounded-lg p-4 border border-border/30 active:bg-elevated/40 transition-colors cursor-pointer press-scale"
+                    >
+                      <FileText size={20} className="text-text-t shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-base text-accent truncate">
+                          Consent form
+                        </div>
+                        <div className="text-xs text-text-t mt-0.5">
+                          {format(new Date(stamp), 'MMM d, yyyy')}
+                          {booking && ` · ${booking.type}`}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           {imageDocs.length > 0 && (
             <div className="grid grid-cols-3 gap-2 mb-6">
               {imageDocs.map((doc) => {
@@ -658,7 +705,7 @@ export default function ClientDetailPage() {
               ))}
             </div>
           )}
-          {docs.length === 0 && (
+          {docs.length === 0 && consentForms.length === 0 && (
             <div className="text-center py-16 text-text-t text-sm">No documents yet.</div>
           )}
         </div>
