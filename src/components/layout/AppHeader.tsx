@@ -14,7 +14,7 @@ export default function AppHeader() {
             stick out far enough to overlap the headerLeft slot (where
             Calendar shows the year in month view). */}
         <div className="relative flex items-center">
-          <Logo className="w-14 h-14 absolute -left-[60px]" />
+          <Logo className="w-14 h-14 absolute -left-14" />
           <span className="font-display text-lg font-bold text-text-p tracking-wide">Ink Bloop</span>
         </div>
       </div>
