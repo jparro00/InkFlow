@@ -124,11 +124,18 @@ export default function CameraCapture({ previewUrl, onCapture }: Props) {
     }
     setState({ kind: 'starting' });
     try {
+      // Pin the aspect ratio + resolution so the browser doesn't renegotiate
+      // mid-stream. Without the aspectRatio constraint, iOS Safari may start
+      // at 4:3 and upgrade to 16:9 a couple seconds in, which causes
+      // object-cover to re-crop and looks like a vertical jump. 1280×720 is a
+      // stable native rear-camera resolution on every modern phone.
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: 'environment' },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          aspectRatio: { ideal: 16 / 9 },
+          frameRate: { ideal: 30, max: 30 },
         },
         audio: false,
       });
@@ -140,8 +147,10 @@ export default function CameraCapture({ previewUrl, onCapture }: Props) {
         await v.play().catch(() => undefined);
       }
       setState({ kind: 'streaming' });
-      // Spin up the detector on next tick so the video has dimensions.
-      window.setTimeout(startDetector, 250);
+      // Wait for the video's intrinsic dimensions to stabilize before
+      // starting the detector. Reading frames before this can sample the
+      // pre-renegotiation resolution and produce false-positive locks.
+      window.setTimeout(startDetector, 600);
     } catch (e) {
       console.warn('getUserMedia failed', e);
       stopStream();
