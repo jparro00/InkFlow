@@ -684,18 +684,27 @@ export interface Database {
         Row: {
           user_id: string;
           studio_name: string | null;
+          logo_svg: string | null;
+          accent_color: string | null;
+          bg_color: string | null;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           user_id: string;
           studio_name?: string | null;
+          logo_svg?: string | null;
+          accent_color?: string | null;
+          bg_color?: string | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           user_id?: string;
           studio_name?: string | null;
+          logo_svg?: string | null;
+          accent_color?: string | null;
+          bg_color?: string | null;
           created_at?: string;
           updated_at?: string;
         };

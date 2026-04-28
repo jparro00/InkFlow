@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRight, Copy, Check } from 'lucide-react';
+import { ChevronRight, Copy, Check, Upload, X } from 'lucide-react';
 import QRCode from 'qrcode';
 import { useUIStore } from '../stores/uiStore';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { saveApiKey, removeApiKey, hasApiKey } from '../services/apiKeyService';
 import { THEMES, getTheme, applyTheme, type ThemeId } from '../lib/theme';
+import { sanitizeSvg, svgToDataUrl } from '../lib/studioBranding';
 
 // Session-scoped cache so the API-key probe doesn't re-fire on every tab visit.
 let _cachedApiKeyConfigured: boolean | null = null;
@@ -57,13 +58,21 @@ export default function SettingsPage() {
   const [eveningTime, setEveningTime] = useState(() => localStorage.getItem('inkbloop-evening-time') ?? '18:00');
   const [timesSaved, setTimesSaved] = useState(false);
 
-  // Studio name shown at the top of every consent PDF AND substituted into
-  // 11 of the 12 waiver statements ("{studio} has given me…"). Persisted in
-  // the studio_profiles table because the public consent flow (anonymous
-  // client device) needs to read it — localStorage on the artist's own
-  // device wouldn't be visible there.
+  // Branding fields backing the public consent route. studio_name is
+  // substituted into the consent PDF; logo_svg, accent_color, bg_color drive
+  // the visual identity of every step in the wizard. All four live on the
+  // studio_profiles row because the consent route is anonymous — it can't
+  // read the artist's localStorage. logo_svg is stored as inline sanitized
+  // SVG text rather than a separate storage object so the wizard renders
+  // from the same row that already carries studio_name; one round-trip,
+  // zero CDN config.
   const [studioName, setStudioName] = useState('');
-  const [studioNameSaved, setStudioNameSaved] = useState(false);
+  const [logoSvg, setLogoSvg] = useState<string | null>(null);
+  const [accentColor, setAccentColor] = useState('#4ADE80');
+  const [bgColor, setBgColor] = useState('#121212');
+  const [brandingSaved, setBrandingSaved] = useState(false);
+  const [brandingError, setBrandingError] = useState<string | null>(null);
+  const [brandingSaving, setBrandingSaving] = useState(false);
   const studioUserId = session?.user?.id;
   useEffect(() => {
     if (!studioUserId) return;
@@ -71,13 +80,16 @@ export default function SettingsPage() {
     (async () => {
       const { data } = await supabase
         .from('studio_profiles')
-        .select('studio_name')
+        .select('studio_name, logo_svg, accent_color, bg_color')
         .eq('user_id', studioUserId)
         .maybeSingle();
       if (cancelled) return;
-      if (data?.studio_name) {
-        setStudioName(data.studio_name);
-        return;
+      if (data) {
+        if (data.studio_name) setStudioName(data.studio_name);
+        if (data.logo_svg) setLogoSvg(data.logo_svg);
+        if (data.accent_color) setAccentColor(data.accent_color);
+        if (data.bg_color) setBgColor(data.bg_color);
+        if (data.studio_name) return;
       }
       // One-shot migration: if the row is empty but the artist has a value
       // in localStorage from the pre-table era, write it through and clear
@@ -94,6 +106,50 @@ export default function SettingsPage() {
     })();
     return () => { cancelled = true; };
   }, [studioUserId]);
+
+  const handleLogoUpload = async (file: File) => {
+    setBrandingError(null);
+    if (!file.type.includes('svg') && !file.name.toLowerCase().endsWith('.svg')) {
+      setBrandingError('Logo must be an SVG file.');
+      return;
+    }
+    // Cap the source at 200KB. A clean SVG is well under that; anything
+    // larger is almost certainly an exported-from-Photoshop monstrosity that
+    // would bloat the consent route.
+    if (file.size > 200_000) {
+      setBrandingError('SVG is too large (200KB max). Try simplifying paths.');
+      return;
+    }
+    try {
+      const text = await file.text();
+      const cleaned = sanitizeSvg(text);
+      setLogoSvg(cleaned);
+    } catch (e) {
+      setBrandingError(e instanceof Error ? e.message : 'Failed to read SVG.');
+    }
+  };
+
+  const saveBranding = async () => {
+    if (!studioUserId) return;
+    setBrandingSaving(true);
+    setBrandingError(null);
+    try {
+      const { error } = await supabase.from('studio_profiles').upsert({
+        user_id: studioUserId,
+        studio_name: studioName.trim() || null,
+        logo_svg: logoSvg,
+        accent_color: accentColor,
+        bg_color: bgColor,
+      });
+      if (error) throw error;
+      setBrandingSaved(true);
+      setTimeout(() => setBrandingSaved(false), 2000);
+    } catch (e) {
+      setBrandingError(e instanceof Error ? e.message : 'Failed to save.');
+    } finally {
+      setBrandingSaving(false);
+    }
+  };
 
   const [theme, setTheme] = useState<ThemeId>(() => getTheme());
 
@@ -251,35 +307,122 @@ export default function SettingsPage() {
             <div>
               <div className="text-base text-text-s mb-1">Studio / artist name</div>
               <div className="text-sm text-text-t mb-3">
-                Shown at the top of the consent PDF clients sign and download.
+                Shown at the top of the consent PDF and as the caption under your logo on the public consent page.
               </div>
-              <div className="flex gap-3">
-                <input
-                  type="text"
-                  value={studioName}
-                  onChange={(e) => setStudioName(e.target.value)}
-                  placeholder="e.g. Black Anchor Tattoo"
-                  className={`${inputClass} flex-1`}
-                  maxLength={80}
-                />
-                <button
-                  onClick={async () => {
-                    if (!studioUserId) return;
-                    const trimmed = studioName.trim();
-                    await supabase.from('studio_profiles').upsert({
-                      user_id: studioUserId,
-                      studio_name: trimmed || null,
-                    });
-                    setStudioName(trimmed);
-                    setStudioNameSaved(true);
-                    setTimeout(() => setStudioNameSaved(false), 2000);
-                  }}
-                  className="shrink-0 px-5 py-3.5 text-base bg-accent text-bg rounded-md cursor-pointer press-scale transition-all min-h-[48px]"
+              <input
+                type="text"
+                value={studioName}
+                onChange={(e) => setStudioName(e.target.value)}
+                placeholder="e.g. Black Anchor Tattoo"
+                className={inputClass}
+                maxLength={80}
+              />
+            </div>
+
+            <div>
+              <div className="text-base text-text-s mb-1">Logo</div>
+              <div className="text-sm text-text-t mb-3">
+                SVG only (max 200KB). Renders at the top of the public consent page above the studio name.
+              </div>
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-20 h-20 rounded-md border border-border/60 bg-bg/40 flex items-center justify-center overflow-hidden shrink-0"
+                  style={{ backgroundColor: bgColor }}
+                  aria-label="Logo preview"
                 >
-                  {studioNameSaved ? 'Saved!' : 'Save'}
-                </button>
+                  {logoSvg ? (
+                    <img
+                      src={svgToDataUrl(logoSvg)}
+                      alt="Logo"
+                      className="max-w-full max-h-full"
+                    />
+                  ) : (
+                    <span className="text-xs text-text-t">No logo</span>
+                  )}
+                </div>
+                <label className="flex-1 px-4 py-3.5 text-base text-text-s rounded-md border border-border/60 cursor-pointer press-scale transition-all flex items-center justify-center gap-2 min-h-[48px] active:bg-elevated/40">
+                  <Upload size={16} />
+                  {logoSvg ? 'Replace SVG' : 'Upload SVG'}
+                  <input
+                    type="file"
+                    accept="image/svg+xml,.svg"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const f = e.target.files?.[0];
+                      e.target.value = '';
+                      if (f) await handleLogoUpload(f);
+                    }}
+                  />
+                </label>
+                {logoSvg && (
+                  <button
+                    type="button"
+                    onClick={() => setLogoSvg(null)}
+                    aria-label="Remove logo"
+                    className="w-12 h-12 rounded-md border border-border/60 text-text-t active:text-danger transition-colors cursor-pointer press-scale flex items-center justify-center shrink-0"
+                  >
+                    <X size={16} />
+                  </button>
+                )}
               </div>
             </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <div className="text-base text-text-s mb-1">Background</div>
+                <div className="text-sm text-text-t mb-3">Page color.</div>
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="color"
+                    value={bgColor}
+                    onChange={(e) => setBgColor(e.target.value)}
+                    className="w-12 h-12 rounded-md border border-border/60 bg-input cursor-pointer p-1"
+                    aria-label="Background color"
+                  />
+                  <input
+                    type="text"
+                    value={bgColor}
+                    onChange={(e) => setBgColor(e.target.value)}
+                    className={`${inputClass} flex-1 font-mono text-sm`}
+                    placeholder="#121212"
+                    maxLength={7}
+                  />
+                </div>
+              </div>
+              <div>
+                <div className="text-base text-text-s mb-1">Accent</div>
+                <div className="text-sm text-text-t mb-3">Buttons + highlights.</div>
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="color"
+                    value={accentColor}
+                    onChange={(e) => setAccentColor(e.target.value)}
+                    className="w-12 h-12 rounded-md border border-border/60 bg-input cursor-pointer p-1"
+                    aria-label="Accent color"
+                  />
+                  <input
+                    type="text"
+                    value={accentColor}
+                    onChange={(e) => setAccentColor(e.target.value)}
+                    className={`${inputClass} flex-1 font-mono text-sm`}
+                    placeholder="#4ADE80"
+                    maxLength={7}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {brandingError && (
+              <div className="text-sm text-danger">{brandingError}</div>
+            )}
+
+            <button
+              onClick={saveBranding}
+              disabled={brandingSaving}
+              className="w-full py-3.5 text-base bg-accent text-bg rounded-md cursor-pointer press-scale transition-all shadow-glow active:shadow-glow-strong disabled:opacity-40 min-h-[48px]"
+            >
+              {brandingSaving ? 'Saving…' : brandingSaved ? 'Saved!' : 'Save branding'}
+            </button>
 
             <div>
               <div className="text-base text-text-s mb-1">Your QR code</div>
