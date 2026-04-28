@@ -18,7 +18,7 @@ export const THEMES: ThemePreset[] = [
   { id: 'sepia',    name: 'Sepia',    bg: '#1A1410', accent: '#F59E0B' },
 ];
 
-export const DEFAULT_THEME: ThemeId = 'crimson';
+export const DEFAULT_THEME: ThemeId = 'green';
 const STORAGE_KEY = 'inkbloop-theme';
 
 export function getTheme(): ThemeId {
