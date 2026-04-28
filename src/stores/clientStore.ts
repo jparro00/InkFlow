@@ -46,9 +46,11 @@ export const useClientStore = create<ClientStore>()(persist((set, get) => ({
       ) as string[];
 
       // Only fetch profiles we don't already have cached. Saves egress on
-      // re-fetches where most profiles haven't changed.
+      // re-fetches where most profiles haven't changed. After hydration
+      // we may have entries without a profilePic (URLs are stripped on
+      // persist) — refetch those too so the avatar comes back.
       const existing = get().linkedProfiles;
-      const missingPsids = allPsids.filter((p) => !existing[p]);
+      const missingPsids = allPsids.filter((p) => !existing[p] || !existing[p].profilePic);
       const newProfiles = missingPsids.length > 0
         ? await clientService.fetchLinkedProfiles(missingPsids)
         : {};
@@ -247,9 +249,42 @@ export const useClientStore = create<ClientStore>()(persist((set, get) => ({
   },
 }), {
   name: 'inkbloop-clients',
+  // Bumped on the change to profile_pic / profilePic persistence semantics.
+  // Pre-v1, both fields were persisted as their resolved render URL; for the
+  // R2 backend that's a blob: URL which is session-scoped, so reloads
+  // produced broken-image (?) avatars on every linked client. From v1
+  // forward neither is persisted — both are re-resolved on hydration via
+  // the next fetchClients call.
+  version: 1,
+  migrate: (persistedState) => {
+    const state = persistedState as
+      | {
+          clients?: Array<{ profile_pic?: unknown }>;
+          linkedProfiles?: Record<string, { profilePic?: unknown }>;
+        }
+      | null
+      | undefined;
+    if (state?.clients) {
+      state.clients = state.clients.map((c) => ({ ...c, profile_pic: undefined }));
+    }
+    if (state?.linkedProfiles) {
+      const cleaned: Record<string, { profilePic?: unknown }> = {};
+      for (const [k, v] of Object.entries(state.linkedProfiles)) {
+        cleaned[k] = { ...v, profilePic: undefined };
+      }
+      state.linkedProfiles = cleaned;
+    }
+    return state;
+  },
+  // Strip profile_pic / profilePic on persist (and skip _fetchedAt so the
+  // next mount always refetches and fills in fresh signed/blob URLs).
   partialize: (state) => ({
-    clients: state.clients,
-    linkedProfiles: state.linkedProfiles,
-    _fetchedAt: state._fetchedAt,
+    clients: state.clients.map((c) => ({ ...c, profile_pic: undefined })),
+    linkedProfiles: Object.fromEntries(
+      Object.entries(state.linkedProfiles).map(([k, v]) => [
+        k,
+        { ...v, profilePic: undefined },
+      ]),
+    ),
   }),
 }));

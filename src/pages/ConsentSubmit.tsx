@@ -53,6 +53,7 @@ import {
   sha256Hex,
   type ConsentPDFData,
 } from '../components/forms/ConsentPDF';
+import { studioBrandingStyle, svgToDataUrl } from '../lib/studioBranding';
 import { supabase } from '../lib/supabase';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
@@ -373,24 +374,40 @@ export default function ConsentSubmitPage() {
   const tattooFilled = tattoo.location.trim() && tattoo.description.trim();
   const fillFormReady = Boolean(personalInfoFilled && tattooFilled && allRequiredChecked);
 
-  // Studio name is fetched from studio_profiles (public-read RLS) since the
-  // public client device has no access to the artist's localStorage. Drives
-  // both the PDF header and the {studio} substitution in waiver statements.
+  // Studio profile drives the consent page's branding AND the PDF header.
+  // Fetched in a single round-trip from studio_profiles (public-read RLS).
+  // logo_svg arrives as already-sanitized text and is rendered via <img>
+  // (sandboxed by browser SVG-in-img semantics).
   const [studioName, setStudioName] = useState('');
+  const [logoSvg, setLogoSvg] = useState<string | null>(null);
+  const [accentColor, setAccentColor] = useState<string | null>(null);
+  const [bgColor, setBgColor] = useState<string | null>(null);
   useEffect(() => {
     if (!artistId || !isUuid(artistId)) return;
     let cancelled = false;
     supabase
       .from('studio_profiles')
-      .select('studio_name')
+      .select('studio_name, logo_svg, accent_color, bg_color')
       .eq('user_id', artistId)
       .maybeSingle()
       .then(({ data }) => {
-        if (cancelled || !data?.studio_name) return;
-        setStudioName(data.studio_name);
+        if (cancelled || !data) return;
+        if (data.studio_name) setStudioName(data.studio_name);
+        if (data.logo_svg) setLogoSvg(data.logo_svg);
+        if (data.accent_color) setAccentColor(data.accent_color);
+        if (data.bg_color) setBgColor(data.bg_color);
       });
     return () => { cancelled = true; };
   }, [artistId]);
+
+  const brandingStyle = useMemo(
+    () => studioBrandingStyle({ accent: accentColor, bg: bgColor }),
+    [accentColor, bgColor],
+  );
+  const logoDataUrl = useMemo(
+    () => (logoSvg ? svgToDataUrl(logoSvg) : null),
+    [logoSvg],
+  );
 
   // Builds a ConsentPDFData snapshot from current state. Re-computed by the
   // useEffect below whenever any of the inputs change.
@@ -588,19 +605,41 @@ export default function ConsentSubmitPage() {
     }
   };
 
+  // Show the studio header (logo + name) only when the artist has provided
+  // *something* to brand with. Otherwise the welcome screen drops back to a
+  // bare "Consent form" chrome — never an empty header.
+  const hasBranding = Boolean(logoDataUrl || studioName);
+
   return (
-    <div className="min-h-[100dvh] bg-bg flex flex-col">
-      <header className="px-5 pt-8 pb-4 flex items-center gap-3 max-w-2xl w-full mx-auto">
-        <FileSignature size={22} className="text-accent" />
-        <h1 className="font-display text-xl text-text-p">Consent form</h1>
-      </header>
+    <div className="min-h-[100dvh] bg-bg flex flex-col" style={brandingStyle}>
+      {!hasBranding && (
+        <header className="px-5 pt-8 pb-4 flex items-center gap-3 max-w-2xl w-full mx-auto">
+          <FileSignature size={22} className="text-accent" />
+          <h1 className="font-display text-xl text-text-p">Consent form</h1>
+        </header>
+      )}
 
       <div className="flex-1 px-5 pb-24 max-w-2xl w-full mx-auto">
         {step === 'welcome' && (
-          <div className="pt-12 text-center">
-            <h2 className="font-display text-2xl text-text-p mb-3">Before your tattoo</h2>
+          <div className="pt-10 text-center">
+            {hasBranding && logoDataUrl && (
+              <img
+                src={logoDataUrl}
+                alt={studioName || 'Studio logo'}
+                className="block max-h-48 w-auto mx-auto mb-6"
+              />
+            )}
+            {/* Studio name + heading sit in the same typographic block — no
+                margin between them so they read as one stacked title, then a
+                bigger gap before the body paragraph kicks in. */}
+            {hasBranding && studioName && (
+              <div className="font-display text-2xl text-text-p">
+                {studioName}
+              </div>
+            )}
+            <h2 className="font-display text-2xl text-text-p mb-8">Digital Consent Form</h2>
             <p className="text-md text-text-s leading-relaxed mb-8">
-              We need a photo of your government ID, your name and date of birth, and a quick waiver. About 2 minutes.
+              We need a photo of your government ID, your name and date of birth, and a quick waiver.
             </p>
             <button
               onClick={() => setStep('disclosure')}

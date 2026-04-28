@@ -78,10 +78,16 @@ function BookingPickerBody() {
 
   const handlePick = async (bookingId: string) => {
     setBusy(true);
+    const id = submission.id;
     try {
-      await approveSubmission(submission.id, bookingId);
+      await approveSubmission(id, bookingId);
       addToast('Form approved');
-      setAttachToBookingSubmissionId(null);
+      // Only dismiss THIS picker. If the user navigated to another
+      // submission while approve was in flight, leave the new drawer
+      // alone — otherwise the late "Form approved" toast would close it.
+      if (useUIStore.getState().attachToBookingSubmissionId === id) {
+        setAttachToBookingSubmissionId(null);
+      }
     } catch (e) {
       console.error(e);
       addToast('Failed to approve form');

@@ -101,41 +101,66 @@ export default function AppShell() {
         </main>
       </div>
 
-      {/* Modals & drawers — null fallback because they're invisible until
-          their open flag is set; no need to flash a spinner. */}
+      {/* Modals & drawers — each in its OWN Suspense boundary. A single
+          shared boundary causes a real bug: when any one lazy chunk
+          starts loading (e.g. user taps Edit on a booking detail to
+          open BookingForm), the whole boundary renders the `null`
+          fallback — unmounting whichever drawer is *already* open,
+          killing exit animations, and making the Toast/feedback prompt
+          briefly disappear. Per-child boundaries scope each suspension
+          to just that child, so opening one drawer never disturbs the
+          others. (Reported as "taps are blocked" — when the visible UI
+          flickers out for 100-300 ms, taps during that window land on
+          surprise targets beneath.) */}
       <Suspense fallback={null}>
         <AnimatePresence>
           {selectedBookingId && <BookingDrawer />}
         </AnimatePresence>
+      </Suspense>
 
+      <Suspense fallback={null}>
         <AnimatePresence>
           {bookingFormOpen && <BookingForm />}
         </AnimatePresence>
+      </Suspense>
 
+      <Suspense fallback={null}>
         <AnimatePresence>
           {agentPanelOpen && <AgentPanel />}
         </AnimatePresence>
+      </Suspense>
 
+      <Suspense fallback={null}>
         <AnimatePresence>
           {searchOpen && <SearchOverlay />}
         </AnimatePresence>
+      </Suspense>
 
+      <Suspense fallback={null}>
         <AnimatePresence>
           {selectedConversationId && <ConversationDrawer />}
         </AnimatePresence>
+      </Suspense>
 
+      <Suspense fallback={null}>
         <AnimatePresence>
           {selectedConsentSubmissionId && <ConsentFormDrawer />}
         </AnimatePresence>
+      </Suspense>
 
+      <Suspense fallback={null}>
         <AnimatePresence>
           {attachToBookingSubmissionId && <BookingPickerDrawer />}
         </AnimatePresence>
+      </Suspense>
 
+      <Suspense fallback={null}>
         <AnimatePresence>
           {finalizeSubmissionId && <FinalizeFormDrawer />}
         </AnimatePresence>
+      </Suspense>
 
+      <Suspense fallback={null}>
         <AnimatePresence>
           {createClientFormOpen && (
             <CreateClientForm
@@ -168,12 +193,21 @@ export default function AppShell() {
             />
           )}
         </AnimatePresence>
+      </Suspense>
 
+      <Suspense fallback={null}>
         <AnimatePresence>
           {editingClient && <ClientForm client={editingClient} onClose={() => setEditingClientId(null)} />}
         </AnimatePresence>
+      </Suspense>
 
+      {/* Always-rendered overlays in their own boundaries so a modal's
+          chunk load doesn't unmount an in-flight toast or the agent's
+          post-exchange feedback prompt. */}
+      <Suspense fallback={null}>
         <AgentFeedbackPrompt />
+      </Suspense>
+      <Suspense fallback={null}>
         <ToastContainer />
       </Suspense>
 
