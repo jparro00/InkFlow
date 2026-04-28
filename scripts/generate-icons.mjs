@@ -28,10 +28,15 @@ const ROOT = resolve(import.meta.dirname, '..');
 const SRC = resolve(ROOT, 'public/logo.svg');
 const OUT_DIR = resolve(ROOT, 'public');
 
-// Opaque bg used on every iOS / maskable icon. Matches the default Moss
-// theme's --color-bg so the icon looks integrated with our app shell.
-// Change this if the default theme ever shifts.
-const ICON_BG = '#121212';
+// Apple's home screen icons composite onto whatever wallpaper the user has,
+// so a white tile reads cleanly on every wallpaper (light or dark) and lets
+// the green-man artwork pop against the bright field.
+const APPLE_ICON_BG = '#FFFFFF';
+// Android maskable icons get cropped into circles / squircles / teardrops by
+// the system, so the visible bg is whatever fills the safe-zone padding.
+// Keep this matching the default Moss --color-bg so an Android adaptive
+// icon set against a dark drawer still feels like the app.
+const MASKABLE_ICON_BG = '#121212';
 
 const svg = readFileSync(SRC);
 
@@ -52,7 +57,7 @@ async function transparent(size, file) {
  * underlying home screen instead) and Android maskable icons (cropped into
  * arbitrary silhouettes by the system).
  */
-async function opaque(size, file, innerRatio = 0.92) {
+async function opaque(size, file, innerRatio, bgColor) {
   const inner = Math.round(size * innerRatio);
   const inset = Math.round((size - inner) / 2);
   const logoPng = await sharp(svg, { density: 384 })
@@ -64,13 +69,13 @@ async function opaque(size, file, innerRatio = 0.92) {
       width: size,
       height: size,
       channels: 4,
-      background: ICON_BG,
+      background: bgColor,
     },
   })
     .composite([{ input: logoPng, top: inset, left: inset }])
     .png()
     .toFile(resolve(OUT_DIR, file));
-  console.log(`wrote ${file} (${size}×${size}, opaque ${ICON_BG} @ ${Math.round(innerRatio * 100)}% safe zone)`);
+  console.log(`wrote ${file} (${size}×${size}, opaque ${bgColor} @ ${Math.round(innerRatio * 100)}% safe zone)`);
 }
 
 // Browser tab favicons (transparent — modern browsers pick the SVG; PNGs are
@@ -78,16 +83,16 @@ async function opaque(size, file, innerRatio = 0.92) {
 await transparent(16, 'favicon-16.png');
 await transparent(32, 'favicon-32.png');
 
-// iOS home-screen icons (opaque bg, ~92% safe zone — small inset so the
+// iOS home-screen icons (white bg, ~92% safe zone — small inset so the
 // rounded mask iOS applies doesn't shave off the logo's edges).
-await opaque(180, 'apple-touch-icon.png', 0.92);
-await opaque(180, 'apple-touch-icon-180x180.png', 0.92);
+await opaque(180, 'apple-touch-icon.png', 0.92, APPLE_ICON_BG);
+await opaque(180, 'apple-touch-icon-180x180.png', 0.92, APPLE_ICON_BG);
 
 // PWA icons (Android / installable).
 await transparent(192, 'icon-192.png');
 await transparent(512, 'icon-512.png');
 // Maskable: 80% safe zone — Android can crop the outer 20% into any shape.
-await opaque(512, 'icon-512-maskable.png', 0.8);
+await opaque(512, 'icon-512-maskable.png', 0.8, MASKABLE_ICON_BG);
 
 writeFileSync(
   resolve(OUT_DIR, 'icons.README.txt'),
