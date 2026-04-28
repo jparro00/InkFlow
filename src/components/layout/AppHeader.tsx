@@ -8,9 +8,18 @@ export default function AppHeader() {
   return (
     <div className="px-3 flex items-center shrink-0 relative h-[68px]">
       {headerLeft && <div className="z-10">{headerLeft}</div>}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div className="relative flex items-center">
-          <Logo className="w-10 h-10 absolute -left-12" />
+      <div
+        className="absolute inset-0 flex items-center justify-center pointer-events-none"
+        // Bias the centered group 2% of header width to the left for optical
+        // compensation. Pure mathematical center looks right-heavy because
+        // the wordmark's caps lean visually right.
+        style={{ transform: 'translateX(-2%)' }}
+      >
+        {/* Logo + wordmark center as a single unit. Container gap is zero,
+            so the only visible spacing is the SVG's own internal padding —
+            tweak that by editing logo.svg if you want the artwork tighter. */}
+        <div className="flex items-center">
+          <Logo className="w-14 h-14" />
           <span className="font-display text-lg font-bold text-text-p tracking-wide">Ink Bloop</span>
         </div>
       </div>
