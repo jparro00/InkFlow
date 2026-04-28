@@ -593,6 +593,7 @@ export interface Database {
           booking_id: string | null;
           payment_type: string | null;
           payment_amount: number | null;
+          payment_tip: number | null;
           tattoo_location: string | null;
           tattoo_description: string | null;
           submitted_at: string;
@@ -622,6 +623,7 @@ export interface Database {
           booking_id?: string | null;
           payment_type?: string | null;
           payment_amount?: number | null;
+          payment_tip?: number | null;
           tattoo_location?: string | null;
           tattoo_description?: string | null;
           submitted_at?: string;
@@ -651,6 +653,7 @@ export interface Database {
           booking_id?: string | null;
           payment_type?: string | null;
           payment_amount?: number | null;
+          payment_tip?: number | null;
           tattoo_location?: string | null;
           tattoo_description?: string | null;
           submitted_at?: string;

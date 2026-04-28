@@ -175,7 +175,7 @@ function DrawerBody({ submission }: { submission: ConsentSubmission }) {
           <div className="text-xs text-text-t uppercase tracking-wider mb-2">
             Payment
           </div>
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
+          <dl className="grid grid-cols-3 gap-x-4 gap-y-3">
             <div>
               <dt className="text-xs text-text-t mb-0.5">Type</dt>
               <dd className="text-sm text-text-p">
@@ -183,9 +183,15 @@ function DrawerBody({ submission }: { submission: ConsentSubmission }) {
               </dd>
             </div>
             <div>
-              <dt className="text-xs text-text-t mb-0.5">Amount</dt>
+              <dt className="text-xs text-text-t mb-0.5">Price</dt>
               <dd className="text-sm text-text-p">
                 {submission.payment_amount != null ? `$${submission.payment_amount.toFixed(2)}` : <span className="text-text-t italic">—</span>}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-text-t mb-0.5">Tip</dt>
+              <dd className="text-sm text-text-p">
+                {submission.payment_tip != null ? `$${submission.payment_tip.toFixed(2)}` : <span className="text-text-t italic">—</span>}
               </dd>
             </div>
           </dl>

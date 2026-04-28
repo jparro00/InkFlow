@@ -208,6 +208,7 @@ export interface ConsentSubmission {
    *  is the legal record. */
   payment_type?: string;
   payment_amount?: number;
+  payment_tip?: number;
   tattoo_location?: string;
   tattoo_description?: string;
 

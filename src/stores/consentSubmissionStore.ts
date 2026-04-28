@@ -32,6 +32,7 @@ interface ConsentSubmissionStore {
     fields: {
       payment_type: string;
       payment_amount: number;
+      payment_tip: number;
     },
   ) => Promise<void>;
 }
@@ -64,6 +65,7 @@ function rowToConsentSubmission(row: Record<string, unknown>): ConsentSubmission
     booking_id: get('booking_id'),
     payment_type: get('payment_type'),
     payment_amount: get('payment_amount'),
+    payment_tip: get('payment_tip'),
     tattoo_location: get('tattoo_location'),
     tattoo_description: get('tattoo_description'),
     submitted_at: row.submitted_at as string,

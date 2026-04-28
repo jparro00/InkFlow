@@ -26,6 +26,7 @@ function toConsentSubmission(row: Row): ConsentSubmission {
     booking_id: row.booking_id ?? undefined,
     payment_type: row.payment_type ?? undefined,
     payment_amount: row.payment_amount ?? undefined,
+    payment_tip: row.payment_tip ?? undefined,
     tattoo_location: row.tattoo_location ?? undefined,
     tattoo_description: row.tattoo_description ?? undefined,
     submitted_at: row.submitted_at,
@@ -122,6 +123,7 @@ export async function finalizeConsentSubmission(
   fields: {
     payment_type: string;
     payment_amount: number;
+    payment_tip: number;
   },
 ): Promise<ConsentSubmission> {
   return updateConsentSubmission(id, {
