@@ -28,7 +28,7 @@ export default function Sidebar() {
     >
       {/* Logo */}
       <div className={`flex items-center gap-3 h-16 border-b border-border/40 ${sidebarCollapsed ? 'justify-center px-0' : 'px-6'}`}>
-        <Logo className="w-6 h-6 shrink-0" />
+        <Logo className="w-10 h-10 shrink-0" />
         {!sidebarCollapsed && (
           <span className="font-display text-md text-text-p font-bold tracking-wide">
             Ink Bloop
