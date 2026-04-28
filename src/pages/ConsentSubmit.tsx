@@ -622,23 +622,22 @@ export default function ConsentSubmitPage() {
       <div className="flex-1 px-5 pb-24 max-w-2xl w-full mx-auto">
         {step === 'welcome' && (
           <div className="pt-10 text-center">
-            {hasBranding && (
-              <div className="mb-10 flex flex-col items-center">
-                {logoDataUrl && (
-                  <img
-                    src={logoDataUrl}
-                    alt={studioName || 'Studio logo'}
-                    className="block max-h-48 w-auto mb-3"
-                  />
-                )}
-                {studioName && (
-                  <div className="font-display text-2xl text-text-p">
-                    {studioName}
-                  </div>
-                )}
+            {hasBranding && logoDataUrl && (
+              <img
+                src={logoDataUrl}
+                alt={studioName || 'Studio logo'}
+                className="block max-h-48 w-auto mx-auto mb-6"
+              />
+            )}
+            {/* Studio name + heading sit in the same typographic block — no
+                margin between them so they read as one stacked title, then a
+                bigger gap before the body paragraph kicks in. */}
+            {hasBranding && studioName && (
+              <div className="font-display text-2xl text-text-p">
+                {studioName}
               </div>
             )}
-            <h2 className="font-display text-2xl text-text-p mb-3">Digital Consent Form</h2>
+            <h2 className="font-display text-2xl text-text-p mb-8">Digital Consent Form</h2>
             <p className="text-md text-text-s leading-relaxed mb-8">
               We need a photo of your government ID, your name and date of birth, and a quick waiver.
             </p>
