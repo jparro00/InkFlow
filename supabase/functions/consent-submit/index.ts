@@ -17,6 +17,7 @@
 //   npx supabase functions deploy consent-submit --project-ref <ref> --no-verify-jwt
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import webpush from "npm:web-push@3.6.7";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -212,9 +213,106 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(500, { error: "insert failed" });
   }
 
+  // Fan-out Web Push to every device the artist has registered. We do this
+  // AFTER the insert so a push failure can never lose a submission, and we
+  // wait for the fan-out to settle so dead subscriptions get garbage-
+  // collected before the function returns. Total work is bounded by the
+  // artist's device count, which is realistically 1-3 — fast enough to
+  // stay inside the request budget.
+  await sendConsentSubmittedPushes(supabase, artistId).catch((err) => {
+    // Never fail the submission because of push problems; the artist will
+    // still see the row land in the in-app review queue via Realtime.
+    console.error("push fan-out failed", err);
+  });
+
   return jsonResponse(200, {
     id: data.id,
     status: data.status,
     submitted_at: data.submitted_at,
   });
 });
+
+// ──────────────────────────────────────────────────────────────────────
+// Web Push fan-out
+// ──────────────────────────────────────────────────────────────────────
+
+async function sendConsentSubmittedPushes(
+  supabase: ReturnType<typeof createClient>,
+  artistId: string,
+): Promise<void> {
+  const publicKey = Deno.env.get("VAPID_PUBLIC_KEY");
+  const privateKey = Deno.env.get("VAPID_PRIVATE_KEY");
+  const subject = Deno.env.get("VAPID_SUBJECT");
+  if (!publicKey || !privateKey || !subject) {
+    // Push not configured — log once and bail. The submission row was
+    // already written; Realtime keeps the in-app queue in sync regardless.
+    console.warn("VAPID keys missing — skipping push fan-out");
+    return;
+  }
+  webpush.setVapidDetails(subject, publicKey, privateKey);
+
+  // Fetch every active subscription for the artist + the new "awaiting
+  // review" count in a single round-trip each. The count drives the
+  // home-screen badge value; we send the same payload to every device.
+  const [subsResult, countResult] = await Promise.all([
+    supabase
+      .from("push_subscriptions")
+      .select("id, endpoint, p256dh, auth")
+      .eq("user_id", artistId),
+    supabase
+      .from("consent_submissions")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", artistId)
+      .eq("status", "submitted"),
+  ]);
+
+  const subs = (subsResult.data ?? []) as Array<{
+    id: string;
+    endpoint: string;
+    p256dh: string;
+    auth: string;
+  }>;
+  if (subs.length === 0) return;
+
+  const pendingCount = countResult.count ?? 0;
+  const payload = JSON.stringify({
+    title: "New consent form",
+    body: "Tap to review.",
+    count: pendingCount,
+    url: "/#/forms",
+  });
+
+  // Run sends in parallel — each is independent. allSettled so one bad
+  // subscription doesn't short-circuit the rest.
+  const results = await Promise.allSettled(
+    subs.map((sub) =>
+      webpush.sendNotification(
+        {
+          endpoint: sub.endpoint,
+          keys: { p256dh: sub.p256dh, auth: sub.auth },
+        },
+        payload,
+        // Apple is strict: TTL must be ≥0 and reasonable. 1h is plenty —
+        // a "new consent form" notification is uninteresting after that.
+        { TTL: 60 * 60 },
+      ),
+    ),
+  );
+
+  // Garbage-collect dead subscriptions. 410 = subscription unsubscribed,
+  // 404 = endpoint no longer recognized; both mean the device is gone.
+  const deadIds: string[] = [];
+  results.forEach((r, i) => {
+    if (r.status === "rejected") {
+      const err = r.reason as { statusCode?: number };
+      if (err?.statusCode === 410 || err?.statusCode === 404) {
+        deadIds.push(subs[i].id);
+      } else {
+        console.error("web push send failed", err);
+      }
+    }
+  });
+  if (deadIds.length > 0) {
+    await supabase.from("push_subscriptions").delete().in("id", deadIds);
+  }
+}

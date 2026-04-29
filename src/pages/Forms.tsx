@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { FileSignature, ChevronRight, RefreshCw, Bell } from 'lucide-react';
 import { useUIStore } from '../stores/uiStore';
 import { useConsentSubmissionStore } from '../stores/consentSubmissionStore';
+import { enablePushNotifications } from '../lib/pushSubscription';
 import { consentSubmissionDisplayName } from '../types';
 import type { ConsentSubmission, ConsentSubmissionStatus } from '../types';
 
@@ -43,23 +44,22 @@ export default function FormsPage() {
   const fetchSubmissions = useConsentSubmissionStore((s) => s.fetchSubmissions);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Notification permission gates the home-screen badge on iOS PWA. We
-  // surface a one-tap prompt only when the browser has never been asked
-  // (state === 'default') — once granted or denied, the row disappears.
+  // Notification permission gates both the home-screen badge AND Web Push
+  // (so the artist gets a banner when a new consent form arrives even if
+  // the app is closed). We surface a one-tap prompt only when the browser
+  // has never been asked (state === 'default'); once granted or denied,
+  // the row disappears.
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | 'unsupported'>(
     () =>
       typeof Notification === 'undefined' ? 'unsupported' : Notification.permission,
   );
 
   const requestBadgePermission = async () => {
-    if (typeof Notification === 'undefined') return;
-    try {
-      const result = await Notification.requestPermission();
-      setNotifPermission(result);
-    } catch {
-      // Some browsers reject without a user gesture; the click handler
-      // satisfies that, but swallow defensively just in case.
-    }
+    // enablePushNotifications handles both the permission prompt and the
+    // pushManager.subscribe() + push-subscribe edge function POST. It
+    // returns the resulting permission so we can update the prompt UI.
+    const result = await enablePushNotifications();
+    setNotifPermission(result);
   };
 
   const handleRefresh = async () => {

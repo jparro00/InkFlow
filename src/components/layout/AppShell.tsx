@@ -9,6 +9,7 @@ import { useUIStore } from '../../stores/uiStore';
 import { useClientStore } from '../../stores/clientStore';
 import { useAgentStore } from '../../stores/agentStore';
 import { useAppBadge } from '../../hooks/useAppBadge';
+import { refreshPushSubscription } from '../../lib/pushSubscription';
 
 // Lazy-load every modal/drawer + the agent UI. Each is hidden by default,
 // so there's no reason to parse their code (and the framer-motion they
@@ -55,6 +56,16 @@ export default function AppShell() {
   // until iOS notification permission is granted; the in-app sidebar
   // badge already covers the case where it isn't.
   useAppBadge();
+
+  // Refresh the Web Push subscription on every authenticated boot. If a
+  // subscription already exists in the browser, we re-POST it to keep
+  // last_seen_at fresh and to recover from any server-side row deletion
+  // (e.g. if the row got GC'd as part of dead-subscription cleanup but
+  // the device still has a valid subscription locally). Fire-and-forget
+  // — silent on failure.
+  useEffect(() => {
+    void refreshPushSubscription();
+  }, []);
 
   // When an exchange is active and everything settles (panel closed, no
   // modals/drawers open, agent not processing), trigger the feedback prompt.
