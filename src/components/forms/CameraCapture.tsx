@@ -340,7 +340,7 @@ export default function CameraCapture({ previewUrl, onCapture }: Props) {
             className="absolute inset-0 w-full h-full border-2 border-dashed border-border/60 rounded-md flex items-center justify-center cursor-pointer press-scale transition-all active:bg-surface/40"
           >
             <span className="pointer-events-none px-7 py-4 rounded-full bg-accent text-bg text-lg font-medium shadow-glow flex items-center gap-3">
-              <Camera size={22} strokeWidth={2} />
+              <Camera size={44} strokeWidth={2} />
               Tap to take a photo
             </span>
           </button>
