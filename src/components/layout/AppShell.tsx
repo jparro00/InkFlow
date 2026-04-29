@@ -67,27 +67,67 @@ export default function AppShell() {
     void refreshPushSubscription();
   }, []);
 
-  // Listen for SW → page messages. The notification handler in sw.js
-  // postMessages `openConsentSubmission` with a submissionId when the
-  // artist taps a "New consent form" notification while the PWA is
-  // already running. We route to /forms and open the drawer for that
-  // submission. The URL-fallback path is handled by FormsPage on mount
-  // (for the cold-start case where openWindow had to spawn a fresh tab).
+  // Pick up notification taps that should deep-link to a specific consent
+  // submission. Three triggers, all funnel through the same cache-backed
+  // consumer so we never act on the same tap twice:
+  //   1. SW postMessage — fast path, works in active foreground.
+  //   2. visibilitychange to visible — fallback for iOS Safari, which can
+  //      silently drop postMessage during a backgrounded → foregrounded
+  //      transition. The SW writes the same submissionId to a stable Cache
+  //      API entry before postMessage'ing, and we read it here.
+  //   3. Mount — covers any case where the page reloaded between the SW
+  //      writing the cache entry and the page hooking up its listeners
+  //      (also redundant with FormsPage's ?submission= URL handling).
   const navigate = useNavigate();
   const setSelectedConsentSubmissionId = useUIStore(
     (s) => s.setSelectedConsentSubmissionId,
   );
   useEffect(() => {
-    if (!('serviceWorker' in navigator)) return;
-    const handler = (event: MessageEvent) => {
-      const data = event.data as { type?: string; submissionId?: string } | null;
-      if (data?.type === 'openConsentSubmission' && data.submissionId) {
+    let cancelled = false;
+
+    const consumePending = async () => {
+      try {
+        const cache = await caches.open('inkbloop-pending-action');
+        const res = await cache.match('/__pending-submission');
+        if (!res) return;
+        // Delete first so a concurrent visibilitychange + message pair
+        // doesn't fire the navigation twice.
+        await cache.delete('/__pending-submission');
+        const data = (await res.json()) as { submissionId?: string; ts?: number };
+        if (!data.submissionId) return;
+        // Drop stale entries — if the user dismissed without tapping for
+        // a minute, we shouldn't ambush them with an old form on next focus.
+        if (data.ts && Date.now() - data.ts > 60_000) return;
+        if (cancelled) return;
         navigate('/forms');
         setSelectedConsentSubmissionId(data.submissionId);
+      } catch {
+        // Cache API may be unavailable (e.g. private mode). Silent — the
+        // SW message path still has a chance.
       }
     };
-    navigator.serviceWorker.addEventListener('message', handler);
-    return () => navigator.serviceWorker.removeEventListener('message', handler);
+
+    const onMessage = (event: MessageEvent) => {
+      const data = event.data as { type?: string } | null;
+      if (data?.type === 'openConsentSubmission') void consumePending();
+    };
+    const onVis = () => {
+      if (document.visibilityState === 'visible') void consumePending();
+    };
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', onMessage);
+    }
+    document.addEventListener('visibilitychange', onVis);
+    void consumePending();
+
+    return () => {
+      cancelled = true;
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.removeEventListener('message', onMessage);
+      }
+      document.removeEventListener('visibilitychange', onVis);
+    };
   }, [navigate, setSelectedConsentSubmissionId]);
 
   // When an exchange is active and everything settles (panel closed, no

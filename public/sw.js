@@ -229,19 +229,41 @@ self.addEventListener('push', (event) => {
   })());
 });
 
-// Tap-to-open. Two paths:
-//   1. If the PWA is already running in any window, focus it and postMessage
-//      the submission id. The page handler routes to /forms and opens the
-//      drawer via setSelectedConsentSubmissionId. We avoid client.navigate
-//      because hash-only changes don't reliably trigger React Router on iOS.
-//   2. If no window is open, openWindow with the deep-link URL. The fresh
-//      page reads the `submission` query param on mount and opens the same
-//      drawer.
+// Stable cache name for the SW → page action queue. Lives outside the
+// build-hashed CACHE_NAME because both the SW and the page need to find
+// it without coordinating on the hash. Single-entry: '/__pending-submission'.
+const PENDING_ACTION_CACHE = 'inkbloop-pending-action';
+
+// Tap-to-open. Three paths the page can pick up the submissionId from:
+//   1. postMessage on `navigator.serviceWorker` — fast path, works when
+//      the PWA is in active foreground.
+//   2. Cache API entry at /__pending-submission — fallback the page reads
+//      on `visibilitychange` to visible. Covers iOS Safari backgrounded →
+//      foregrounded transitions where postMessage delivery is unreliable.
+//   3. ?submission=<id> in the URL — handled by FormsPage on mount when
+//      openWindow has to spawn a fresh tab (cold start).
+//
+// We write the cache entry BEFORE focus/postMessage so the page's visibility
+// listener finds it whichever way it gets woken up.
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const target = event.notification.data?.url || '/#/forms';
   const submissionId = event.notification.data?.submissionId;
   event.waitUntil((async () => {
+    if (submissionId) {
+      try {
+        const cache = await caches.open(PENDING_ACTION_CACHE);
+        await cache.put(
+          '/__pending-submission',
+          new Response(JSON.stringify({ submissionId, ts: Date.now() }), {
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      } catch (e) {
+        // Non-fatal — postMessage / openWindow are still in play.
+        console.warn('pending-action cache write failed', e);
+      }
+    }
     const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     for (const client of all) {
       if (client.url.startsWith(self.location.origin)) {
