@@ -8,6 +8,7 @@ import MobileTabBar from './MobileTabBar';
 import { useUIStore } from '../../stores/uiStore';
 import { useClientStore } from '../../stores/clientStore';
 import { useAgentStore } from '../../stores/agentStore';
+import { useAppBadge } from '../../hooks/useAppBadge';
 
 // Lazy-load every modal/drawer + the agent UI. Each is hidden by default,
 // so there's no reason to parse their code (and the framer-motion they
@@ -48,6 +49,12 @@ export default function AppShell() {
   const isProcessing = useAgentStore((s) => s.isProcessing);
   const traceActive = useAgentStore((s) => s.traceActive);
   const showFeedbackPrompt = useAgentStore((s) => s.showFeedbackPrompt);
+
+  // Mirror pending consent-submission count onto the OS app icon so the
+  // artist sees a badge on the home-screen PWA / dock. Works silently
+  // until iOS notification permission is granted; the in-app sidebar
+  // badge already covers the case where it isn't.
+  useAppBadge();
 
   // When an exchange is active and everything settles (panel closed, no
   // modals/drawers open, agent not processing), trigger the feedback prompt.
