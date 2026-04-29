@@ -234,7 +234,10 @@ export function WaiverChecksSection({ mode, value, onChange }: WaiverChecksSecti
           if (mode === 'review') {
             return (
               <li key={item.key} className="flex items-center gap-3">
-                <span className={`text-md leading-relaxed flex-1 ${checked ? 'text-text-s' : 'text-text-t'}`}>
+                {/* Statement copy uses text-base — same scale as the body
+                    of the "Before you sign" disclosure, since these are
+                    paragraph-style legal statements not headlines. */}
+                <span className={`text-base leading-relaxed flex-1 ${checked ? 'text-text-s' : 'text-text-t'}`}>
                   {item.label}
                 </span>
                 {checked ? (
@@ -252,7 +255,7 @@ export function WaiverChecksSection({ mode, value, onChange }: WaiverChecksSecti
           return (
             <li key={item.key}>
               <label className="flex items-center gap-3 cursor-pointer">
-                <span className="text-md text-text-s leading-relaxed flex-1">{item.label}</span>
+                <span className="text-base text-text-s leading-relaxed flex-1">{item.label}</span>
                 <input
                   type="checkbox"
                   checked={checked}
