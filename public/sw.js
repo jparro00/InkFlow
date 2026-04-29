@@ -229,19 +229,25 @@ self.addEventListener('push', (event) => {
   })());
 });
 
-// Tap-to-open. Focus an existing window if there is one, otherwise spawn
-// a new one. The URL comes from the push payload so we can deep-link to
-// /#/forms (or, in the future, a specific submission's drawer).
+// Tap-to-open. Two paths:
+//   1. If the PWA is already running in any window, focus it and postMessage
+//      the submission id. The page handler routes to /forms and opens the
+//      drawer via setSelectedConsentSubmissionId. We avoid client.navigate
+//      because hash-only changes don't reliably trigger React Router on iOS.
+//   2. If no window is open, openWindow with the deep-link URL. The fresh
+//      page reads the `submission` query param on mount and opens the same
+//      drawer.
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const target = event.notification.data?.url || '/#/forms';
+  const submissionId = event.notification.data?.submissionId;
   event.waitUntil((async () => {
     const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     for (const client of all) {
       if (client.url.startsWith(self.location.origin)) {
         await client.focus();
-        if ('navigate' in client) {
-          try { await client.navigate(target); } catch { /* cross-origin/state edge cases */ }
+        if (submissionId) {
+          client.postMessage({ type: 'openConsentSubmission', submissionId });
         }
         return;
       }

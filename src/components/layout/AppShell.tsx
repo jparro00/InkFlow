@@ -1,4 +1,4 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, useNavigate } from 'react-router-dom';
 import { Bot } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import { useEffect, lazy, Suspense } from 'react';
@@ -66,6 +66,29 @@ export default function AppShell() {
   useEffect(() => {
     void refreshPushSubscription();
   }, []);
+
+  // Listen for SW → page messages. The notification handler in sw.js
+  // postMessages `openConsentSubmission` with a submissionId when the
+  // artist taps a "New consent form" notification while the PWA is
+  // already running. We route to /forms and open the drawer for that
+  // submission. The URL-fallback path is handled by FormsPage on mount
+  // (for the cold-start case where openWindow had to spawn a fresh tab).
+  const navigate = useNavigate();
+  const setSelectedConsentSubmissionId = useUIStore(
+    (s) => s.setSelectedConsentSubmissionId,
+  );
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+    const handler = (event: MessageEvent) => {
+      const data = event.data as { type?: string; submissionId?: string } | null;
+      if (data?.type === 'openConsentSubmission' && data.submissionId) {
+        navigate('/forms');
+        setSelectedConsentSubmissionId(data.submissionId);
+      }
+    };
+    navigator.serviceWorker.addEventListener('message', handler);
+    return () => navigator.serviceWorker.removeEventListener('message', handler);
+  }, [navigate, setSelectedConsentSubmissionId]);
 
   // When an exchange is active and everything settles (panel closed, no
   // modals/drawers open, agent not processing), trigger the feedback prompt.

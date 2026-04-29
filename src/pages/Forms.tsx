@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { FileSignature, ChevronRight, RefreshCw, Bell } from 'lucide-react';
 import { useUIStore } from '../stores/uiStore';
 import { useConsentSubmissionStore } from '../stores/consentSubmissionStore';
@@ -93,6 +94,18 @@ export default function FormsPage() {
     // (subway, screen lock, etc.).
     fetchSubmissions(true);
   }, [fetchSubmissions]);
+
+  // Push notification deep-link. When the SW had to openWindow with a
+  // fresh tab (PWA wasn't running), it sends us here with
+  // ?submission=<id>. Open the drawer for that submission, then strip
+  // the query so a refresh doesn't reopen it.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const submissionParam = searchParams.get('submission');
+  useEffect(() => {
+    if (!submissionParam) return;
+    setSelectedConsentSubmissionId(submissionParam);
+    setSearchParams({}, { replace: true });
+  }, [submissionParam, setSelectedConsentSubmissionId, setSearchParams]);
 
   const grouped = useMemo(() => {
     const out: Record<ConsentSubmissionStatus, ConsentSubmission[]> = {

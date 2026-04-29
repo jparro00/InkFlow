@@ -219,7 +219,7 @@ Deno.serve(async (req: Request) => {
   // collected before the function returns. Total work is bounded by the
   // artist's device count, which is realistically 1-3 — fast enough to
   // stay inside the request budget.
-  await sendConsentSubmittedPushes(supabase, artistId).catch((err) => {
+  await sendConsentSubmittedPushes(supabase, artistId, submissionId).catch((err) => {
     // Never fail the submission because of push problems; the artist will
     // still see the row land in the in-app review queue via Realtime.
     console.error("push fan-out failed", err);
@@ -239,6 +239,7 @@ Deno.serve(async (req: Request) => {
 async function sendConsentSubmittedPushes(
   supabase: ReturnType<typeof createClient>,
   artistId: string,
+  submissionId: string,
 ): Promise<void> {
   const publicKey = Deno.env.get("VAPID_PUBLIC_KEY");
   const privateKey = Deno.env.get("VAPID_PRIVATE_KEY");
@@ -275,11 +276,17 @@ async function sendConsentSubmittedPushes(
   if (subs.length === 0) return;
 
   const pendingCount = countResult.count ?? 0;
+  // Deep-link the notification to the specific submission. The SW reads
+  // `submissionId` to postMessage the open client (which routes via
+  // setSelectedConsentSubmissionId without a navigation), and `url` is the
+  // fallback for the cold-start case where openWindow has to spawn a fresh
+  // tab — the Forms page picks the query param up on mount.
   const payload = JSON.stringify({
     title: "New consent form",
     body: "Tap to review.",
     count: pendingCount,
-    url: "/#/forms",
+    submissionId,
+    url: `/#/forms?submission=${submissionId}`,
   });
 
   // Run sends in parallel — each is independent. allSettled so one bad
