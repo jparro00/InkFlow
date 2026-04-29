@@ -92,7 +92,7 @@ Dev is the default target. Never deploy to prod without explicit user permission
 
 Keep this section updated as changes land on dev but haven't shipped to prod.
 
-_None — consent forms feature shipped to prod on 2026-04-27 (migrations 00023–00028, AWS Textract secrets, 5 consent edge functions, workers/images redeploy, frontend)._
+_None — Web Push + consent UX polish shipped to prod on 2026-04-28 (migration 00030 push_subscriptions, VAPID secrets, push-subscribe edge fn, consent-submit + consent-analyze-id redeploy, VITE_VAPID_PUBLIC_KEY Vercel env, frontend)._
 
 ## Known caveats
 
