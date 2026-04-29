@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { FileSignature, ChevronRight, RefreshCw } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { FileSignature, ChevronRight, RefreshCw, Bell } from 'lucide-react';
 import { useUIStore } from '../stores/uiStore';
 import { useConsentSubmissionStore } from '../stores/consentSubmissionStore';
+import { enablePushNotifications } from '../lib/pushSubscription';
 import { consentSubmissionDisplayName } from '../types';
 import type { ConsentSubmission, ConsentSubmissionStatus } from '../types';
 
@@ -43,6 +45,24 @@ export default function FormsPage() {
   const fetchSubmissions = useConsentSubmissionStore((s) => s.fetchSubmissions);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Notification permission gates both the home-screen badge AND Web Push
+  // (so the artist gets a banner when a new consent form arrives even if
+  // the app is closed). We surface a one-tap prompt only when the browser
+  // has never been asked (state === 'default'); once granted or denied,
+  // the row disappears.
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission | 'unsupported'>(
+    () =>
+      typeof Notification === 'undefined' ? 'unsupported' : Notification.permission,
+  );
+
+  const requestBadgePermission = async () => {
+    // enablePushNotifications handles both the permission prompt and the
+    // pushManager.subscribe() + push-subscribe edge function POST. It
+    // returns the resulting permission so we can update the prompt UI.
+    const result = await enablePushNotifications();
+    setNotifPermission(result);
+  };
+
   const handleRefresh = async () => {
     setRefreshing(true);
     try { await fetchSubmissions(true); } finally { setRefreshing(false); }
@@ -75,6 +95,18 @@ export default function FormsPage() {
     fetchSubmissions(true);
   }, [fetchSubmissions]);
 
+  // Push notification deep-link. When the SW had to openWindow with a
+  // fresh tab (PWA wasn't running), it sends us here with
+  // ?submission=<id>. Open the drawer for that submission, then strip
+  // the query so a refresh doesn't reopen it.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const submissionParam = searchParams.get('submission');
+  useEffect(() => {
+    if (!submissionParam) return;
+    setSelectedConsentSubmissionId(submissionParam);
+    setSearchParams({}, { replace: true });
+  }, [submissionParam, setSelectedConsentSubmissionId, setSearchParams]);
+
   const grouped = useMemo(() => {
     const out: Record<ConsentSubmissionStatus, ConsentSubmission[]> = {
       submitted: [],
@@ -92,6 +124,22 @@ export default function FormsPage() {
       <div className="flex-1 overflow-y-auto px-3 pb-8 lg:px-6 max-w-2xl">
         <h1 className="font-display text-2xl lg:text-2xl text-text-p mb-2">Forms</h1>
         <p className="text-sm text-text-t mb-6">Consent forms submitted by clients via QR.</p>
+
+        {notifPermission === 'default' && (
+          <button
+            onClick={requestBadgePermission}
+            className="w-full mb-6 flex items-center gap-3 px-4 py-3 rounded-lg bg-accent/8 border border-accent/20 text-left cursor-pointer press-scale active:bg-accent/12 transition-colors"
+          >
+            <Bell size={18} strokeWidth={1.75} className="text-accent shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="text-sm text-text-p font-medium">Enable home-screen badge</div>
+              <div className="text-xs text-text-t mt-0.5">
+                Show a count on the app icon when forms are awaiting review.
+              </div>
+            </div>
+            <ChevronRight size={16} className="text-text-t shrink-0" />
+          </button>
+        )}
 
         {isEmpty && !isLoading && (
           <div className="flex flex-col items-center justify-center pt-16 text-center">

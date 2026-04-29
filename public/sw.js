@@ -188,6 +188,96 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
+// Web Push handler. Triggered by Apple/FCM/Mozilla when our edge function
+// posts to the subscription endpoint. iOS strictly requires that every
+// push event call showNotification() before the handler returns — silent
+// pushes get the subscription revoked after ~3 violations. We wrap the
+// work in event.waitUntil so the SW stays alive until the notification
+// is committed, which is also a hard requirement on iOS.
+self.addEventListener('push', (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    /* malformed payload — fall through with defaults */
+  }
+  const title = data.title || 'New consent form';
+  const body = data.body || 'Tap to review.';
+  const count = typeof data.count === 'number' ? data.count : 1;
+  const url = data.url || '/#/forms';
+
+  event.waitUntil((async () => {
+    await self.registration.showNotification(title, {
+      body,
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      // Tag collapses repeat pushes into a single banner — if three forms
+      // arrive while the phone is off, the user sees the most recent one
+      // and the badge count rather than three stacked banners.
+      tag: 'consent-form',
+      data: { url },
+    });
+    // Mirror the count onto the home-screen icon. Some user agents expose
+    // setAppBadge on `self.registration.navigator`, others on plain
+    // `self.navigator`; try both for portability. No-op when unsupported.
+    const setBadge =
+      self.registration?.navigator?.setAppBadge?.bind(self.registration.navigator) ??
+      self.navigator?.setAppBadge?.bind(self.navigator);
+    if (setBadge) {
+      try { await setBadge(count); } catch { /* permission edge cases */ }
+    }
+  })());
+});
+
+// Stable cache name for the SW → page action queue. Lives outside the
+// build-hashed CACHE_NAME because both the SW and the page need to find
+// it without coordinating on the hash. Single-entry: '/__pending-submission'.
+const PENDING_ACTION_CACHE = 'inkbloop-pending-action';
+
+// Tap-to-open. Three paths the page can pick up the submissionId from:
+//   1. postMessage on `navigator.serviceWorker` — fast path, works when
+//      the PWA is in active foreground.
+//   2. Cache API entry at /__pending-submission — fallback the page reads
+//      on `visibilitychange` to visible. Covers iOS Safari backgrounded →
+//      foregrounded transitions where postMessage delivery is unreliable.
+//   3. ?submission=<id> in the URL — handled by FormsPage on mount when
+//      openWindow has to spawn a fresh tab (cold start).
+//
+// We write the cache entry BEFORE focus/postMessage so the page's visibility
+// listener finds it whichever way it gets woken up.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const target = event.notification.data?.url || '/#/forms';
+  const submissionId = event.notification.data?.submissionId;
+  event.waitUntil((async () => {
+    if (submissionId) {
+      try {
+        const cache = await caches.open(PENDING_ACTION_CACHE);
+        await cache.put(
+          '/__pending-submission',
+          new Response(JSON.stringify({ submissionId, ts: Date.now() }), {
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      } catch (e) {
+        // Non-fatal — postMessage / openWindow are still in play.
+        console.warn('pending-action cache write failed', e);
+      }
+    }
+    const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of all) {
+      if (client.url.startsWith(self.location.origin)) {
+        await client.focus();
+        if (submissionId) {
+          client.postMessage({ type: 'openConsentSubmission', submissionId });
+        }
+        return;
+      }
+    }
+    await self.clients.openWindow(target);
+  })());
+});
+
 // Page → SW message channel: lazy vendor chunk precache.
 // On first successful render, the page sends 'cacheVendors' with the URL
 // list it knows are needed (from the dist manifest). The SW caches them

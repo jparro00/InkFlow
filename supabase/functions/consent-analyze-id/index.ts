@@ -64,6 +64,27 @@ const MIN_FIELD_CONFIDENCE = 75;
 const MIN_AGE_YEARS = 18;
 
 /**
+ * US driver's licenses store names (and addresses) in ALL CAPS, and Textract
+ * faithfully returns them that way. Convert to friendly Title Case so the
+ * UI shows "Joshua Parrott" instead of "JOSHUA PARROTT" and the resulting
+ * PDF reads naturally.
+ *
+ * Word boundaries: spaces, hyphens, apostrophes, periods. Doesn't try to
+ * be clever about Mc/Mac/Van/De prefixes — those are rare enough that
+ * "Mcdonald" is acceptable, and the user can edit before confirming.
+ *
+ * No-op when the input already contains a lowercase letter, so re-applying
+ * to title-cased input is safe and so non-US licenses (which may already
+ * be mixed-case) pass through unchanged.
+ */
+function toTitleCase(s: string): string {
+  if (/[a-z]/.test(s)) return s;
+  return s
+    .toLowerCase()
+    .replace(/(^|[\s\-'.])([a-z])/g, (_, sep, ch) => sep + ch.toUpperCase());
+}
+
+/**
  * Textract returns dates as MM/DD/YYYY in most cases. Convert to ISO YYYY-MM-DD
  * so it lands cleanly in the Postgres `date` column.
  */
@@ -124,13 +145,13 @@ function parseTextractFields(resp: TextractAnalyzeIdResponse): ParsedFields {
     if (gated && confidence < MIN_FIELD_CONFIDENCE) continue;
     switch (type) {
       case "FIRST_NAME":
-        out.first_name = value;
+        out.first_name = toTitleCase(value);
         break;
       case "LAST_NAME":
-        out.last_name = value;
+        out.last_name = toTitleCase(value);
         break;
       case "MIDDLE_NAME":
-        out.middle_name = value;
+        out.middle_name = toTitleCase(value);
         break;
       case "DATE_OF_BIRTH":
         out.dob = normalizeDate(value);
@@ -139,7 +160,7 @@ function parseTextractFields(resp: TextractAnalyzeIdResponse): ParsedFields {
         out.number = value;
         break;
       case "ADDRESS":
-        out.address = value;
+        out.address = toTitleCase(value);
         break;
       case "STATE_IN_ADDRESS":
       case "ISSUING_STATE":

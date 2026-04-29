@@ -11,9 +11,15 @@ const META_API_URL = `${SUPABASE_URL}/functions/v1/graph-api`;
 // R2 images Worker (dev). When unset, src/lib/r2.ts reports disabled and the
 // app stays on Supabase Storage. Prod gets its own worker URL (Phase 3).
 const R2_IMAGES_URL = 'https://images-dev.inkbloop.com';
+// VAPID public key for Web Push subscription. The matching private key
+// lives as a Supabase secret on the consent-submit function. Same keypair
+// in dev + prod — the keypair authenticates our server to push providers,
+// it isn't bound to an origin (subscriptions are bound to origin, but the
+// VAPID key just identifies us to whoever delivers them).
+const VAPID_PUBLIC_KEY = 'BDMmY268s3fDucBPSjnaj8Zqvk54i6INJCXydvJNt7b05U48BmG14wz3Z-pnBjyKo--Lqexd3ETIma7_4Nii8qg';
 
 // Deploy
-const deployCmd = `npx vercel -b VITE_SUPABASE_URL=${SUPABASE_URL} -b VITE_SUPABASE_ANON_KEY=${SUPABASE_KEY} -b VITE_META_API_URL=${META_API_URL} -b VITE_R2_IMAGES_URL=${R2_IMAGES_URL} --yes`;
+const deployCmd = `npx vercel -b VITE_SUPABASE_URL=${SUPABASE_URL} -b VITE_SUPABASE_ANON_KEY=${SUPABASE_KEY} -b VITE_META_API_URL=${META_API_URL} -b VITE_R2_IMAGES_URL=${R2_IMAGES_URL} -b VITE_VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY} --yes`;
 const output = execSync(deployCmd, { encoding: 'utf-8' });
 console.log(output);
 

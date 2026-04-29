@@ -65,6 +65,7 @@ Current secrets in use:
 - `GROQ_API_KEY` — shared Groq key used by `transcribe-audio` edge function
 - `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` — used by `r2-upload-url`, `consent-upload-url`, `consent-reject`, `consent-analyze-id`. See [r2-migration-plan.md](./r2-migration-plan.md).
 - `AWS_TEXTRACT_REGION`, `AWS_TEXTRACT_ACCESS_KEY_ID`, `AWS_TEXTRACT_SECRET_ACCESS_KEY` — used by `consent-analyze-id` to call AWS Textract `AnalyzeID`. The IAM user only needs `textract:AnalyzeID` permission. Region defaults to `us-east-1` if unset.
+- `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` — used by `consent-submit` to send Web Push notifications via the `web-push` library. Public key half lives in the frontend env as `VITE_VAPID_PUBLIC_KEY` and is the same in dev + prod (the keypair authenticates our server to push providers; it's not origin-bound). `VAPID_SUBJECT` is `mailto:<contact-email>`. Generated via `npx web-push generate-vapid-keys --json` — never regenerate without re-issuing all device subscriptions.
 
 ### Deploy the CF images Worker
 
@@ -91,7 +92,7 @@ Dev is the default target. Never deploy to prod without explicit user permission
 
 Keep this section updated as changes land on dev but haven't shipped to prod.
 
-_None — consent forms feature shipped to prod on 2026-04-27 (migrations 00023–00028, AWS Textract secrets, 5 consent edge functions, workers/images redeploy, frontend)._
+_None — Web Push + consent UX polish shipped to prod on 2026-04-28 (migration 00030 push_subscriptions, VAPID secrets, push-subscribe edge fn, consent-submit + consent-analyze-id redeploy, VITE_VAPID_PUBLIC_KEY Vercel env, frontend)._
 
 ## Known caveats
 
@@ -101,7 +102,7 @@ _None — consent forms feature shipped to prod on 2026-04-27 (migrations 00023�
 
 - **DB-before-frontend ordering** matters for any change that touches both. Apply the DB migration **before** the frontend deploy so users don't hit "check constraint violation" during the rollout window.
 
-- **iOS PWA mic permission persistence** — voice input on `*.vercel.app` (dev) doesn't persistently grant mic permission across hard-close cycles on iOS (shared-host domain limitation). On the custom prod domain (`inkbloop.com`), it should persist. If prod also loses it across hard-closes, that's a real iOS bug worth filing.
+- **iOS PWA storage / permissions across hard close.** Once the app is installed via Add to Home Screen, iOS treats it as its own first-party app. WebKit's [Tracking Prevention Policy](https://webkit.org/tracking-prevention/) explicitly exempts installed PWAs from ITP's 7-day script-writeable-storage cap, so notification permission, mic permission, IndexedDB, and `PushSubscription` all persist across hard close, reboot, and long idle. The 7-day rule applies only to in-Safari browsing — it does **not** apply to installed PWAs, and there is no documented penalty for shared subdomains like `*.vercel.app` once installed. Both `inkbloop-dev.vercel.app` and `inkbloop.com` behave the same way; they are simply independent origins, so the artist must install + grant permission on each one separately.
 
 ## Related docs
 

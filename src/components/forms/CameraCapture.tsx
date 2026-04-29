@@ -41,8 +41,9 @@ const DETECT_H = Math.round(DETECT_W / TARGET_ASPECT); // 126
 const DETECT_INTERVAL_MS = 200;
 // How long all three metrics must stay green before we auto-fire. Short
 // enough to feel snappy, long enough that brief jitter doesn't trigger a
-// premature shot.
-const READY_HOLD_MS = 600;
+// premature shot. 300 ms means the user holds for ~1-2 detection ticks
+// after the brackets turn green — fast without firing on a momentary lock.
+const READY_HOLD_MS = 300;
 
 // Thresholds — tuned by eye against typical phone cameras at our display
 // size. They're heuristic; the real validator is Textract on the back end.
@@ -146,11 +147,16 @@ export default function CameraCapture({ previewUrl, onCapture }: Props) {
         // Some iOS Safari builds need playsInline + a manual play() call.
         await v.play().catch(() => undefined);
       }
-      setState({ kind: 'streaming' });
-      // Wait for the video's intrinsic dimensions to stabilize before
-      // starting the detector. Reading frames before this can sample the
-      // pre-renegotiation resolution and produce false-positive locks.
-      window.setTimeout(startDetector, 600);
+      // Stay in 'starting' state for ~600 ms after play() resolves so the
+      // opaque "Starting camera…" overlay covers any iOS Safari resolution
+      // renegotiation (4:3 → 16:9 upgrade in the first frames). Without
+      // this hold the user sees a visible jump when the crop snaps. We
+      // reveal the video AND start the detector simultaneously after the
+      // hold so the brackets only appear over a stable preview.
+      window.setTimeout(() => {
+        setState({ kind: 'streaming' });
+        startDetector();
+      }, 600);
     } catch (e) {
       console.warn('getUserMedia failed', e);
       stopStream();
@@ -323,20 +329,28 @@ export default function CameraCapture({ previewUrl, onCapture }: Props) {
           className={`absolute inset-0 w-full h-full object-cover ${showStream ? '' : 'hidden'}`}
         />
 
-        {/* Empty / starting overlay */}
+        {/* Empty state. The whole box is the tap target (big drop-zone),
+            but a prominent accent pill inside makes the action obvious. The
+            inner pill is pointer-events-none so taps anywhere — including
+            on the pill itself — fall through to the outer button. */}
         {!showCaptured && state.kind === 'idle' && (
           <button
             type="button"
             onClick={startStream}
-            className="absolute inset-0 w-full h-full border-2 border-dashed border-border/60 rounded-md flex flex-col items-center justify-center gap-2 text-text-t cursor-pointer press-scale transition-all active:bg-surface/40"
+            className="absolute inset-0 w-full h-full border-2 border-dashed border-border/60 rounded-md flex items-center justify-center cursor-pointer press-scale transition-all active:bg-surface/40"
           >
-            <Camera size={28} strokeWidth={1.5} />
-            <span className="text-base">Tap to take a photo</span>
+            <span className="pointer-events-none px-7 py-4 rounded-full bg-accent text-bg text-lg font-medium shadow-glow flex items-center gap-3">
+              <Camera size={44} strokeWidth={2} />
+              Tap to take a photo
+            </span>
           </button>
         )}
 
+        {/* Starting overlay — fully opaque so the underlying video element
+            (which may be playing pre-renegotiation frames at the wrong
+            aspect ratio on iOS) is not visible during the 600 ms hold. */}
         {state.kind === 'starting' && (
-          <div className="absolute inset-0 flex items-center justify-center text-text-s bg-bg/40">
+          <div className="absolute inset-0 flex items-center justify-center text-text-s bg-bg">
             <Loader2 size={20} className="animate-spin mr-2" />
             <span className="text-base">Starting camera…</span>
           </div>
